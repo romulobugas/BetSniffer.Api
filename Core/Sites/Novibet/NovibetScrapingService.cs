@@ -3,8 +3,8 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions; // Para usar expressões regulares
-using BetSniffer.Api.Core.Models; // Importar a classe TagInfo
+using System.Linq; // Para usar Contains com comparação flexível
+using BetSniffer.Api.Core.Models;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -17,7 +17,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             _driver = new ChromeDriver();
         }
 
-        // Método para fazer o scraping e retornar as tags e códigos encontrados
+        // Método para fazer o scraping e retornar as tags e apostas encontradas
         public List<TagInfo> ScrapeTags(string url)
         {
             _driver.Navigate().GoToUrl(url);
@@ -28,7 +28,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             // Aguarda até que o primeiro elemento esperado esteja visível
             try
             {
-                wait.Until(driver => driver.FindElement(By.XPath("//span[contains(text(), 'Total de Escanteios')]")));
+                wait.Until(driver => driver.FindElement(By.XPath("//app-event-marketview")));
             }
             catch (WebDriverTimeoutException)
             {
@@ -39,24 +39,63 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             List<TagInfo> tagInfos = new List<TagInfo>();
 
-            foreach (var tagName in NovibetTags.TagNames) // Assumindo que TagNames é uma lista de tags
+            // Encontra todos os contêineres de aposta
+            var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
+
+            // Lista de tags cadastradas que queremos buscar
+            var tagNames = new List<string> { "Total de Escanteios", "Casa Total de Escanteios" };
+
+            foreach (var eventMarketView in eventMarketViews)
             {
                 try
                 {
-                    // Encontra o elemento com base no nome da tag
-                    var element = wait.Until(driver => driver.FindElement(By.XPath($"//span[contains(text(), '{tagName}')]")));
+                    // Verifica se o evento contém uma tag válida
+                    var tagElement = eventMarketView.FindElement(By.XPath(".//span[contains(@class, 'eventMarketview_title')]"));
 
-                    // Captura o código dinâmico do elemento, ou seja, a parte após "_ngcontent-ng-"
-                    string elementCode = CaptureElementCode(element);
+                    string tagName = tagElement.Text.Trim();
 
-                    // Armazena as informações da tag
-                    tagInfos.Add(new TagInfo
-                    (
-                        tagName,                  // Nome da tag fixa
-                        "_ngcontent-ng-",         // Prefixo fixo do nome do elemento
-                        elementCode,              // Código dinâmico (extraído da regex)
-                        element.GetAttribute("outerHTML") // HTML completo do elemento
-                    ));
+                    // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
+                    if (tagNames.Any(tag => tagName.Contains(tag)))
+                    {
+                        // Captura todo o HTML do app-event-marketview
+                        string eventMarketViewHtml = eventMarketView.GetAttribute("outerHTML");
+
+                        // Lista para armazenar as apostas
+                        List<string> bets = new List<string>();
+
+                        // Encontrar todas as apostas e multiplicadores dentro do mesmo app-event-marketview
+                        var betElements = eventMarketView.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption singleLineEllipsis')]"));
+
+                        // Encontrar todos os multiplicadores de apostas dentro do app-event-marketview
+                        var multiplierElements = eventMarketView.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_price')]"));
+
+                        // Verifica se o número de apostas é igual ao número de multiplicadores
+                        int betCount = betElements.Count;
+                        int multiplierCount = multiplierElements.Count;
+
+                        if (betCount == multiplierCount)
+                        {
+                            // Itera sobre as apostas e seus multiplicadores
+                            for (int i = 0; i < betCount; i++)
+                            {
+                                string betName = betElements[i].Text.Trim();
+                                string multiplier = multiplierElements[i].Text.Trim();
+
+                                if (!string.IsNullOrEmpty(betName) && !string.IsNullOrEmpty(multiplier))
+                                {
+                                    // Adiciona a aposta e multiplicador no formato desejado
+                                    bets.Add($"{betName}: {multiplier}");
+                                }
+                            }
+
+                            // Se encontrou apostas, formata e adiciona ao retorno
+                            if (bets.Count > 0)
+                            {
+                                string formattedBets = string.Join(" - ", bets);
+                                tagInfos.Add(new TagInfo(tagName, tagElement.GetAttribute("class"), "dynamic_code", formattedBets));
+                            }
+                        }
+                    }
                 }
                 catch (NoSuchElementException)
                 {
@@ -73,23 +112,6 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             _driver.Quit(); // Encerra o driver após o scraping
 
             return tagInfos;
-        }
-
-        // Método para capturar o código dinâmico (parte após "_ngcontent-ng-")
-        private string CaptureElementCode(IWebElement element)
-        {
-            string outerHtml = element.GetAttribute("outerHTML");
-
-            // Regex para encontrar o código dinâmico após "_ngcontent-ng-" (ex: c1897204168)
-            var regex = new Regex(@"_ngcontent-ng-(\w+)");
-            var match = regex.Match(outerHtml);
-
-            if (match.Success)
-            {
-                return match.Groups[1].Value; // Retorna o código dinâmico encontrado
-            }
-
-            return string.Empty; // Caso o código não seja encontrado, retorna uma string vazia
         }
     }
 }
