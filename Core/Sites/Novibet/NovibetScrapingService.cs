@@ -1,10 +1,10 @@
-﻿using OpenQA.Selenium;
+﻿using BetSniffer.Api.Core.Models;
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
-using System.Linq; // Para usar Contains com comparação flexível
-using BetSniffer.Api.Core.Models;
+using System.Linq;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -24,6 +24,22 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             // Espera até que os elementos da página estejam carregados
             WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+
+            // Fechar o pop-up, caso ele apareça
+            try
+            {
+                var closeButton = wait.Until(driver => driver.FindElement(By.CssSelector(".registerOrLogin_closeButton")));
+                closeButton.Click();
+                Console.WriteLine("Pop-up fechado com sucesso.");
+            }
+            catch (NoSuchElementException)
+            {
+                Console.WriteLine("Pop-up não encontrado.");
+            }
+            catch (WebDriverTimeoutException)
+            {
+                Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
+            }
 
             // Aguarda até que o primeiro elemento esperado esteja visível
             try
@@ -57,13 +73,33 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
                     if (tagNames.Any(tag => tagName.Contains(tag)))
                     {
+                        // Verifica se o botão "Ver Mais" (expandir aposta) está presente
+                        try
+                        {
+                            var expandCollapseButton = eventMarketView.FindElement(By.XPath(".//sb-market-bet-expand-collapse//span[contains(text(), 'Ver Mais')]"));
+                            if (expandCollapseButton != null)
+                            {
+                                // Clica no botão "Ver Mais" para expandir as apostas
+                                expandCollapseButton.Click();
+
+                                // Espera um tempo para garantir que as apostas foram carregadas após o clique
+                                WebDriverWait waitForLoad = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
+                                waitForLoad.Until(driver => driver.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption')]")).Count > 0);
+                            }
+                        }
+                        catch (NoSuchElementException)
+                        {
+                            // Se o botão "Ver Mais" não for encontrado, segue para o próximo passo
+                            // Não há necessidade de fazer nada, pois as apostas já podem estar visíveis
+                        }
+
                         // Captura todo o HTML do app-event-marketview
                         string eventMarketViewHtml = eventMarketView.GetAttribute("outerHTML");
 
                         // Lista para armazenar as apostas
                         List<string> bets = new List<string>();
 
-                        // Encontrar todas as apostas e multiplicadores dentro do mesmo app-event-marketview
+                        // Encontrar todas as apostas dentro do mesmo app-event-marketview
                         var betElements = eventMarketView.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption singleLineEllipsis')]"));
 
                         // Encontrar todos os multiplicadores de apostas dentro do app-event-marketview
