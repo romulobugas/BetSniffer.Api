@@ -1,16 +1,33 @@
-﻿using BetSniffer.Api.Core.Models;
+﻿using BetSniffer.Api.Models;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
     public class NovibetScrapingService
     {
         private readonly IWebDriver _driver;
+
+        #region VariaveisGlobais
+
+        private string gameName;
+
+        private string gameDateText;
+
+        private string homeTeam;
+
+        private string awayTeam;
+
+        private DateTime gameDateTime;
+
+        #endregion
 
         public NovibetScrapingService()
         {
@@ -51,20 +68,114 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 Console.WriteLine("Tempo de espera excedido, o elemento não foi encontrado.");
                 _driver.Quit();
                 return new List<TagInfo>();
-            }
+            }           
 
-            List<TagInfo> tagInfos = new List<TagInfo>();
+            // Encontra todos os contêineres de aposta
+            var eventPresentationViews = _driver.FindElements(By.TagName("app-event-presentation"));
+
+            foreach (var eventPresentationView in eventPresentationViews) 
+            {
+                // Captura o nome do jogo (GameName) do evento
+                var gameNameElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_caption')]"));
+                gameName = gameNameElement.Text.Trim(); // Captura o texto do evento, por exemplo: "Brasil - Brasileirão - Série A, Rodada 36"
+
+                //Captura os times
+                var teamElements = eventPresentationView.FindElements(By.XPath(".//span[contains(@class, 'eventPresentation_text')]"));
+
+                homeTeam = teamElements[0].Text;
+                awayTeam = teamElements[1].Text;
+
+                // Captura a hora/Data do evento
+                var gameDateElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_time')]"));
+                gameDateText = gameDateElement.Text.Trim(); // Captura o texto da hora ou data                
+
+                if (gameDateText.Contains(":")) // Certifica-se de que há uma hora no texto
+                {
+                    if (gameDateText.Length <= 5) // Apenas hora (ex: "16:00")
+                    {
+                        // Considera o dia corrente e adiciona a hora
+                        gameDateTime = DateTime.Today.Date.Add(TimeSpan.Parse(gameDateText));
+                    }
+                    else // Dia da semana e hora (ex: "qua 19:00")
+                    {
+                        string[] daysOfWeek = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
+                        string todayDay = daysOfWeek[(int)DateTime.Today.DayOfWeek];
+
+                        // Separa o dia da semana e a hora
+                        string[] parts = gameDateText.Split(' ');
+                        string dayOfWeek = parts[0];
+                        string time = parts[1];
+
+                        // Determina o índice dos dias da semana
+                        int currentDayIndex = Array.IndexOf(daysOfWeek, todayDay);
+                        int targetDayIndex = Array.IndexOf(daysOfWeek, dayOfWeek);
+
+                        if (targetDayIndex == -1)
+                        {
+                            throw new Exception($"Dia da semana inválido: {dayOfWeek}");
+                        }
+
+                        // Ajusta para o próximo dia da semana correspondente, se necessário
+                        if (targetDayIndex < currentDayIndex)
+                        {
+                            targetDayIndex += 7; // Ajusta para a próxima semana
+                        }
+
+                        int daysToAdd = targetDayIndex - currentDayIndex;
+                        DateTime targetDate = DateTime.Today.AddDays(daysToAdd);
+
+                        // Combina a data encontrada com a hora
+                        gameDateTime = targetDate.Date.Add(TimeSpan.Parse(time));
+                    }
+                }
+                else if (Regex.IsMatch(gameDateText, @"em (\d+)'")) // Exemplo: "em 57'"
+                {
+                    Match match = Regex.Match(gameDateText, @"em (\d+)'");
+                    if (match.Success)
+                    {
+                        int minutesToAdd = int.Parse(match.Groups[1].Value);
+                        gameDateTime = DateTime.Now.AddMinutes(minutesToAdd); // Adiciona os minutos ao horário atual
+                    }
+                    else
+                    {
+                        throw new Exception("Formato inesperado para gameDateText: " + gameDateText);
+                    }
+                }
+                else
+                {
+                    throw new Exception("Formato inesperado para gameDateText: " + gameDateText);
+                }
+
+
+                // Exemplo de uso
+                Console.WriteLine("Data e Hora do Jogo: " + gameDateTime);
+
+            }
 
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
 
             // Lista de tags cadastradas que queremos buscar
-            var tagNames = new List<string> { "Total de Escanteios", "Casa Total de Escanteios" };
+            var tagNames = NovibetTags.TagNames;
+
+            var GameInfo = new GameInfo
+            {
+                HomeTeam = homeTeam,
+                AwayTeam = awayTeam,
+                GameDate = gameDateTime,
+                League = gameName
+
+            };
+
+            // Lista para armazenar as apostas
+            List<BetInfo> bets = new List<BetInfo>();
+            List<TagInfo> tagInfos = new List<TagInfo>();
 
             foreach (var eventMarketView in eventMarketViews)
             {
                 try
                 {
+
                     // Verifica se o evento contém uma tag válida
                     var tagElement = eventMarketView.FindElement(By.XPath(".//span[contains(@class, 'eventMarketview_title')]"));
 
@@ -93,11 +204,10 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             // Não há necessidade de fazer nada, pois as apostas já podem estar visíveis
                         }
 
-                        // Captura todo o HTML do app-event-marketview
-                        string eventMarketViewHtml = eventMarketView.GetAttribute("outerHTML");
+                        
 
-                        // Lista para armazenar as apostas
-                        List<string> bets = new List<string>();
+                        // Captura todo o HTML do app-event-marketview
+                        string eventMarketViewHtml = eventMarketView.GetAttribute("outerHTML");                        
 
                         // Encontrar todas as apostas dentro do mesmo app-event-marketview
                         var betElements = eventMarketView.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption singleLineEllipsis')]"));
@@ -115,20 +225,36 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             for (int i = 0; i < betCount; i++)
                             {
                                 string betName = betElements[i].Text.Trim();
-                                string multiplier = multiplierElements[i].Text.Trim();
+                                // Expressão regular para capturar "Mais de" ou "Menos de"
+                                string patternName = @"^(Mais de|Menos de)";
+                                Match nameMatch = Regex.Match(betName, patternName);
+                                // Expressão regular para capturar o número
+                                string patternDecimal = @"(\d+,\d+|\d+)"; // Captura números com ou sem vírgulas
+                                Match matchDecimal = Regex.Match(betName, patternDecimal);
+                                string multiplier = multiplierElements[i].Text.Trim();                                
 
                                 if (!string.IsNullOrEmpty(betName) && !string.IsNullOrEmpty(multiplier))
                                 {
+                                    var betInfo = new BetInfo
+                                    {
+                                        BetId = i,
+                                        GameInfo = GameInfo,
+                                        TagName = tagName,
+                                        OverUnder = nameMatch.Success ? nameMatch.Value : string.Empty,
+                                        BetAmount = matchDecimal.Success ? decimal.Parse(matchDecimal.Value) : 0,
+                                        Multiplier = decimal.Parse(multiplier.Replace(".",",")),
+                                        CaptureDate = DateTime.Now
+                                    };
+
                                     // Adiciona a aposta e multiplicador no formato desejado
-                                    bets.Add($"{betName}: {multiplier}");
+                                    bets.Add(betInfo);
                                 }
                             }
 
                             // Se encontrou apostas, formata e adiciona ao retorno
                             if (bets.Count > 0)
                             {
-                                string formattedBets = string.Join(" - ", bets);
-                                tagInfos.Add(new TagInfo(tagName, tagElement.GetAttribute("class"), "dynamic_code", formattedBets));
+                                tagInfos.Add(new TagInfo(GameInfo, bets));
                             }
                         }
                     }

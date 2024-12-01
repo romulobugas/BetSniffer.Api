@@ -1,20 +1,25 @@
-﻿namespace BetSniffer.Api.Core.Models
+﻿namespace BetSniffer.Api.Models
 {
     public class TagInfo
     {
-        // Propriedades necessárias
-        public string TagName { get; set; } // Nome da tag (fixa)
-        public string ElementName { get; set; } // Nome do elemento (prefixo "_ngcontent-ng-")
-        public string ElementCode { get; set; } // Código dinâmico do elemento
-        public string FullElement { get; set; } // HTML completo do elemento para debug
+        private List<BetInfo> bets;
 
-        // Construtor que aceita os parâmetros necessários
-        public TagInfo(string tagName, string elementName, string elementCode, string fullElement)
+        // Propriedades necessárias
+        public GameInfo GameInfo { get; internal set; }
+        public List<BetInfo> BetInfo { get; internal set; }  // Alterado de BetInfo para List<BetInfo>
+
+        // Construtor que aceita um único BetInfo
+        public TagInfo(GameInfo gameInfo, BetInfo betInfo)
         {
-            TagName = tagName;
-            ElementName = elementName;
-            ElementCode = elementCode;
-            FullElement = fullElement;
+            GameInfo = gameInfo;
+            BetInfo = betInfo != null ? new List<BetInfo> { betInfo } : new List<BetInfo>(); // Garante que a lista nunca será nula
+        }
+
+        // Construtor que aceita uma lista de BetInfo
+        public TagInfo(GameInfo gameInfo, List<BetInfo> bets)
+        {
+            GameInfo = gameInfo;
+            BetInfo = bets != null && bets.Count > 0 ? bets : new List<BetInfo>();  // Garante que a lista nunca será nula e contém pelo menos uma aposta
         }
     }
 }

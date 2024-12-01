@@ -7,7 +7,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         // Dicionário de tags fixas que você quer rastrear
         public static readonly List<string> TagNames = new()
         {
-            "Total de Escanteios"
+            "Total de Escanteios",
+            "Casa Total de Escanteios",
             // Adicione outras tags fixas aqui conforme necessário
         };
 

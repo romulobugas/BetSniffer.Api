@@ -1,4 +1,4 @@
-﻿namespace BetSniffer.Api.Core.Models
+﻿namespace BetSniffer.Api.Models
 {
     public class BetData
     {
