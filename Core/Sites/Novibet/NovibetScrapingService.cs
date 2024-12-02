@@ -31,6 +31,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
         public NovibetScrapingService()
         {
+            // Configurações do ChromeOptions
+            ChromeOptions options = new ChromeOptions();
+            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
+            options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
+            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
+            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
+
+
             _driver = new ChromeDriver();
         }
 
