@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using BetSniffer.Api.Core.Sites;
 using BetSniffer.Api.Core.Sites.Novibet;
 using System;
-using System.Text.RegularExpressions;
+using System.Text.Json;
+using BetSniffer.Api.Core.Sites;
+using BetSniffer.Api.Core.Services;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -10,6 +11,14 @@ namespace BetSniffer.Api.Controllers
     [ApiController]
     public class ScrapingController : ControllerBase
     {
+        private readonly NovibetScraping _scrapingService;
+
+        // Injeção de dependência do NovibetScraping
+        public ScrapingController(NovibetScraping scrapingService)
+        {
+            _scrapingService = scrapingService ?? throw new ArgumentNullException(nameof(scrapingService));
+        }
+
         [HttpPost("scrape")]
         public IActionResult ScrapeTags([FromBody] string url)
         {
@@ -24,11 +33,20 @@ namespace BetSniffer.Api.Controllers
 
                 Console.WriteLine($"Site detectado: {siteName}");
 
-                // Por enquanto, continuamos usando o NovibetScrapingService para todos os casos
-                var scrapingService = new NovibetScrapingService();
-                var result = scrapingService.ScrapeTags(url);
+                // Usa o serviço injetado para fazer o scraping
+                var result = _scrapingService.ScrapeTags(url, siteName);
 
-                return Ok(new { SiteName = siteName, Result = result });
+                // Configurar JsonSerializerOptions para permitir ciclos de referência
+                var options = new JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve,
+                    WriteIndented = true // Isso vai formatar a resposta para facilitar a leitura
+                };
+
+                // Serializar a resposta com o JsonSerializer com a configuração de preservação de referências
+                var jsonResponse = JsonSerializer.Serialize(new { SiteName = siteName, Result = result }, options);
+
+                return Content(jsonResponse, "application/json");
             }
             catch (Exception ex)
             {
@@ -40,17 +58,10 @@ namespace BetSniffer.Api.Controllers
         {
             try
             {
-                // Cria um objeto Uri para facilitar o parsing
                 var uri = new Uri(url);
-
-                // Pega o hostname completo (ex: "br.novibet.com")
                 string host = uri.Host;
-
-                // Divide o hostname em partes
                 string[] parts = host.Split('.');
 
-                // Se tiver 3 ou mais partes (ex: "br.novibet.com"), pega a segunda parte
-                // Se tiver 2 partes (ex: "novibet.com"), pega a primeira parte
                 string siteName = parts.Length >= 3 ? parts[1] : parts[0];
 
                 return siteName.ToLower();
@@ -62,4 +73,3 @@ namespace BetSniffer.Api.Controllers
         }
     }
 }
-

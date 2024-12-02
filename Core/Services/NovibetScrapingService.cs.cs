@@ -1,9 +1,9 @@
-﻿// Core/Services/NovibetScrapingService.cs
-using BetSniffer.Api.Models;
+﻿using BetSniffer.Api.Models;
 using BetSniffer.Api.Data;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace BetSniffer.Api.Core.Services
 {
@@ -18,40 +18,70 @@ namespace BetSniffer.Api.Core.Services
 
         public async Task SaveBetData(List<TagInfo> tagInfos)
         {
+            var gamesToAdd = new List<GamesInfo>();
+            var betsToAdd = new List<BetInfo>();
+
             foreach (var tagInfo in tagInfos)
             {
-                var game = new GameInfo
+                // Verifica se o jogo já existe no banco para evitar duplicatas
+                var existingGame = await _dbContext.GamesInfo
+                    .FirstOrDefaultAsync(g =>
+                        g.HomeTeam == tagInfo.GameInfo.HomeTeam &&
+                        g.AwayTeam == tagInfo.GameInfo.AwayTeam &&
+                        g.GameDate == tagInfo.GameInfo.GameDate);
+
+                GamesInfo game;
+
+                if (existingGame == null)
                 {
-                    League = "Nome do Jogo", // Você deve definir qual é o nome do jogo
-                    GameDate = DateTime.Now // Data do jogo
-                };
+                    game = new GamesInfo
+                    {
+                        HomeTeam = tagInfo.GameInfo.HomeTeam,
+                        AwayTeam = tagInfo.GameInfo.AwayTeam,
+                        GameDate = tagInfo.GameInfo.GameDate,
+                        League = tagInfo.GameInfo.League
+                    };
 
-                var betInfo = new BetInfo
+                    // Adiciona o novo jogo à lista de jogos a serem inseridos
+                    gamesToAdd.Add(game);
+                }
+                else
                 {
-                    GameInfo = tagInfo.GameInfo,
-                    CaptureDate = DateTime.Now, // Data de captura
-                };
+                    game = existingGame;
+                }
 
-                //var betArbitrage = new BetArbitrage
-                //{
-                //    Game = "Nome do Jogo", // Ajuste conforme necessário
-                //    TagName = tagInfo.TagName,
-                //    BetMoreThan = "Maior que", // Preencha com os dados corretos
-                //    BetMoreThanMultiplier = 1.5m, // Preencha com o valor real
-                //    BetLessThan = "Menor que", // Preencha com os dados corretos
-                //    BetLessThanMultiplier = 2.0m, // Preencha com o valor real
-                //    CaptureDate = DateTime.Now, // Data de captura
-                //    GameDate = DateTime.Now, // Data do jogo
-                //    ArbitragePercentage = 10 // Exemplo de cálculo de arbitragem
-                //};
+                // Adiciona as apostas associadas ao jogo
+                foreach (var bet in tagInfo.BetInfo)
+                {
+                    var betInfo = new BetInfo
+                    {
+                        GamesInfo = game, // Relaciona a aposta com o jogo existente
+                        TagName = bet.TagName,
+                        OverUnder = bet.OverUnder,
+                        Multiplier = bet.Multiplier,
+                        CaptureDate = DateTime.Now,
+                        BetAmount = bet.BetAmount
+                    };
 
-                // Salva os dados no banco
-                await _dbContext.GameInfos.AddAsync(game);
-                await _dbContext.BetInfos.AddAsync(betInfo);
-                //await _dbContext.BetArbitrages.AddAsync(betArbitrage);
-
-                await _dbContext.SaveChangesAsync(); // Salva tudo no banco de dados
+                    // Adiciona a aposta à lista de apostas a serem inseridas
+                    betsToAdd.Add(betInfo);
+                }
             }
+
+            // Adiciona os jogos no banco (se houverem novos)
+            if (gamesToAdd.Count > 0)
+            {
+                await _dbContext.GamesInfo.AddRangeAsync(gamesToAdd);
+            }
+
+            // Adiciona as apostas no banco
+            if (betsToAdd.Count > 0)
+            {
+                await _dbContext.BetInfo.AddRangeAsync(betsToAdd);
+            }
+
+            // Salva todas as alterações de uma vez
+            await _dbContext.SaveChangesAsync();
         }
     }
 }

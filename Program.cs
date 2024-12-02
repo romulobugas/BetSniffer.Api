@@ -1,10 +1,7 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
-using Microsoft.Extensions.Configuration;
+using BetSniffer.Api.Core.Sites.Novibet;
 
 namespace BetSniffer.Api
 {
@@ -14,23 +11,23 @@ namespace BetSniffer.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configuração para o banco de dados SQL Server (ajuste a string de conexão conforme necessário)
+            // Registra o DbContext para o banco de dados
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("Server=WMS;Database=BetArbitrageDB;User ID=sa;Password=mobweb@123")));
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;"));
 
-            // Adiciona o serviço de scraping
+            // Registra o serviço NovibetScrapingService
             builder.Services.AddScoped<NovibetScrapingService>();
+            // Registra o serviço NovibetScraping
+            builder.Services.AddScoped<NovibetScraping>();
 
-            // Adiciona o serviço do Swagger
+            // Registra outros serviços
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
-            // Adiciona os serviços de controllers
             builder.Services.AddControllers();
 
             var app = builder.Build();
 
-            // Habilita o Swagger na aplicação
+            // Configura o Swagger
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
