@@ -2,12 +2,14 @@ WITH ArbitrageCalculation AS (
     SELECT 
         b1.BetId AS BetId_X,
         b1.SiteId AS SiteId_X,
+        s1.[Name] AS SiteName_X,
         b1.TagName AS TagName_X,
         b1.OverUnder AS OverUnder_X,
         b1.BetAmount AS BetAmount_X,
         b1.Multiplier AS Multiplier_X,
         b2.BetId AS BetId_Y,
         b2.SiteId AS SiteId_Y,
+        s2.Name AS SiteName_Y,
         b2.TagName AS TagName_Y,
         b2.OverUnder AS OverUnder_Y,
         b2.BetAmount AS BetAmount_Y,
@@ -16,6 +18,10 @@ WITH ArbitrageCalculation AS (
         BetInfo b1
     JOIN 
         BetInfo b2 ON b1.GameId <> b2.GameId AND b1.BetAmount = b2.BetAmount
+    JOIN
+        [Site] s1 ON b1.SiteId = s1.SiteId
+    JOIN
+        [Site] s2 ON b2.SiteId = s2.SiteId
     WHERE 
         ((b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de') 
         OR (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de'))
@@ -33,13 +39,15 @@ DefinedStake AS (
 )
 SELECT 
     BetId_X, 
-    SiteId_X, 
+    SiteId_X,
+    SiteName_X, 
     TagName_X, 
     OverUnder_X, 
     BetAmount_X, 
     Multiplier_X, 
     BetId_Y, 
-    SiteId_Y, 
+    SiteId_Y,
+    SiteName_Y, 
     TagName_Y, 
     OverUnder_Y, 
     BetAmount_Y, 
