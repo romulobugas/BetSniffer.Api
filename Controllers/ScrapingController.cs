@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using BetSniffer.Api.Core.Sites.Novibet;
+﻿using BetSniffer.Api.Core.Sites.Novibet;
+using BetSniffer.Api.Core.Sites.Parimatch;
+using BetSniffer.Api.Core.Services;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Text.Json;
 using BetSniffer.Api.Core.Sites;
-using BetSniffer.Api.Core.Services;
+using BetSniffer.Api.Core.Interfaces;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -11,12 +13,12 @@ namespace BetSniffer.Api.Controllers
     [ApiController]
     public class ScrapingController : ControllerBase
     {
-        private readonly NovibetScraping _scrapingService;
+        private readonly IServiceProvider _serviceProvider;
 
-        // Injeção de dependência do NovibetScraping
-        public ScrapingController(NovibetScraping scrapingService)
+        // Injeção de dependência do IServiceProvider
+        public ScrapingController(IServiceProvider serviceProvider)
         {
-            _scrapingService = scrapingService ?? throw new ArgumentNullException(nameof(scrapingService));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         [HttpPost("scrape")]
@@ -33,8 +35,11 @@ namespace BetSniffer.Api.Controllers
 
                 Console.WriteLine($"Site detectado: {siteName}");
 
-                // Usa o serviço injetado para fazer o scraping
-                var result = _scrapingService.ScrapeTags(url, siteName);
+                // Determine qual serviço de scraping deve ser utilizado
+                IScrapingService scrapingService = GetScrapingService(siteName);
+
+                // Usa o serviço de scraping correspondente
+                var result = scrapingService.ScrapeTags(url, siteName);
 
                 // Configurar JsonSerializerOptions para permitir ciclos de referência
                 var options = new JsonSerializerOptions
@@ -69,6 +74,20 @@ namespace BetSniffer.Api.Controllers
             catch
             {
                 return "unknown";
+            }
+        }
+
+        // Método que retorna o serviço de scraping baseado no nome do site
+        private IScrapingService GetScrapingService(string siteName)
+        {
+            switch (siteName)
+            {
+                case "novibet":
+                    return _serviceProvider.GetService<NovibetScraping>(); // Usando o NovibetScraping
+                case "parimatch":
+                    return _serviceProvider.GetService<ParimatchScraping>(); // Usando o ParimatchScraping
+                default:
+                    throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}");
             }
         }
     }

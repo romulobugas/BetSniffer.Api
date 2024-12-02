@@ -6,7 +6,8 @@
         {
             "novibet",
             "bet365",
-            "betano"
+            "betano",
+            "parimatch"
             // Adicione outros sites conforme necessário
         };
 

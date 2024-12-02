@@ -12,10 +12,11 @@ using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using Microsoft.EntityFrameworkCore.Internal;
 using BetSniffer.Api.Data;
+using BetSniffer.Api.Core.Interfaces;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
-    public class NovibetScraping
+    public class NovibetScraping : IScrapingService
     {
         #region VariaveisGlobais
 
