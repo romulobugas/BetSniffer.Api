@@ -8,6 +8,7 @@ namespace BetSniffer.Api.Data
         public DbSet<GamesInfo> GamesInfo { get; set; } // Nome correto da tabela
         public DbSet<BetInfo> BetInfo { get; set; } // Nome correto da tabela
         public DbSet<Site> Site { get; set; } // Tabela Site
+        public DbSet<Team> Teams { get; set; } // Tabela Teams
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -24,15 +25,27 @@ namespace BetSniffer.Api.Data
                 entity.ToTable("GamesInfo"); // Nome correto da tabela no banco
                 entity.HasKey(g => g.GameId); // Chave primária
                 entity.Property(g => g.GameId).ValueGeneratedOnAdd(); // Auto-incremento
-                entity.Property(g => g.HomeTeam).HasColumnType("varchar(100)");
-                entity.Property(g => g.AwayTeam).HasColumnType("varchar(100)");
                 entity.Property(g => g.League).HasColumnType("varchar(100)");
+
+                // Substituição de HomeTeam e AwayTeam por IDs
+                entity.Property(g => g.HomeTeamId).IsRequired();
+                entity.Property(g => g.AwayTeamId).IsRequired();
 
                 // Relação com a tabela Site
                 entity.HasOne(g => g.Site) // Referência para a tabela Site
                       .WithMany(s => s.GamesInfo) // Coleção de GamesInfo na tabela Site
                       .HasForeignKey(g => g.SiteId) // Chave estrangeira SiteId
                       .OnDelete(DeleteBehavior.Cascade); // Cascata na deleção
+
+                // Relação com Teams (HomeTeam)
+                entity.HasOne(g => g.HomeTeam) // Relacionamento com HomeTeam
+                      .WithMany(t => t.HomeGames) // Coleção de HomeGames na tabela Teams
+                      .HasForeignKey(g => g.HomeTeamId); // Chave estrangeira HomeTeamId
+
+                // Relação com Teams (AwayTeam)
+                entity.HasOne(g => g.AwayTeam) // Relacionamento com AwayTeam
+                      .WithMany(t => t.AwayGames) // Coleção de AwayGames na tabela Teams
+                      .HasForeignKey(g => g.AwayTeamId); // Chave estrangeira AwayTeamId
             });
 
             // Configuração da tabela BetInfo
@@ -44,7 +57,7 @@ namespace BetSniffer.Api.Data
                 entity.Property(b => b.TagName).HasColumnType("varchar(100)");
                 entity.Property(b => b.OverUnder).HasColumnType("varchar(10)");
                 entity.Property(b => b.Multiplier).HasColumnType("decimal(10, 2)");
-                entity.Property(b => b.BetAmount).HasColumnType("decimal(10, 2)"); // Corrigido o tipo do BetAmount
+                entity.Property(b => b.BetAmount).HasColumnType("decimal(10, 2)");
                 entity.Property(b => b.CaptureDate).HasColumnType("datetime");
                 entity.Property(b => b.GameDate).HasColumnType("datetime");
 
@@ -54,7 +67,7 @@ namespace BetSniffer.Api.Data
                       .HasForeignKey(b => b.SiteId) // Chave estrangeira SiteId
                       .OnDelete(DeleteBehavior.Cascade); // Cascata na deleção
 
-                // Configuração da relação com GamesInfo
+                // Relação com GamesInfo
                 entity.HasOne(b => b.GamesInfo)
                       .WithMany(g => g.Bets) // Coleção de Bets na tabela GamesInfo
                       .HasForeignKey(b => b.GameId) // Chave estrangeira GameId
@@ -68,15 +81,25 @@ namespace BetSniffer.Api.Data
                 entity.HasKey(s => s.SiteId); // Chave primária
                 entity.Property(s => s.SiteId).ValueGeneratedOnAdd(); // Auto-incremento
                 entity.Property(s => s.Name).HasColumnType("varchar(100)");
+            });
 
-                // Relação com GamesInfo e BetInfo
-                entity.HasMany(s => s.GamesInfo) // Relacionamento com GamesInfo
-                      .WithOne(g => g.Site) // Relacionamento inverso
-                      .HasForeignKey(g => g.SiteId); // Chave estrangeira SiteId
+            // Configuração da tabela Teams
+            modelBuilder.Entity<Team>(entity =>
+            {
+                entity.ToTable("Teams");
+                entity.HasKey(t => t.TeamId); // Chave primária
+                entity.Property(t => t.TeamId).ValueGeneratedOnAdd(); // Auto-incremento
+                entity.Property(t => t.NormalizedName).HasColumnType("varchar(100)").IsRequired(); // Nome normalizado
+                entity.Property(t => t.Aliases).HasColumnType("nvarchar(max)").IsRequired(); // Mapeamento correto
 
-                entity.HasMany(s => s.BetInfo) // Relacionamento com BetInfo
-                      .WithOne(b => b.Site) // Relacionamento inverso
-                      .HasForeignKey(b => b.SiteId); // Chave estrangeira SiteId
+                // Relacionamentos
+                entity.HasMany(t => t.HomeGames) // Relacionamento HomeGames
+                      .WithOne(g => g.HomeTeam) // Relacionamento inverso
+                      .HasForeignKey(g => g.HomeTeamId); // Chave estrangeira HomeTeamId
+
+                entity.HasMany(t => t.AwayGames) // Relacionamento AwayGames
+                      .WithOne(g => g.AwayTeam) // Relacionamento inverso
+                      .HasForeignKey(g => g.AwayTeamId); // Chave estrangeira AwayTeamId
             });
         }
     }

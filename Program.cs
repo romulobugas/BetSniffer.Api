@@ -20,6 +20,8 @@ namespace BetSniffer.Api
             // Registra serviços de scraping usando a interface IScrapingService
             builder.Services.AddScoped<NovibetScraping>(); // Registro específico para Novibet
             builder.Services.AddScoped<ParimatchScraping>(); // Registro específico para Parimatch
+                                                             // Registra o TeamService
+            builder.Services.AddScoped<TeamService>();
 
             // Registrar o serviço de roteamento dinâmico para IScrapingService
             builder.Services.AddScoped<Func<string, IScrapingService>>(serviceProvider => siteName =>

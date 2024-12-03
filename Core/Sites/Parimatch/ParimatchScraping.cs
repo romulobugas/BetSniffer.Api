@@ -36,11 +36,15 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         private readonly ApplicationDbContext _dbContext;
 
+        private readonly TeamService _teamService;
+
         #endregion
 
-        public ParimatchScraping(ApplicationDbContext dbContext)
+        public ParimatchScraping(ApplicationDbContext dbContext, TeamService teamService)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+
+            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));  // Inicializa o TeamService corretamente
             // Inicializa o driver aqui no construtor
             ChromeOptions options = new ChromeOptions();
             options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
@@ -64,7 +68,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
-        public List<TagInfo> ScrapeTags(string url, string siteName)
+        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
         {
 
             if (_driver == null)
@@ -126,9 +130,20 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 return new List<TagInfo>();
             }
 
-            // Captura o nome do jogo (GameName) do evento
-            var gameNameElement = _driver.FindElement(By.CssSelector("span[data-testid='modulor-typography'][data-id='modulor-typography'].modulor_typography__tag__1_53_1.caption-1-regular.modulor_navigation-bar__description__1_53_1"));
-            gameName = gameNameElement.Text.Trim(); // Captura o texto do evento, por exemplo: "Itália. Série A"
+            // Encontra todos os elementos <span> dentro da div com data-testid='event-view-header-soccer-center-container'
+            var spanElements = _driver.FindElements(By.CssSelector("div[data-testid='event-view-header-soccer-center-container'] span"));
+
+            // Verifica se existem pelo menos dois <span> dentro da div
+            if (spanElements.Count >= 2)
+            {
+                // O segundo span contém o nome do campeonato
+                gameName = spanElements[1].Text.Trim(); // Captura o texto do campeonato, por exemplo: "Brasil. Série A"
+            }
+            else
+            {
+                gameName = "Nome não encontrado"; // Caso não encontre o segundo span
+            }
+
 
             // Encontra todos os contêineres de aposta
             var eventPresentationViews = _driver.FindElements(By.CssSelector("div[data-id='card-scoreboard']"));
@@ -136,18 +151,27 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             foreach (var eventPresentationView in eventPresentationViews) 
             {
                 //Captura os times
-                var teamElements = eventPresentationView.FindElements(By.XPath(".//span[contains(@class, 'modulor_typography__tag__1_53_1 caption-1-regular EC_Fw')]"));
+                // Captura os times (a href com a classe 'EC_Cz')
+                var teamElements = eventPresentationView.FindElements(By.XPath(".//a[contains(@class, 'EC_Cz')]"));
 
-                homeTeam = teamElements[0].Text;
-                awayTeam = teamElements[1].Text;
+                // Certifica-se de que existem pelo menos dois times
+                if (teamElements.Count >= 2)
+                {
+                    homeTeam = teamElements[0].Text.Trim(); // Primeiro time
+                    awayTeam = teamElements[1].Text.Trim(); // Segundo time
+                }
+                else
+                {
+                    throw new Exception("Não foi possível encontrar os dois times.");
+                }
 
-                // Captura a hora/Data do evento
-                var gameDayElement = eventPresentationView.FindElement(By.XPath(".//span[contains(@class, 'modulor_typography__tag__1_53_1 caption-2-medium-caps EC_GX')]"));
-                gameDayText = gameDayElement.Text.Trim(); // Captura o texto da hora ou data
+                // Captura o dia do evento
+                var gameDayElement = eventPresentationView.FindElement(By.XPath(".//span[@data-testid='prematch-start-date']"));
+                gameDayText = gameDayElement.Text.Trim(); // Captura o texto da data (ex: "Amanhã")
 
-                // Captura a hora/Data do evento
-                var gameHourElement = eventPresentationView.FindElement(By.XPath(".//span[contains(@class, 'modulor_typography__tag__1_53_1 title-1-semibold EC_GY')]"));
-                gameHourText = gameHourElement.Text.Trim(); // Captura o texto da hora ou data
+                // Captura a hora do evento
+                var gameHourElement = eventPresentationView.FindElement(By.XPath(".//span[@data-testid='prematch-start-time']"));
+                gameHourText = gameHourElement.Text.Trim(); // Captura o texto da hora (ex: "19:00")
 
                 // Verifica se gameHourText contém uma hora válida
                 if (gameHourText.Contains(":"))
@@ -219,6 +243,10 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
             }
 
+            // Implementação dos times usando TeamService
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
+
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));
 
@@ -227,8 +255,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
             var gamesInfo = new GamesInfo
             {
-                HomeTeam = homeTeam,
-                AwayTeam = awayTeam,
+                HomeTeamId = homeTeamDb,
+                AwayTeamId = awayTeamDb,
                 GameDate = gameDateTime,
                 League = gameName,
                 Site = site
@@ -244,7 +272,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 try
                 {
                     // Verifica se o evento contém uma tag válida
-                    var tagElement = eventMarketView.FindElement(By.XPath(".//span[contains(@class, 'modulor_typography__tag__1_53_1 body-regular EC_FW')]"));
+                    var tagElement = eventMarketView.FindElement(By.XPath(".//div[contains(@class, 'EC_FU')]//div[@role='button']//span[@data-testid='modulor-typography']"));
                     string tagName = tagElement.Text.Trim();
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
@@ -255,8 +283,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
                         foreach (var betElement in betElements)
                         {
-                            // Captura o valor da aposta (exemplo: "4.5")
-                            var betAmountElement = betElement.FindElement(By.XPath(".//span[contains(@class, 'modulor_typography__tag__1_53_1 body-rounded-medium EC_Gx')]"));
+                            // Captura o valor da aposta (exemplo: "5.5")
+                            var betAmountElement = betElement.FindElement(By.XPath(".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]"));
                             string betAmount = betAmountElement.Text.Trim();
 
                             // Captura os multiplicadores "Mais" e "Menos"
@@ -311,8 +339,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             var existingGame = _dbContext.GamesInfo
                                 .Include(g => g.Bets) // Carrega as apostas relacionadas
                                 .FirstOrDefault(g =>
-                                    g.HomeTeam == gamesInfo.HomeTeam &&
-                                    g.AwayTeam == gamesInfo.AwayTeam &&
+                                    g.HomeTeamId == gamesInfo.HomeTeamId &&
+                                    g.AwayTeamId == gamesInfo.AwayTeamId &&
                                     g.GameDate == gamesInfo.GameDate &&
                                     g.League == gamesInfo.League &&
                                     g.Site == gamesInfo.Site

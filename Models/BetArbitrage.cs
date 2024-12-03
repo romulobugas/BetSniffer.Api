@@ -66,9 +66,14 @@ namespace BetSniffer.Api.Models
     {
         public int GameId { get; set; }
 
-        public string HomeTeam { get; set; }
+        // Relacionamentos com Times
+        [ForeignKey("HomeTeam")]
+        public int HomeTeamId { get; set; }
+        public Team HomeTeam { get; set; }
 
-        public string AwayTeam { get; set; }
+        [ForeignKey("AwayTeam")]
+        public int AwayTeamId { get; set; }
+        public Team AwayTeam { get; set; }
 
         public DateTime GameDate { get; set; }
 
@@ -95,4 +100,16 @@ namespace BetSniffer.Api.Models
         public ICollection<GamesInfo> GamesInfo { get; set; } = new List<GamesInfo>();
         public ICollection<BetInfo> BetInfo { get; set; } = new List<BetInfo>();
     }
+
+    public class Team
+    {
+        public int TeamId { get; set; }
+        public string NormalizedName { get; set; } // Nome padronizado
+        public string Aliases { get; set; } // Lista de nomes alternativos (JSON)
+
+        // Relacionamento com GamesInfo
+        public ICollection<GamesInfo> HomeGames { get; set; }
+        public ICollection<GamesInfo> AwayGames { get; set; }
+    }
+
 }

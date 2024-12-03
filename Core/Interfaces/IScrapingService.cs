@@ -4,6 +4,6 @@ namespace BetSniffer.Api.Core.Interfaces
 {
     public interface IScrapingService
     {
-        List<TagInfo> ScrapeTags(string url, string siteName);
+        List<TagInfo> ScrapeTagsAsync(string url, string siteName);
     }
 }

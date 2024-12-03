@@ -13,6 +13,7 @@ using BetSniffer.Api.Core.Services;
 using Microsoft.EntityFrameworkCore.Internal;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
+using BetSniffer.Api.Core.Services;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -34,11 +35,15 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
         private readonly ApplicationDbContext _dbContext;
 
+        private readonly TeamService _teamService;
+
         #endregion
 
-        public NovibetScraping(ApplicationDbContext dbContext)
+        public NovibetScraping(ApplicationDbContext dbContext, TeamService teamService)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+
+            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));  // Inicializa o TeamService corretamente
             // Inicializa o driver aqui no construtor
             ChromeOptions options = new ChromeOptions();
             options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
@@ -62,7 +67,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
-        public List<TagInfo> ScrapeTags(string url, string siteName)
+        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
         {
 
             if (_driver == null)
@@ -206,6 +211,11 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             }
 
+
+            // Implementação dos times usando TeamService
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
+
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
 
@@ -214,8 +224,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             var gamesInfo = new GamesInfo
             {
-                HomeTeam = homeTeam,
-                AwayTeam = awayTeam,
+                HomeTeamId = homeTeamDb,
+                AwayTeamId = awayTeamDb,
                 GameDate = gameDateTime,
                 League = gameName,
                 Site = site
@@ -317,8 +327,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                 var existingGame = _dbContext.GamesInfo
                                     .Include(g => g.Bets) // Carrega as apostas relacionadas
                                     .FirstOrDefault(g =>
-                                        g.HomeTeam == gamesInfo.HomeTeam &&
-                                        g.AwayTeam == gamesInfo.AwayTeam &&
+                                        g.HomeTeamId == gamesInfo.HomeTeamId &&
+                                        g.AwayTeamId == gamesInfo.AwayTeamId &&
                                         g.GameDate == gamesInfo.GameDate &&
                                         g.League == gamesInfo.League &&
                                         g.Site == gamesInfo.Site

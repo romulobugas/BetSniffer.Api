@@ -39,7 +39,7 @@ namespace BetSniffer.Api.Controllers
                 IScrapingService scrapingService = GetScrapingService(siteName);
 
                 // Usa o serviço de scraping correspondente
-                var result = scrapingService.ScrapeTags(url, siteName);
+                var result = scrapingService.ScrapeTagsAsync(url, siteName);
 
                 // Configurar JsonSerializerOptions para permitir ciclos de referência
                 var options = new JsonSerializerOptions
