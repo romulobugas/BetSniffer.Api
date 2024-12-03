@@ -316,42 +316,59 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
                         foreach (var betElement in betElements)
                         {
-                            // Captura o valor da aposta (exemplo: "5.5")
-                            var betAmountElement = betElement.FindElement(By.XPath(".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]"));
-                            string betAmount = betAmountElement.Text.Trim();
-
-                            // Captura os multiplicadores "Mais" e "Menos"
-                            var moreMultiplierElement = betElement.FindElements(By.XPath(".//span[contains(@style, '--text: var(--text-outcome);')]"))[0]; // O primeiro é o "Mais"
-                            var lessMultiplierElement = betElement.FindElements(By.XPath(".//span[contains(@style, '--text: var(--text-outcome);')]"))[1]; // O segundo é o "Menos"
-
-                            // Obtém os valores dos multiplicadores
-                            string moreMultiplier = moreMultiplierElement.Text.Trim();
-                            string lessMultiplier = lessMultiplierElement.Text.Trim();
-
-                            // Verifica se os multiplicadores são válidos
-                            if (!string.IsNullOrEmpty(moreMultiplier) && !string.IsNullOrEmpty(lessMultiplier))
+                            try
                             {
-                                // Aposta "Mais de"
+                                // Captura o valor da aposta (exemplo: "5.5")
+                                var betAmountElement = betElement.FindElement(By.XPath(".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]"));
+                                string betAmountText = betAmountElement.Text.Trim();
+
+                                // Valida o valor da aposta
+                                if (!decimal.TryParse(betAmountText.Replace(".", ","), out decimal betAmount))
+                                {
+                                    Console.WriteLine("Valor da aposta inválido. Pulando este elemento.");
+                                    continue;
+                                }
+
+                                // Captura os multiplicadores
+                                var multiplierElements = betElement.FindElements(By.XPath(".//span[contains(@style, '--text: var(--text-outcome);')]"));
+                                if (multiplierElements.Count < 2)
+                                {
+                                    Console.WriteLine("Menos de dois multiplicadores encontrados. Pulando esta aposta.");
+                                    continue; // Ignora esta iteração e vai para o próximo elemento
+                                }
+
+                                // Obtém os valores dos multiplicadores
+                                string moreMultiplierText = multiplierElements[0].Text.Trim();
+                                string lessMultiplierText = multiplierElements[1].Text.Trim();
+
+                                if (!decimal.TryParse(moreMultiplierText.Replace(".", ","), out decimal moreMultiplier) ||
+                                    !decimal.TryParse(lessMultiplierText.Replace(".", ","), out decimal lessMultiplier))
+                                {
+                                    Console.WriteLine("Multiplicadores inválidos. Pulando esta aposta.");
+                                    continue;
+                                }
+
+                                // Cria a aposta "Mais de"
                                 var betMore = new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
                                     TagName = tagName,
-                                    OverUnder = "Mais de",  // "Mais de" para o lado "Mais"
-                                    BetAmount = decimal.Parse(betAmount.Replace(".", ",")), // Valor da aposta (ex: 4.5)
-                                    Multiplier = decimal.Parse(moreMultiplier.Replace(".", ",")),
+                                    OverUnder = "Mais de", // "Mais de" para o lado "Mais"
+                                    BetAmount = betAmount,
+                                    Multiplier = moreMultiplier,
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
                                     Site = site
                                 };
 
-                                // Aposta "Menos de"
+                                // Cria a aposta "Menos de"
                                 var betLess = new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
                                     TagName = tagName,
-                                    OverUnder = "Menos de",  // "Menos de" para o lado "Menos"
-                                    BetAmount = decimal.Parse(betAmount.Replace(".", ",")), // Valor da aposta (ex: 4.5)
-                                    Multiplier = decimal.Parse(lessMultiplier.Replace(".", ",")),
+                                    OverUnder = "Menos de", // "Menos de" para o lado "Menos"
+                                    BetAmount = betAmount,
+                                    Multiplier = lessMultiplier,
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
                                     Site = site
@@ -361,7 +378,16 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 bets.Add(betMore);
                                 bets.Add(betLess);
                             }
+                            catch (NoSuchElementException ex)
+                            {
+                                Console.WriteLine($"Elemento ausente: {ex.Message}. Pulando esta aposta.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Erro ao processar aposta: {ex.Message}");
+                            }
                         }
+
 
                         // Verifica e atualiza as apostas
                         if (bets.Count > 0)
