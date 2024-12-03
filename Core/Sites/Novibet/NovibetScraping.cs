@@ -164,6 +164,29 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                         // Considera o dia corrente e adiciona a hora
                         gameDateTime = DateTime.Today.Date.Add(TimeSpan.Parse(gameDateText));
                     }
+                    else if (Regex.IsMatch(gameDateText, @"^\d{1,2} de [a-z]{3} \d{2}:\d{2}$")) // Exemplo: "10 de dez 14:45"
+                    {
+                        // Dicionário para converter os meses em português
+                        Dictionary<string, int> meses = new Dictionary<string, int>
+        {
+            { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 }, { "mai", 5 }, { "jun", 6 },
+            { "jul", 7 }, { "ago", 8 }, { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 }
+        };
+
+                        // Separar os componentes
+                        string[] parts = gameDateText.Split(' ');
+                        int day = int.Parse(parts[0]); // Dia
+                        string monthText = parts[2];  // Nome do mês abreviado
+                        string time = parts[3];       // Hora
+
+                        if (!meses.TryGetValue(monthText, out int month))
+                        {
+                            throw new Exception($"Mês inválido: {monthText}");
+                        }
+
+                        // Montar o objeto DateTime
+                        gameDateTime = new DateTime(DateTime.Today.Year, month, day).Add(TimeSpan.Parse(time));
+                    }
                     else // Dia da semana e hora (ex: "qua 19:00")
                     {
                         string[] daysOfWeek = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
@@ -214,9 +237,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     throw new Exception("Formato inesperado para gameDateText: " + gameDateText);
                 }
 
-
                 // Exemplo de uso
                 Console.WriteLine("Data e Hora do Jogo: " + gameDateTime);
+
 
             }
 
