@@ -9,6 +9,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
         public static readonly List<string> TagNames = new()
         {
             "Escanteios. Total",
+            "Cartões amarelos. Total",
             // Adicione outras tags fixas aqui conforme necessário
         };
 

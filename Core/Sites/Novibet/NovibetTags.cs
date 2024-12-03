@@ -8,6 +8,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         public static readonly List<string> TagNames = new()
         {
             "Total de Escanteios 🚀",
+            "Total de Cartões Amarelos",
             // Adicione outras tags fixas aqui conforme necessário
         };
 

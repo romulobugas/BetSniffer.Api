@@ -1,4 +1,4 @@
-﻿USE [BetArbitrageDB]
+USE [BetArbitrageDB]
 GO
 /****** Object:  Table [dbo].[BetInfo]    Script Date: 03/12/2024 11:46:34 ******/
 SET ANSI_NULLS ON
