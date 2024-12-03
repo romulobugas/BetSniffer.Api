@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore.Internal;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Services;
+using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -290,27 +291,46 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             for (int i = 0; i < betCount; i++)
                             {
                                 string betName = betElements[i].Text.Trim();
+                                string overUnder = string.Empty;
+                                decimal betAmount = 0;
+
                                 // Expressão regular para capturar "Mais de" ou "Menos de"
                                 string patternName = @"^(Mais de|Menos de)";
                                 Match nameMatch = Regex.Match(betName, patternName);
-                                // Expressão regular para capturar o número
-                                string patternDecimal = @"(\d+,\d+|\d+)"; // Captura números com ou sem vírgulas
+
+                                // Expressão regular para capturar o número (com ou sem vírgulas) ou o formato "+número"
+                                string patternDecimal = @"(\+?\d+(?:,\d+)?)";
                                 Match matchDecimal = Regex.Match(betName, patternDecimal);
+
                                 string multiplier = multiplierElements[i].Text.Trim();
 
                                 if (!string.IsNullOrEmpty(betName) && !string.IsNullOrEmpty(multiplier))
                                 {
+                                    if (nameMatch.Success)
+                                    {
+                                        overUnder = nameMatch.Value;
+                                    }
+                                    else if (betName.StartsWith("+") || betName.EndsWith("+"))
+                                    {
+                                        overUnder = "Mais de";
+                                    }
+
+                                    if (matchDecimal.Success)
+                                    {
+                                        string betAmountString = matchDecimal.Value.TrimStart('+');
+                                        betAmount = decimal.Parse(betAmountString.Replace(",", "."), CultureInfo.InvariantCulture);
+                                    }
+
                                     var betInfo = new BetInfo
                                     {
                                         GamesInfo = gamesInfo,
                                         TagName = tagName,
-                                        OverUnder = nameMatch.Success ? nameMatch.Value : string.Empty,
-                                        BetAmount = matchDecimal.Success ? decimal.Parse(matchDecimal.Value) : 0,
-                                        Multiplier = decimal.Parse(multiplier.Replace(".", ",")),
+                                        OverUnder = overUnder,
+                                        BetAmount = betAmount,
+                                        Multiplier = decimal.Parse(multiplier.Replace(",", "."), CultureInfo.InvariantCulture),
                                         GameDate = gamesInfo.GameDate,
                                         CaptureDate = DateTime.Now,
                                         Site = site
-
                                     };
 
                                     // Adiciona a aposta e multiplicador no formato desejado

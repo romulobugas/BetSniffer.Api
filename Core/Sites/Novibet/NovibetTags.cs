@@ -9,6 +9,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         {
             "Total de Escanteios 🚀",
             "Total de Cartões Amarelos",
+            "Total de Chutes 🚀",
+            "Total de Chutes no gol 🚀",
             // Adicione outras tags fixas aqui conforme necessário
         };
 

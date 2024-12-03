@@ -278,6 +278,39 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                     // Verifica se a tag encontrada contém o nome da tag desejada
                     if (tagNames.Contains(tagName))
                     {
+
+                        // Definindo o número máximo de tentativas
+                        int maxAttempts = 3;
+                        int attempt = 0;
+                        bool marketWrapperFound = false;
+
+                        // Verifica se o elemento "data-id='market-wrapper'" está presente
+                        while (attempt < maxAttempts && !marketWrapperFound)
+                        {
+                            try
+                            {
+                                var marketWrapper = eventMarketView.FindElement(By.XPath(".//div[@data-id='market-wrapper']"));
+                                marketWrapperFound = true;  // O elemento foi encontrado, sai do loop
+                            }
+                            catch (NoSuchElementException)
+                            {
+                                // Caso o elemento não seja encontrado, tenta clicar no botão
+                                var toggleButton = eventMarketView.FindElement(By.XPath(".//div[@role='button']"));
+                                toggleButton.Click();
+
+                                // Aguardar 3 segundos
+                                Thread.Sleep(3000);
+
+                                attempt++;  // Incrementa a tentativa
+                            }
+                        }
+
+                        // Se após 3 tentativas não encontrou o "market-wrapper", exibe uma mensagem
+                        if (!marketWrapperFound)
+                        {
+                            throw new Exception("O elemento 'market-wrapper' não foi encontrado após 3 tentativas.");
+                        }
+
                         // Captura todos os elementos "EC_Go" que representam as apostas com seus multiplicadores
                         var betElements = eventMarketView.FindElements(By.XPath(".//div[contains(@class, 'EC_Go')]"));
 

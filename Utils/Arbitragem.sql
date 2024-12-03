@@ -7,17 +7,30 @@ WITH ArbitrageCalculation AS (
         b1.OverUnder AS OverUnder_X,
         b1.BetAmount AS BetAmount_X,
         b1.Multiplier AS Multiplier_X,
+        g1.GameDate AS GameDate_X,
+        g1.HomeTeamId AS HomeTeamId_X,
+        g1.AwayTeamId AS AwayTeamId_X,
         b2.BetId AS BetId_Y,
         b2.SiteId AS SiteId_Y,
         s2.Name AS SiteName_Y,
         b2.TagName AS TagName_Y,
         b2.OverUnder AS OverUnder_Y,
         b2.BetAmount AS BetAmount_Y,
-        b2.Multiplier AS Multiplier_Y
+        b2.Multiplier AS Multiplier_Y,
+        g2.GameDate AS GameDate_Y,
+        g2.HomeTeamId AS HomeTeamId_Y,
+        g2.AwayTeamId AS AwayTeamId_Y
     FROM 
         BetInfo b1
     JOIN 
-        BetInfo b2 ON b1.GameId <> b2.GameId AND b1.BetAmount = b2.BetAmount
+        GamesInfo g1 ON b1.GameId = g1.GameId
+    JOIN 
+        BetInfo b2 ON b1.GameId <> b2.GameId 
+    JOIN 
+        GamesInfo g2 ON b2.GameId = g2.GameId
+        AND g1.HomeTeamId = g2.HomeTeamId
+        AND g1.AwayTeamId = g2.AwayTeamId
+        AND g1.GameDate = g2.GameDate
     JOIN
         [Site] s1 ON b1.SiteId = s1.SiteId
     JOIN
@@ -25,17 +38,19 @@ WITH ArbitrageCalculation AS (
     WHERE 
         ((b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de') 
         OR (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de'))
-        AND b1.SiteId = 1  -- SiteId do Site X
-        AND b2.SiteId = 2  -- SiteId do Site Y
+        AND b1.SiteId = 3  -- Novibet
+        AND b2.SiteId = 4  -- Betmatch
         AND (
-            (b1.TagName = 'Escanteios. Total' AND b2.TagName = 'Total de Escanteios ??') 
-            OR 
             (b1.TagName = 'Total de Escanteios ??' AND b2.TagName = 'Escanteios. Total')
+            OR
+            (b1.TagName = 'Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Total')
+			OR
+			(b1.TagName = 'Total de Chutes no gol ??' AND b2.TagName = 'Chutes no gol. Total')
         )
+        AND b1.BetAmount = b2.BetAmount -- Mesma linha de aposta (mesmo total de escanteios ou cartões)
 ),
 DefinedStake AS (
-    -- Definindo o valor total apostado (500) aqui
-    SELECT 500 AS Total_Aposta
+    SELECT 250 AS Total_Aposta
 )
 SELECT 
     BetId_X, 
@@ -44,7 +59,10 @@ SELECT
     TagName_X, 
     OverUnder_X, 
     BetAmount_X, 
-    Multiplier_X, 
+    Multiplier_X,
+    GameDate_X,
+    t1.NormalizedName AS HomeTeam,
+    t2.NormalizedName AS AwayTeam,
     BetId_Y, 
     SiteId_Y,
     SiteName_Y, 
@@ -53,19 +71,29 @@ SELECT
     BetAmount_Y, 
     Multiplier_Y,
     
-    -- Calculando as stakes corretamente
-    ROUND((Total_Aposta * Multiplier_Y) / (Multiplier_X + Multiplier_Y), 2) AS Stake_X,  -- Aposta para o mercado X
-    ROUND((Total_Aposta * Multiplier_X) / (Multiplier_X + Multiplier_Y), 2) AS Stake_Y,  -- Aposta para o mercado Y
+    -- Calculando as stakes
+    ROUND((Total_Aposta * Multiplier_Y) / (Multiplier_X + Multiplier_Y), 2) AS Stake_X,
+    ROUND((Total_Aposta * Multiplier_X) / (Multiplier_X + Multiplier_Y), 2) AS Stake_Y,
     
-    -- Calculando o valor final apostado e a perda/lucro
+    -- Calculando lucro/perda
     ROUND(
-        ((ROUND((Total_Aposta * Multiplier_Y) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_X + ROUND((Total_Aposta * Multiplier_X) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_Y) / 2) - Total_Aposta, 
+        ((ROUND((Total_Aposta * Multiplier_Y) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_X + 
+          ROUND((Total_Aposta * Multiplier_X) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_Y) / 2) - Total_Aposta, 
         2
-    ) AS Valor_Perda,
+    ) AS Valor_Lucro,
 
-    -- Corrigindo o cálculo do percentual de Arbitrage_Lucro_Percent com o sinal correto
+    -- Calculando percentual de lucro
     ROUND(
-        (((ROUND((Total_Aposta * Multiplier_Y) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_X + ROUND((Total_Aposta * Multiplier_X) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_Y) / 2) - Total_Aposta) / Total_Aposta * 100,
+        (((ROUND((Total_Aposta * Multiplier_Y) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_X + 
+           ROUND((Total_Aposta * Multiplier_X) / (Multiplier_X + Multiplier_Y), 2) * Multiplier_Y) / 2) - Total_Aposta) / Total_Aposta * 100,
         2
     ) AS Arbitrage_Lucro_Percent
-FROM ArbitrageCalculation, DefinedStake;
+FROM 
+    ArbitrageCalculation ac
+JOIN 
+    Teams t1 ON ac.HomeTeamId_X = t1.TeamId
+JOIN 
+    Teams t2 ON ac.AwayTeamId_X = t2.TeamId,
+    DefinedStake
+	
+order by 21 desc;
