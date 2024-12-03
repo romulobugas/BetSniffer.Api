@@ -15,6 +15,7 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Services;
 using System.Globalization;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -31,6 +32,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         private string homeTeam;
 
         private string awayTeam;
+
+        private GamesInfo gamesInfo;
 
         private DateTime gameDateTime;
 
@@ -70,7 +73,6 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         // Método para fazer o scraping e retornar as tags e apostas encontradas
         public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
         {
-
             if (_driver == null)
             {
                 throw new InvalidOperationException("O driver não foi inicializado corretamente.");
@@ -128,12 +130,18 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 Console.WriteLine("Tempo de espera excedido, o elemento não foi encontrado.");
                 _driver.Quit();
                 return new List<TagInfo>();
-            }           
+            }
+
+            // Lista de categorias processadas
+            var processedCategories = new HashSet<int>();
+
+            // Localiza o carrossel de categorias
+            var categoriesCarousel = wait.Until(driver => driver.FindElement(By.CssSelector("app-event-market-categories")));            
 
             // Encontra todos os contêineres de aposta
             var eventPresentationViews = _driver.FindElements(By.TagName("app-event-presentation"));
 
-            foreach (var eventPresentationView in eventPresentationViews) 
+            foreach (var eventPresentationView in eventPresentationViews)
             {
                 // Captura o nome do jogo (GameName) do evento
                 var gameNameElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_caption')]"));
@@ -217,13 +225,11 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
-            // Encontra todos os contêineres de aposta
-            var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
+            
 
-            // Lista de tags cadastradas que queremos buscar
-            var tagNames = NovibetTags.TagNames;
+            
 
-            var gamesInfo = new GamesInfo
+            gamesInfo = new GamesInfo
             {
                 HomeTeamId = homeTeamDb,
                 AwayTeamId = awayTeamDb,
@@ -233,9 +239,140 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             };
 
+            // Lista para armazenar resultados
+            List<TagInfo> allTagInfos = new List<TagInfo>();
+
+            // Captura todas as categorias disponíveis
+            var categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide"));
+            if (categoryElements == null || !categoryElements.Any())
+                throw new Exception("Nenhuma categoria encontrada no carrossel.");
+
+            // Configuração de número máximo de retentativas
+            const int maxRetries = 5;
+            const int retryDelay = 1000; // Delay em milissegundos
+
+            // Botão de navegação para a direita
+            var nextButton = _driver.FindElement(By.CssSelector(".marketCategories_arrowRight.nextBtn.u-flex.u-flexCenter"));
+
+            int i = 0; // Índice inicial para o loop principal
+            while (i < categoryElements.Count)
+            {
+                if (processedCategories.Contains(i))
+                {
+                    i++; // Pula categorias já processadas
+                    continue;
+                }
+
+                bool categoryProcessed = false;
+                int attempts = 0;
+
+                while (!categoryProcessed && attempts < maxRetries)
+                {
+                    try
+                    {
+                        // Tenta clicar na categoria
+                        categoryElements[i].Click();
+                        processedCategories.Add(i); // Marca como processada
+
+                        // Estratégia de retentativa para carregar o elemento necessário
+                        bool elementFound = false;
+
+                        for (int loadAttempt = 0; loadAttempt <= maxRetries; loadAttempt++)
+                        {
+                            try
+                            {
+                                // Espera que os dados carreguem
+                                wait.Until(driver => driver.FindElements(By.CssSelector("app-event-marketview")).Count > 0);
+                                elementFound = true;
+                                break; // Sai do loop se o elemento for encontrado
+                            }
+                            catch (WebDriverTimeoutException)
+                            {
+                                if (loadAttempt < maxRetries)
+                                {
+                                    Console.WriteLine($"Tentativa {loadAttempt + 1} falhou. Aguardando {retryDelay / 1000} segundos...");
+                                    Thread.Sleep(retryDelay); // Aguarda antes de tentar novamente
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Excedido o número de tentativas para carregar 'app-event-marketview'.");
+                                }
+                            }
+                        }
+
+                        if (!elementFound)
+                            throw new Exception("Falha ao encontrar 'app-event-marketview' após múltiplas tentativas.");
+
+                        // Captura as tags para esta categoria
+                        var tagInfos = ProcessMarketViews();
+                        allTagInfos.AddRange(tagInfos); // Adiciona os resultados
+
+                        categoryProcessed = true; // Marca a categoria como processada com sucesso
+                    }
+                    catch (ElementClickInterceptedException)
+                    {
+                        Console.WriteLine($"Categoria {i} interceptada. Tentando usar o botão 'Next' para ajustar...");
+                        if (nextButton.GetAttribute("class").Contains("swiper-button-disabled"))
+                        {
+                            Console.WriteLine("Botão 'Next' desabilitado. Não é possível navegar mais.");
+                            break; // Sai do loop de tentativas se não houver mais categorias acessíveis
+                        }
+
+                        nextButton.Click(); // Clica no botão para ajustar o carrossel
+                        Thread.Sleep(retryDelay); // Aguardando para que o layout do carrossel seja ajustado
+                        categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide")); // Recarrega os elementos
+                    }
+                    catch (ElementNotInteractableException)
+                    {
+                        Console.WriteLine($"Categoria {i} não interagível. Tentando usar o botão 'Next' para ajustar...");
+                        if (nextButton.GetAttribute("class").Contains("swiper-button-disabled"))
+                        {
+                            Console.WriteLine("Botão 'Next' desabilitado. Não é possível navegar mais.");
+                            break; // Sai do loop de tentativas se não houver mais categorias acessíveis
+                        }
+
+                        nextButton.Click(); // Clica no botão para ajustar o carrossel
+                        Thread.Sleep(retryDelay); // Aguardando para que o layout do carrossel seja ajustado
+                        categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide")); // Recarrega os elementos
+                    }
+                    catch (StaleElementReferenceException)
+                    {
+                        Console.WriteLine($"Elemento da categoria {i} ficou obsoleto. Recarregando elementos...");
+                        categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide")); // Recarrega os elementos
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Erro ao processar categoria {i}: {ex.Message}");
+                        attempts++;
+                    }
+                }
+
+                if (!categoryProcessed)
+                {
+                    Console.WriteLine($"Não foi possível processar a categoria {i} após {maxRetries} tentativas. Passando para a próxima.");
+                }
+
+                i++; // Move para a próxima categoria
+            }
+
+            // Encerra o WebDriver
+            _driver.Quit();
+            return allTagInfos;
+
+
+
+
+        }
+
+        // Método para processar os "app-event-marketview" e capturar as tags
+        private List<TagInfo> ProcessMarketViews()
+        {
             // Lista para armazenar as apostas
             List<BetInfo> bets = new List<BetInfo>();
             List<TagInfo> tagInfos = new List<TagInfo>();
+
+            // Encontra todos os contêineres de aposta
+            var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
 
             foreach (var eventMarketView in eventMarketViews)
             {
@@ -246,6 +383,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     var tagElement = eventMarketView.FindElement(By.XPath(".//span[contains(@class, 'eventMarketview_title')]"));
 
                     string tagName = tagElement.Text.Trim();
+
+                    // Lista de tags cadastradas que queremos buscar
+                    var tagNames = NovibetTags.TagNames;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
                     if (tagNames.Contains(tagName))
@@ -330,7 +470,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         Multiplier = decimal.Parse(multiplier.Replace(",", "."), CultureInfo.InvariantCulture),
                                         GameDate = gamesInfo.GameDate,
                                         CaptureDate = DateTime.Now,
-                                        Site = site
+                                        Site = gamesInfo.Site
                                     };
 
                                     // Adiciona a aposta e multiplicador no formato desejado
@@ -341,6 +481,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             // Se encontrou apostas, formata e adiciona ao retorno
                             if (bets.Count > 0)
                             {
+
                                 tagInfos.Add(new TagInfo(gamesInfo, bets));
 
                                 // Verifica se o jogo já existe
@@ -351,8 +492,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         g.AwayTeamId == gamesInfo.AwayTeamId &&
                                         g.GameDate == gamesInfo.GameDate &&
                                         g.League == gamesInfo.League &&
-                                        g.Site == gamesInfo.Site
-                                        );
+                                        g.Site.SiteId == gamesInfo.Site.SiteId);
 
                                 if (existingGame == null)
                                 {
@@ -365,7 +505,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                 foreach (var bet in bets)
                                 {
                                     // Procura a aposta correspondente no banco
-                                    var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>                                        
+                                    var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
                                         b.TagName == bet.TagName &&
                                         b.OverUnder == bet.OverUnder &&
                                         b.BetAmount == bet.BetAmount &&
@@ -375,7 +515,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                     if (existingBet == null)
                                     {
                                         // Adiciona nova aposta, pois não existe no banco
-                                        _dbContext.BetInfo.Add(bet);
+                                        existingGame.Bets.Add(bet); // Associa o BetInfo diretamente ao GamesInfo
                                     }
                                     else if (existingBet.Multiplier != bet.Multiplier)
                                     {
@@ -383,12 +523,15 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         existingBet.Multiplier = bet.Multiplier;
                                         existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
                                     }
+                                }
 
-                                    // Salva alterações no banco
+                                // Salva alterações no banco somente se houver pelo menos uma aposta válida
+                                if (existingGame.Bets.Any())
+                                {
                                     _dbContext.SaveChanges();
-
                                 }
                             }
+
                         }
                     }
                 }
@@ -403,8 +546,6 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     continue;
                 }
             }
-
-            _driver.Quit(); // Encerra o driver após o scraping
 
             return tagInfos;
         }

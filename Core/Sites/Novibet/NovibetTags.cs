@@ -11,6 +11,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             "Total de Cartões Amarelos",
             "Total de Chutes 🚀",
             "Total de Chutes no gol 🚀",
+            "Total de Impedimentos",
+            "Total de Faltas",
             // Adicione outras tags fixas aqui conforme necessário
         };
 

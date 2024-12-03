@@ -12,6 +12,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             "Cartões amarelos. Total",
             "Todos os chutes. Total",
             "Chutes no gol. Total",
+            "Faltas. Total",
+
             // Adicione outras tags fixas aqui conforme necessário
         };
 
