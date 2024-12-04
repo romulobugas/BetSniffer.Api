@@ -248,9 +248,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
-            
 
-            
+            NovibetTags.AddDynamicTags(homeTeam, awayTeam);
+
 
             gamesInfo = new GamesInfo
             {
@@ -484,10 +484,15 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         betAmount = decimal.Parse(betAmountString.Replace(",", "."), CultureInfo.InvariantCulture);
                                     }
 
+                                    // Substituir o nome do time na tag por "Casa" ou "Visitante"
+                                    var adjustedTagName = tagName
+                                        .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
+                                        .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+
                                     var betInfo = new BetInfo
                                     {
                                         GamesInfo = gamesInfo,
-                                        TagName = tagName,
+                                        TagName = adjustedTagName,
                                         OverUnder = overUnder,
                                         BetAmount = betAmount,
                                         Multiplier = decimal.Parse(multiplier.Replace(",", "."), CultureInfo.InvariantCulture),

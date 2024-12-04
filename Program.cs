@@ -4,6 +4,7 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Sites.Novibet;
 using BetSniffer.Api.Core.Sites.Parimatch;
 using BetSniffer.Api.Core.Interfaces;
+using System.Diagnostics;
 
 namespace BetSniffer.Api
 {
@@ -13,13 +14,12 @@ namespace BetSniffer.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configura Kestrel para escutar em todas as interfaces de rede
+            // Configura Kestrel para escutar em HTTPS apenas
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
-                //serverOptions.ListenAnyIP(5000); // Porta HTTP
-                serverOptions.ListenAnyIP(5000, listenOptions =>
+                serverOptions.ListenAnyIP(5001, listenOptions =>
                 {
-                    listenOptions.UseHttps(); // Porta HTTPS
+                    listenOptions.UseHttps(); // Configura HTTPS na porta 5001
                 });
             });
 
@@ -72,10 +72,34 @@ namespace BetSniffer.Api
                 c.RoutePrefix = string.Empty; // Deixa o Swagger na raiz do aplicativo
             });
 
+            // Abrir automaticamente o navegador no HTTPS ao iniciar
+            OpenBrowser("https://localhost:5001");
+
             app.UseHttpsRedirection();
             app.MapControllers();
 
             app.Run();
+        }
+
+        /// <summary>
+        /// Abre o navegador na URL especificada.
+        /// </summary>
+        /// <param name="url">URL a ser aberta no navegador.</param>
+        private static void OpenBrowser(string url)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao tentar abrir o navegador: {ex.Message}");
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             "Todos os chutes. Total",
             "Chutes no gol. Total",
             "Faltas. Total",
+            "Total",
 
             // Adicione outras tags fixas aqui conforme necessário
         };
