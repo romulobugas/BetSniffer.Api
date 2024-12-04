@@ -152,8 +152,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             foreach (var eventPresentationView in eventPresentationViews) 
             {
                 //Captura os times
-                // Captura os times (a href com a classe 'EC_Cz')
-                var teamElements = eventPresentationView.FindElements(By.XPath(".//a[contains(@class, 'EC_Cz')]"));
+                // Captura os elementos que possuem o atributo data-id="event-card-competitor-name"
+                var teamElements = eventPresentationView.FindElements(By.XPath(".//span[@data-id='event-card-competitor-name']"));
 
                 // Certifica-se de que existem pelo menos dois times
                 if (teamElements.Count >= 2)
