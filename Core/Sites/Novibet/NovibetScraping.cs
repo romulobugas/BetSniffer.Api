@@ -408,6 +408,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             // Não há necessidade de fazer nada, pois as apostas já podem estar visíveis
                         }
 
+                        // Remove emojis do texto
+                        string pattern = @"[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u200D\uFE0F]";
+                        tagName = Regex.Replace(tagName, pattern, "").Trim();
 
 
                         // Captura todo o HTML do app-event-marketview
@@ -507,9 +510,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                 // Verifica e atualiza as apostas
                                 foreach (var bet in bets)
                                 {
+                                    // Substituir o nome do time na tag por "Casa" ou "Visitante"
+                                    var adjustedTagName = bet.TagName
+                                        .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
+                                        .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+
                                     // Procura a aposta correspondente no banco
                                     var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
-                                        b.TagName == bet.TagName &&
+                                        b.TagName == adjustedTagName &&
                                         b.OverUnder == bet.OverUnder &&
                                         b.BetAmount == bet.BetAmount &&
                                         b.GameDate == bet.GameDate &&
@@ -520,25 +528,27 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         // Adiciona nova aposta, pois não existe no banco
                                         existingGame.Bets.Add(bet); // Associa o BetInfo diretamente ao GamesInfo
                                     }
-                                    else if (existingBet.Multiplier != bet.Multiplier)
+                                    else
                                     {
-                                        // Atualiza o multiplicador da aposta existente
-                                        _dbContext.Attach(existingBet);
-                                        existingBet.Multiplier = bet.Multiplier;
-                                        existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
-                                        _dbContext.Entry(existingBet).Property(x => x.Multiplier).IsModified = true;
-                                        _dbContext.Entry(existingBet).Property(x => x.CaptureDate).IsModified = true;
+                                        // Atualiza apenas os campos que precisam ser modificados
+                                        if (existingBet.Multiplier != bet.Multiplier)
+                                        {
+                                            existingBet.Multiplier = bet.Multiplier;
+                                            existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
+
+                                            _dbContext.Attach(existingBet);
+                                            _dbContext.Entry(existingBet).Property(x => x.Multiplier).IsModified = true;
+                                            _dbContext.Entry(existingBet).Property(x => x.CaptureDate).IsModified = true;
+                                        }
                                     }
                                 }
 
-                                // Salva alterações no banco
-                                _dbContext.SaveChanges();
-
-                                // Salva alterações no banco somente se houver pelo menos uma aposta válida
-                                if (existingGame.Bets.Any())
+                                // Salva alterações no banco somente se houver alterações
+                                if (_dbContext.ChangeTracker.HasChanges())
                                 {
                                     _dbContext.SaveChanges();
                                 }
+
                             }
 
                         }

@@ -39,18 +39,32 @@ WITH ArbitrageCalculation AS (
         ((b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de') 
         OR (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de'))
         AND b1.SiteId = 3  -- Novibet
-        AND b2.SiteId = 4  -- Betmatch
+        AND b2.SiteId = 4  -- Parimach
         AND (
             (b1.TagName = 'Total de Escanteios ??' AND b2.TagName = 'Escanteios. Total')
             OR
             (b1.TagName = 'Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Total')
 			OR
 			(b1.TagName = 'Total de Chutes no gol ??' AND b2.TagName = 'Chutes no gol. Total')
+			OR
+			(b1.TagName = 'Casa Total de Escanteios' AND b2.TagName = 'Escanteios. Casa total')
+			OR
+			(b1.TagName = 'Visitante Total de Escanteios' AND b2.TagName = 'Escanteios. Visitante total')
+			OR
+			(b1.TagName = 'Total de Escanteios ??' AND b2.TagName = 'Escanteios. Total')
+			OR
+			(b1.TagName = 'Total de Faltas' AND b2.TagName = 'Faltas. Total')
+			OR
+			(b1.TagName = 'Total de Gols ??' AND b2.TagName = 'Total')
+			OR
+			(b1.TagName = 'Casa Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Casa total')
+			OR
+			(b1.TagName = 'Visitante Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Visitante total')
         )
         AND b1.BetAmount = b2.BetAmount -- Mesma linha de aposta (mesmo total de escanteios ou cartões)
 ),
 DefinedStake AS (
-    SELECT 250 AS Total_Aposta
+    SELECT 500 AS Total_Aposta
 )
 SELECT 
     BetId_X, 

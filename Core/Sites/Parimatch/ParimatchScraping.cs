@@ -379,12 +379,11 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                         }
 
 
-                        // Verifica e atualiza as apostas
                         if (bets.Count > 0)
                         {
                             tagInfos.Add(new TagInfo(gamesInfo, bets));
 
-                            // Verifica se o jogo já existe
+                            // Verifica se o jogo já existe no banco
                             var existingGame = _dbContext.GamesInfo
                                 .Include(g => g.Bets) // Carrega as apostas relacionadas
                                 .FirstOrDefault(g =>
@@ -392,8 +391,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     g.AwayTeamId == gamesInfo.AwayTeamId &&
                                     g.GameDate == gamesInfo.GameDate &&
                                     g.League == gamesInfo.League &&
-                                    g.Site == gamesInfo.Site
-                                    );
+                                    g.Site.SiteId == gamesInfo.Site.SiteId);
 
                             if (existingGame == null)
                             {
@@ -405,9 +403,14 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             // Verifica e atualiza as apostas
                             foreach (var bet in bets)
                             {
-                                // Procura a aposta correspondente no banco
-                                var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
-                                    b.TagName == bet.TagName &&
+                                // Substituir o nome do time na tag por "Casa" ou "Visitante"
+                                var adjustedTagName = bet.TagName
+                                    .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
+                                    .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+
+                                // Procura a aposta correspondente nas apostas do jogo carregado
+                                var existingBet = existingGame.Bets.FirstOrDefault(b =>
+                                    b.TagName == adjustedTagName &&
                                     b.OverUnder == bet.OverUnder &&
                                     b.BetAmount == bet.BetAmount &&
                                     b.GameDate == bet.GameDate &&
@@ -415,21 +418,25 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
                                 if (existingBet == null)
                                 {
-                                    // Adiciona nova aposta, pois não existe no banco
-                                    _dbContext.BetInfo.Add(bet);
+                                    // Adiciona nova aposta ao jogo
+                                    existingGame.Bets.Add(bet); // Adiciona diretamente na coleção de apostas do jogo
                                 }
                                 else if (existingBet.Multiplier != bet.Multiplier)
                                 {
                                     // Atualiza o multiplicador da aposta existente
                                     existingBet.Multiplier = bet.Multiplier;
                                     existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
-                                    _dbContext.Entry(existingBet).State = EntityState.Modified;
+                                    _dbContext.Entry(existingBet).Property(x => x.Multiplier).IsModified = true;
+                                    _dbContext.Entry(existingBet).Property(x => x.CaptureDate).IsModified = true;
                                 }
                             }
-
-                            // Salva todas as alterações no banco de uma vez
-                            _dbContext.SaveChanges();
+                            // Salva alterações no banco somente se houver alterações
+                            if (_dbContext.ChangeTracker.HasChanges())
+                            {
+                                _dbContext.SaveChanges();
+                            }                            
                         }
+
                     }
                 }
                 catch (NoSuchElementException)
