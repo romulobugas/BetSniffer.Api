@@ -433,11 +433,12 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     // Atualiza o multiplicador da aposta existente
                                     existingBet.Multiplier = bet.Multiplier;
                                     existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
+                                    _dbContext.Entry(existingBet).State = EntityState.Modified;
                                 }
-
-                                // Salva alterações no banco
-                                _dbContext.SaveChanges();
                             }
+
+                            // Salva todas as alterações no banco de uma vez
+                            _dbContext.SaveChanges();
                         }
                     }
                 }

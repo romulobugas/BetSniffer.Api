@@ -168,10 +168,10 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     {
                         // Dicionário para converter os meses em português
                         Dictionary<string, int> meses = new Dictionary<string, int>
-        {
-            { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 }, { "mai", 5 }, { "jun", 6 },
-            { "jul", 7 }, { "ago", 8 }, { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 }
-        };
+                        {
+                            { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 }, { "mai", 5 }, { "jun", 6 },
+                            { "jul", 7 }, { "ago", 8 }, { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 }
+                        };
 
                         // Separar os componentes
                         string[] parts = gameDateText.Split(' ');
@@ -543,10 +543,16 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                     else if (existingBet.Multiplier != bet.Multiplier)
                                     {
                                         // Atualiza o multiplicador da aposta existente
+                                        _dbContext.Attach(existingBet);
                                         existingBet.Multiplier = bet.Multiplier;
                                         existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
+                                        _dbContext.Entry(existingBet).Property(x => x.Multiplier).IsModified = true;
+                                        _dbContext.Entry(existingBet).Property(x => x.CaptureDate).IsModified = true;
                                     }
                                 }
+
+                                // Salva alterações no banco
+                                _dbContext.SaveChanges();
 
                                 // Salva alterações no banco somente se houver pelo menos uma aposta válida
                                 if (existingGame.Bets.Any())
