@@ -34,5 +34,39 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
             return elementCode;
         }
+
+        // Método para adicionar tags dinâmicas com nomes de times
+        public static void AddDynamicTags(string homeTeam, string awayTeam)
+        {
+            // Lista de padrões de tags dinâmicas
+            var dynamicTags = new List<string>
+            {
+                $"Escanteios. {homeTeam} total",
+                $"Escanteios. {awayTeam} total",
+                $"Cartões amarelos. {homeTeam} total",
+                $"Cartões amarelos. {awayTeam} total",
+                $"Chutes no gol. {homeTeam} total",
+                $"Chutes no gol. {awayTeam} total",
+                $"Todos os chutes. {homeTeam} total",
+                $"Todos os chutes. {awayTeam} total",
+                $"Impedimentos. {homeTeam} total",
+                $"Impedimentos. {awayTeam} total",
+                $"Faltas. {homeTeam} total",
+                $"Faltas. {awayTeam} total",
+
+
+                $"{homeTeam} - Total de Impedimentos",
+                $"{awayTeam} - Total de Impedimentos",
+            };
+
+            // Adicionar ao dicionário principal evitando duplicações
+            foreach (var tag in dynamicTags)
+            {
+                if (!TagNames.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                {
+                    TagNames.Add(tag);
+                }
+            }
+        }
     }
 }

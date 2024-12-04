@@ -13,6 +13,7 @@ using BetSniffer.Api.Core.Services;
 using Microsoft.EntityFrameworkCore.Internal;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
+using BetSniffer.Api.Core.Sites.Novibet;
 
 namespace BetSniffer.Api.Core.Sites.Parimatch
 {
@@ -247,6 +248,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
+            ParimatchTags.AddDynamicTags(homeTeam, awayTeam);
+
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));
 
@@ -272,7 +275,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 try
                 {
                     // Verifica se o evento contém uma tag válida
-                    var tagElement = eventMarketView.FindElement(By.XPath(".//div[contains(@class, 'EC_FU')]//div[@role='button']//span[@data-testid='modulor-typography']"));
+                    var tagElement = eventMarketView.FindElement(By.XPath(".//div[@role='button']//span[@data-testid='modulor-typography']"));
                     string tagName = tagElement.Text.Trim();
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
@@ -311,8 +314,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             throw new Exception("O elemento 'market-wrapper' não foi encontrado após 3 tentativas.");
                         }
 
-                        // Captura todos os elementos "EC_Go" que representam as apostas com seus multiplicadores
-                        var betElements = eventMarketView.FindElements(By.XPath(".//div[contains(@class, 'EC_Go')]"));
+                        // Captura todas as divs dentro de eventMarketView
+                        var betElements = eventMarketView.FindElements(By.XPath(".//div"));
 
                         foreach (var betElement in betElements)
                         {
@@ -348,11 +351,16 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     continue;
                                 }
 
+                                // Substituir o nome do time na tag por "Casa" ou "Visitante"
+                                var adjustedTagName = tagName
+                                    .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
+                                    .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+
                                 // Cria a aposta "Mais de"
                                 var betMore = new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
-                                    TagName = tagName,
+                                    TagName = adjustedTagName,
                                     OverUnder = "Mais de", // "Mais de" para o lado "Mais"
                                     BetAmount = betAmount,
                                     Multiplier = moreMultiplier,
@@ -365,7 +373,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 var betLess = new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
-                                    TagName = tagName,
+                                    TagName = adjustedTagName,
                                     OverUnder = "Menos de", // "Menos de" para o lado "Menos"
                                     BetAmount = betAmount,
                                     Multiplier = lessMultiplier,
