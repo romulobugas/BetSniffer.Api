@@ -4,6 +4,8 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Sites.Novibet;
 using BetSniffer.Api.Core.Sites.Parimatch;
 using BetSniffer.Api.Core.Interfaces;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium;
 using System.Diagnostics;
 
 namespace BetSniffer.Api
@@ -21,6 +23,16 @@ namespace BetSniffer.Api
                 {
                     listenOptions.UseHttps(); // Configura HTTPS na porta 5001
                 });
+            });
+
+            // Configura o WebDriver compartilhado como Singleton
+            builder.Services.AddSingleton<IWebDriver>(serviceProvider =>
+            {
+                var options = new ChromeOptions();
+                options.AddArgument("--disable-gpu");
+                options.AddArgument("--no-sandbox");
+                options.AddArgument("--headless"); // Remove se quiser ver o navegador
+                return new ChromeDriver(options);
             });
 
             // Registra o DbContext para o banco de dados
@@ -77,6 +89,17 @@ namespace BetSniffer.Api
 
             app.UseHttpsRedirection();
             app.MapControllers();
+
+            // Garante que o WebDriver seja liberado ao final
+            using (var scope = app.Services.CreateScope())
+            {
+                var driver = scope.ServiceProvider.GetRequiredService<IWebDriver>();
+                app.Lifetime.ApplicationStopping.Register(() =>
+                {
+                    driver.Quit();
+                    driver.Dispose();
+                });
+            }
 
             app.Run();
         }

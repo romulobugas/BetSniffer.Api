@@ -43,40 +43,21 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
         #endregion
 
-        public NovibetScraping(ApplicationDbContext dbContext, TeamService teamService)
+        public NovibetScraping(IWebDriver driver, ApplicationDbContext dbContext, TeamService teamService)
         {
+            _driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
 
-            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));  // Inicializa o TeamService corretamente
-            // Inicializa o driver aqui no construtor
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
-            //options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
-            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
-            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
-
-            _driver = new ChromeDriver(options);  // Inicializa o driver aqui
-        }
-
-        public NovibetScraping()
-        {
-            // Inicializa o driver aqui no construtor
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
-            //options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
-            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
-            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
-
-            _driver = new ChromeDriver(options);  // Inicializa o driver aqui
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
         public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
         {
-            if (_driver == null)
-            {
-                throw new InvalidOperationException("O driver não foi inicializado corretamente.");
-            }
+            // Validação básica
+            if (string.IsNullOrEmpty(url)) throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
+            if (string.IsNullOrEmpty(siteName)) throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
+
 
             // Verifica se o _dbContext foi inicializado corretamente
             if (_dbContext == null)
@@ -128,7 +109,6 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             catch (WebDriverTimeoutException)
             {
                 Console.WriteLine("Tempo de espera excedido, o elemento não foi encontrado.");
-                _driver.Quit();
                 return new List<TagInfo>();
             }
 
@@ -378,12 +358,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 i++; // Move para a próxima categoria
             }
 
-            // Encerra o WebDriver
-            _driver.Quit();
             return allTagInfos;
-
-
-
 
         }
 

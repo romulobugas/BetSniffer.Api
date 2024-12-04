@@ -41,36 +41,19 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         #endregion
 
-        public ParimatchScraping(ApplicationDbContext dbContext, TeamService teamService)
+        public ParimatchScraping(IWebDriver driver, ApplicationDbContext dbContext, TeamService teamService)
         {
+            _driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-
-            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));  // Inicializa o TeamService corretamente
-            // Inicializa o driver aqui no construtor
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
-            //options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
-            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
-            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
-
-            _driver = new ChromeDriver(options);  // Inicializa o driver aqui
-        }
-
-        public ParimatchScraping()
-        {
-            // Inicializa o driver aqui no construtor
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
-            //options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
-            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
-            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
-
-            _driver = new ChromeDriver(options);  // Inicializa o driver aqui
+            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
         public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
         {
+
+            if (string.IsNullOrEmpty(url)) throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
+            if (string.IsNullOrEmpty(siteName)) throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
 
             if (_driver == null)
             {
@@ -127,7 +110,6 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             catch (WebDriverTimeoutException)
             {
                 Console.WriteLine("Tempo de espera excedido, o elemento não foi encontrado.");
-                _driver.Quit();
                 return new List<TagInfo>();
             }
 
@@ -461,8 +443,6 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                     continue;
                 }
             }
-
-            _driver.Quit(); // Encerra o driver após o scraping
 
             return tagInfos;
         }

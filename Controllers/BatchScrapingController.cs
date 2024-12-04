@@ -4,9 +4,11 @@ using BetSniffer.Api.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites;
+using BetSniffer.Api.Data;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -15,11 +17,14 @@ namespace BetSniffer.Api.Controllers
     public class BatchScrapingController : ControllerBase
     {
         private readonly IServiceProvider _serviceProvider;
+        private readonly ApplicationDbContext _dbContext;
+        private readonly TeamService _teamService;
 
-        // Injeção de dependência do IServiceProvider
-        public BatchScrapingController(IServiceProvider serviceProvider)
+        public BatchScrapingController(IServiceProvider serviceProvider, ApplicationDbContext dbContext, TeamService teamService)
         {
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
         }
 
         [HttpPost("scrape")]
@@ -29,6 +34,12 @@ namespace BetSniffer.Api.Controllers
             {
                 return BadRequest(new { message = "A lista de URLs não pode estar vazia." });
             }
+
+            var options = new ChromeOptions();
+            
+            options.AddArgument("--no-sandbox");
+
+            using var driver = new ChromeDriver(options); // WebDriver compartilhado
 
             var results = new List<object>();
             var errors = new List<string>();
@@ -45,15 +56,14 @@ namespace BetSniffer.Api.Controllers
                         continue;
                     }
 
-                    Console.WriteLine($"Site detectado: {siteName}");
+                    // Inicializa a classe de scraping correspondente com o WebDriver compartilhado
+                    var scrapingService = GetScrapingService(siteName, driver);
 
-                    // Determine qual serviço de scraping deve ser utilizado
-                    IScrapingService scrapingService = GetScrapingService(siteName);
+                    // Usa o serviço de scraping sem "await", pois não é assíncrono
+                    var result = scrapingService.ScrapeTagsAsync(url, siteName); // Removido "await"
 
-                    // Usa o serviço de scraping correspondente
-                    var result = scrapingService.ScrapeTagsAsync(url, siteName);
-
-                    results.Add(new { Url = url, SiteName = siteName, Result = result });
+                    // Adiciona o resultado do scraping
+                    results.Add(new { Url = url, SiteName = siteName, Result = "Sucesso" });
                 }
                 catch (Exception ex)
                 {
@@ -61,49 +71,31 @@ namespace BetSniffer.Api.Controllers
                 }
             }
 
-            // Configurar JsonSerializerOptions para permitir ciclos de referência
-            var options = new JsonSerializerOptions
+            var jsonResponse = new
             {
-                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve,
-                WriteIndented = true // Isso vai formatar a resposta para facilitar a leitura
+                Results = results,
+                Errors = errors
             };
 
-            // Serializar a resposta com o JsonSerializer
-            var jsonResponse = JsonSerializer.Serialize(new { Results = results, Errors = errors }, options);
-
-            return Content(jsonResponse, "application/json");
+            return Ok(jsonResponse);
         }
 
         private string ExtractSiteName(string url)
         {
-            try
-            {
-                var uri = new Uri(url);
-                string host = uri.Host;
-                string[] parts = host.Split('.');
-
-                string siteName = parts.Length >= 3 ? parts[1] : parts[0];
-
-                return siteName.ToLower();
-            }
-            catch
-            {
-                return "unknown";
-            }
+            var uri = new Uri(url);
+            string host = uri.Host;
+            string[] parts = host.Split('.');
+            return parts.Length >= 3 ? parts[1] : parts[0];
         }
 
-        // Método que retorna o serviço de scraping baseado no nome do site
-        private IScrapingService GetScrapingService(string siteName)
+        private IScrapingService GetScrapingService(string siteName, IWebDriver driver)
         {
-            switch (siteName)
+            return siteName.ToLower() switch
             {
-                case "novibet":
-                    return _serviceProvider.GetService<NovibetScraping>(); // Usando o NovibetScraping
-                case "parimatch":
-                    return _serviceProvider.GetService<ParimatchScraping>(); // Usando o ParimatchScraping
-                default:
-                    throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}");
-            }
+                "novibet" => new NovibetScraping(driver, _dbContext, _teamService),
+                "parimatch" => new ParimatchScraping(driver, _dbContext, _teamService),
+                _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
+            };
         }
     }
 }
