@@ -3,11 +3,13 @@ using BetSniffer.Api.Core.Sites.Parimatch;
 using BetSniffer.Api.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 using BetSniffer.Api.Core.Interfaces;
-using BetSniffer.Api.Core.Sites;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Models;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
+using System.Runtime.InteropServices;
+using BetSniffer.Api.Core.Sites;
+using System.Diagnostics;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -15,22 +17,17 @@ namespace BetSniffer.Api.Controllers
     [ApiController]
     public class BatchScrapingController : ControllerBase
     {
-        private readonly IWebDriver _driver;
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
-        private readonly IServiceProvider _serviceProvider;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
 
-
         public BatchScrapingController(
-            IServiceProvider serviceProvider,
             ApplicationDbContext dbContext,
             TeamService teamService,
             IRepositoryService<GamesInfo> gamesInfoRepository,
             IRepositoryService<BetInfo> betInfoRepository)
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
@@ -46,38 +43,43 @@ namespace BetSniffer.Api.Controllers
             }
 
             var options = new ChromeOptions();
-            
             options.AddArgument("--no-sandbox");
-
-            using var driver = new ChromeDriver(options); // WebDriver compartilhado
+            options.AddArgument("--force-device-scale-factor=0.1"); // Ajusta o zoom
+            options.AddArgument("--start-maximized");              // Tela cheia
 
             var results = new List<object>();
             var errors = new List<string>();
 
-            foreach (var url in urls)
+            using (var driver = new ChromeDriver(options))
             {
-                try
-                {
-                    string siteName = ExtractSiteName(url);
+                // Garante que o navegador esteja em evidência
+                BringChromeToFront(driver);
 
-                    if (!SupportedSites.IsSiteSupported(siteName))
+                foreach (var url in urls)
+                {
+                    try
                     {
-                        errors.Add($"Site não suportado: {siteName}");
-                        continue;
+                        string siteName = ExtractSiteName(url);
+
+                        if (!SupportedSites.IsSiteSupported(siteName))
+                        {
+                            errors.Add($"Site não suportado: {siteName}");
+                            continue;
+                        }
+
+                        // Obtem o serviço de scraping
+                        var scrapingService = GetScrapingService(siteName, driver);
+
+                        // Executa o scraping
+                        scrapingService.ScrapeTagsAsync(url, siteName);
+
+                        // Adiciona o resultado à lista de sucessos
+                        results.Add(new { Url = url, SiteName = siteName, Result = "Sucesso" });
                     }
-
-                    // Inicializa a classe de scraping correspondente com o WebDriver compartilhado
-                    var scrapingService = GetScrapingService(siteName, driver);
-
-                    // Usa o serviço de scraping sem "await", pois não é assíncrono
-                    var result = scrapingService.ScrapeTagsAsync(url, siteName); // Removido "await"
-
-                    // Adiciona o resultado do scraping
-                    results.Add(new { Url = url, SiteName = siteName, Result = "Sucesso" });
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"Erro ao processar URL '{url}': {ex.Message}");
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Erro ao processar URL '{url}': {ex.Message}");
+                    }
                 }
             }
 
@@ -102,11 +104,45 @@ namespace BetSniffer.Api.Controllers
         {
             return siteName.ToLower() switch
             {
-                "novibet" => new NovibetScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository), // Adicionei _siteRepository aqui
+                "novibet" => new NovibetScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 "parimatch" => new ParimatchScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
+
+        /// <summary>
+        /// Traz a janela do navegador Chrome para o primeiro plano (ativa a janela).
+        /// </summary>
+        /// <param name="driver">Instância do WebDriver.</param>
+        private void BringChromeToFront(IWebDriver driver)
+        {
+            try
+            {
+                // Obtenha todos os processos do Chrome em execução
+                var processes = Process.GetProcessesByName("chrome");
+
+                foreach (var process in processes)
+                {
+                    // Identifica o processo associado ao driver (caso existam vários)
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        // Traz o processo para o primeiro plano
+                        SetForegroundWindow(process.MainWindowHandle);
+                        return; // Encerra após trazer a primeira janela ativa para frente
+                    }
+                }
+
+                Console.WriteLine("Não foi possível localizar uma janela ativa do Chrome.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao trazer o navegador para frente: {ex.Message}");
+            }
+        }
+
+        // Função nativa do Windows para trazer a janela para o primeiro plano
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     }
 }

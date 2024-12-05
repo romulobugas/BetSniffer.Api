@@ -18,13 +18,28 @@ namespace BetSniffer.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configura Kestrel para escutar em HTTPS apenas
+            // Verifica se estamos em Produção
+            var environment = builder.Environment.EnvironmentName;
+
+            // Configura o Kestrel para usar HTTP ou HTTPS com base no ambiente
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
-                serverOptions.ListenAnyIP(5001, listenOptions =>
+                if (environment != "Production") // Habilita HTTPS apenas fora de produção
                 {
-                    listenOptions.UseHttps(); // Configura HTTPS na porta 5001
-                });
+                    // Configura HTTPS na porta 5001
+                    serverOptions.ListenAnyIP(5001, listenOptions =>
+                    {
+                        listenOptions.UseHttps(); // Habilita HTTPS para desenvolvimento e outros ambientes
+                    });
+                }
+                else
+                {
+                    // Apenas HTTP em produção na porta 5000
+                    serverOptions.ListenAnyIP(5000, listenOptions =>
+                    {
+                        // Não configura HTTPS
+                    });
+                }
             });
 
             // Configura o WebDriver compartilhado como Singleton
@@ -69,7 +84,6 @@ namespace BetSniffer.Api
                 };
             });
 
-
             // Configurar CORS para liberar tudo
             builder.Services.AddCors(options =>
             {
@@ -99,10 +113,16 @@ namespace BetSniffer.Api
                 c.RoutePrefix = string.Empty; // Deixa o Swagger na raiz do aplicativo
             });
 
-            // Abrir automaticamente o navegador no HTTPS ao iniciar
-            OpenBrowser("https://localhost:5001");
+            // Abrir automaticamente o navegador no HTTPS (desabilitar para produção)
+            if (environment != "Production")
+            {
+                OpenBrowser("https://localhost:5001");
+            }
 
+            // Usar apenas HTTP em produção
             app.UseHttpsRedirection();
+
+            // Mapear os controladores
             app.MapControllers();
 
             // Garante que o WebDriver seja liberado ao final
@@ -139,6 +159,7 @@ namespace BetSniffer.Api
                 Console.WriteLine($"Erro ao tentar abrir o navegador: {ex.Message}");
             }
         }
+
     }
 }
 

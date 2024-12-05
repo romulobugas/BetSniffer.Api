@@ -53,10 +53,6 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 $"Impedimentos. {awayTeam} total",
                 $"Faltas. {homeTeam} total",
                 $"Faltas. {awayTeam} total",
-
-
-                $"{homeTeam} - Total de Impedimentos",
-                $"{awayTeam} - Total de Impedimentos",
             };
 
             // Adicionar ao dicionário principal evitando duplicações
