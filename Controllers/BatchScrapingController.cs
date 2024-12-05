@@ -2,11 +2,10 @@
 using BetSniffer.Api.Core.Sites.Parimatch;
 using BetSniffer.Api.Core.Services;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites;
 using BetSniffer.Api.Data;
+using BetSniffer.Api.Models;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
 
@@ -16,15 +15,26 @@ namespace BetSniffer.Api.Controllers
     [ApiController]
     public class BatchScrapingController : ControllerBase
     {
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IWebDriver _driver;
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
+        private readonly IRepositoryService<BetInfo> _betInfoRepository;
 
-        public BatchScrapingController(IServiceProvider serviceProvider, ApplicationDbContext dbContext, TeamService teamService)
+
+        public BatchScrapingController(
+            IServiceProvider serviceProvider,
+            ApplicationDbContext dbContext,
+            TeamService teamService,
+            IRepositoryService<GamesInfo> gamesInfoRepository,
+            IRepositoryService<BetInfo> betInfoRepository)
         {
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
+            _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
+            _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
         }
 
         [HttpPost("scrape")]
@@ -92,10 +102,11 @@ namespace BetSniffer.Api.Controllers
         {
             return siteName.ToLower() switch
             {
-                "novibet" => new NovibetScraping(driver, _dbContext, _teamService),
-                "parimatch" => new ParimatchScraping(driver, _dbContext, _teamService),
+                "novibet" => new NovibetScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository), // Adicionei _siteRepository aqui
+                "parimatch" => new ParimatchScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
+
     }
 }

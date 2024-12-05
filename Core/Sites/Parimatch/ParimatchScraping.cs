@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore.Internal;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Novibet;
+using System.Threading;
 
 namespace BetSniffer.Api.Core.Sites.Parimatch
 {
@@ -39,13 +40,18 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         private readonly TeamService _teamService;
 
+        private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
+        private readonly IRepositoryService<BetInfo> _betInfoRepository;
+
         #endregion
 
-        public ParimatchScraping(IWebDriver driver, ApplicationDbContext dbContext, TeamService teamService)
+        public ParimatchScraping(IWebDriver driver, ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository, IRepositoryService<BetInfo> betInfoRepository)
         {
             _driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
+            _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
+            _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
@@ -131,7 +137,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             // Encontra todos os contêineres de aposta
             var eventPresentationViews = _driver.FindElements(By.CssSelector("div[data-id='card-scoreboard']"));
 
-            foreach (var eventPresentationView in eventPresentationViews) 
+            foreach (var eventPresentationView in eventPresentationViews)
             {
                 //Captura os times
                 // Captura os elementos que possuem o atributo data-id="event-card-competitor-name"
@@ -384,19 +390,17 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             tagInfos.Add(new TagInfo(gamesInfo, bets));
 
                             // Verifica se o jogo já existe no banco
-                            var existingGame = _dbContext.GamesInfo
-                                .Include(g => g.Bets) // Carrega as apostas relacionadas
-                                .FirstOrDefault(g =>
-                                    g.HomeTeamId == gamesInfo.HomeTeamId &&
-                                    g.AwayTeamId == gamesInfo.AwayTeamId &&
-                                    g.GameDate == gamesInfo.GameDate &&
-                                    g.League == gamesInfo.League &&
-                                    g.Site.SiteId == gamesInfo.Site.SiteId);
+                            var existingGame = _gamesInfoRepository.Find(g =>
+                                g.HomeTeamId == gamesInfo.HomeTeamId &&
+                                g.AwayTeamId == gamesInfo.AwayTeamId &&
+                                g.GameDate == gamesInfo.GameDate &&
+                                g.League == gamesInfo.League &&
+                                g.Site.SiteId == gamesInfo.Site.SiteId).FirstOrDefault();
 
                             if (existingGame == null)
                             {
                                 // Se o jogo não existir, adiciona ao banco
-                                _dbContext.GamesInfo.Add(gamesInfo);
+                                _gamesInfoRepository.Add(gamesInfo);
                                 existingGame = gamesInfo;
                             }
 
@@ -408,33 +412,31 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
                                     .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
 
-                                // Procura a aposta correspondente nas apostas do jogo carregado
-                                var existingBet = existingGame.Bets.FirstOrDefault(b =>
+                                // Procura a aposta correspondente
+                                var existingBet = _betInfoRepository.Find(b =>
+                                    b.GamesInfo.GameId == existingGame.GameId &&
                                     b.TagName == adjustedTagName &&
                                     b.OverUnder == bet.OverUnder &&
                                     b.BetAmount == bet.BetAmount &&
-                                    b.GameDate == bet.GameDate &&
-                                    b.Site.SiteId == bet.Site.SiteId);
+                                    b.Site.SiteId == bet.Site.SiteId).FirstOrDefault();
 
                                 if (existingBet == null)
                                 {
-                                    // Adiciona nova aposta ao jogo
-                                    existingGame.Bets.Add(bet); // Adiciona diretamente na coleção de apostas do jogo
+                                    // Adiciona nova aposta
+                                    bet.GamesInfo = existingGame;
+                                    _betInfoRepository.Add(bet);
                                 }
-                                else if (existingBet.Multiplier != bet.Multiplier)
+                                else
                                 {
-                                    // Atualiza o multiplicador da aposta existente
+                                    // Atualiza a aposta existente
                                     existingBet.Multiplier = bet.Multiplier;
-                                    existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
-                                    _dbContext.Entry(existingBet).Property(x => x.Multiplier).IsModified = true;
-                                    _dbContext.Entry(existingBet).Property(x => x.CaptureDate).IsModified = true;
+                                    existingBet.CaptureDate = DateTime.Now;
+                                    _betInfoRepository.SaveOrUpdate(existingBet);
                                 }
                             }
-                            // Salva alterações no banco somente se houver alterações
-                            if (_dbContext.ChangeTracker.HasChanges())
-                            {
-                                _dbContext.SaveChanges();
-                            }                            
+
+                            // Salva todas as alterações
+                            _dbContext.SaveChanges();
                         }
 
                     }
@@ -451,7 +453,9 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 }
             }
 
+            _dbContext.SaveChanges();
             return tagInfos;
         }
     }
 }
+

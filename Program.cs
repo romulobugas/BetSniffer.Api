@@ -7,6 +7,8 @@ using BetSniffer.Api.Core.Interfaces;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
 using System.Diagnostics;
+using BetSniffer.Api.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BetSniffer.Api
 {
@@ -39,6 +41,9 @@ namespace BetSniffer.Api
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;"));
 
+            // Registra o serviço de repositório genérico
+            builder.Services.AddScoped(typeof(IRepositoryService<>), typeof(RepositoryService<>));
+
             // Registra serviços de scraping usando a interface IScrapingService
             builder.Services.AddScoped<NovibetScraping>();
             builder.Services.AddScoped<ParimatchScraping>();
@@ -47,13 +52,23 @@ namespace BetSniffer.Api
             // Registrar o serviço de roteamento dinâmico para IScrapingService
             builder.Services.AddScoped<Func<string, IScrapingService>>(serviceProvider => siteName =>
             {
+                // Obtenha os serviços necessários
+                var dbContext = serviceProvider.GetRequiredService<ApplicationDbContext>();
+                var teamService = serviceProvider.GetRequiredService<TeamService>();
+                var gamesInfoRepository = serviceProvider.GetRequiredService<IRepositoryService<GamesInfo>>();
+                var betInfoRepository = serviceProvider.GetRequiredService<IRepositoryService<BetInfo>>();
+                var siteRepository = serviceProvider.GetRequiredService<IRepositoryService<Site>>(); // Adicionado
+                var driver = serviceProvider.GetRequiredService<IWebDriver>();
+
+                // Retorne a instância do serviço de scraping dependendo do nome do site
                 return siteName.ToLower() switch
                 {
-                    "novibet" => serviceProvider.GetRequiredService<NovibetScraping>(),
-                    "parimatch" => serviceProvider.GetRequiredService<ParimatchScraping>(),
+                    "novibet" => new NovibetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    "parimatch" => new ParimatchScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
                     _ => throw new ArgumentException($"Serviço de scraping para o site {siteName} não encontrado.")
                 };
             });
+
 
             // Configurar CORS para liberar tudo
             builder.Services.AddCors(options =>
@@ -126,3 +141,4 @@ namespace BetSniffer.Api
         }
     }
 }
+
