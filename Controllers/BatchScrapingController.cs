@@ -10,6 +10,7 @@ using OpenQA.Selenium;
 using System.Runtime.InteropServices;
 using BetSniffer.Api.Core.Sites;
 using System.Diagnostics;
+using BetSniffer.Api.Core.Sites.Bet365;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -44,8 +45,15 @@ namespace BetSniffer.Api.Controllers
 
             var options = new ChromeOptions();
             options.AddArgument("--no-sandbox");
-            options.AddArgument("--force-device-scale-factor=0.1"); // Ajusta o zoom
-            options.AddArgument("--start-maximized");              // Tela cheia
+            options.AddArgument("--force-device-scale-factor=1");
+            options.AddArgument("--start-maximized");
+            options.AddArgument("--disable-blink-features=AutomationControlled");
+            options.AddExcludedArgument("enable-automation");
+            options.AddAdditionalOption("useAutomationExtension", false);
+            options.AddArgument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.198 Safari/537.36");
+            options.AddArgument("--profile-directory=Default");
+
+
 
             var results = new List<object>();
             var errors = new List<string>();
@@ -105,7 +113,8 @@ namespace BetSniffer.Api.Controllers
             return siteName.ToLower() switch
             {
                 "novibet" => new NovibetScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
-                "parimatch" => new ParimatchScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
+                "parimatch" => new Parimatchcraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
+                "bet365" => new Bet365Scraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }

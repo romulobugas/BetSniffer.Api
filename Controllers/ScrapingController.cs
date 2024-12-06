@@ -6,6 +6,7 @@ using System;
 using System.Text.Json;
 using BetSniffer.Api.Core.Sites;
 using BetSniffer.Api.Core.Interfaces;
+using BetSniffer.Api.Core.Sites.Bet365;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -85,7 +86,9 @@ namespace BetSniffer.Api.Controllers
                 case "novibet":
                     return _serviceProvider.GetService<NovibetScraping>(); // Usando o NovibetScraping
                 case "parimatch":
-                    return _serviceProvider.GetService<ParimatchScraping>(); // Usando o ParimatchScraping
+                    return _serviceProvider.GetService<Parimatchcraping>(); // Usando o ParimatchScraping
+                case "bet365":
+                    return _serviceProvider.GetService<Bet365Scraping>(); // Usando o ParimatchScraping
                 default:
                     throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}");
             }

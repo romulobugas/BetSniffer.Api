@@ -85,6 +85,7 @@ namespace BetSniffer.Api.Models
 
         // Propriedade de navegação para Site
         public Site Site { get; set; }
+        public string URL { get; set; }
 
         // Propriedade de navegação para Bets
         public ICollection<BetInfo> Bets { get; set; } = new List<BetInfo>();

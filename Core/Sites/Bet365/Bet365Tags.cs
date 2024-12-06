@@ -1,9 +1,9 @@
 ﻿using OpenQA.Selenium;
 
-namespace BetSniffer.Api.Core.Sites.Parimatch
+namespace BetSniffer.Api.Core.Sites.Bet365
 
 {
-    public static class ParimatchTags
+    public static class Bet365Tags
     {
         // Dicionário de tags fixas que você quer rastrear
         public static readonly List<string> TagNames = new()
@@ -56,10 +56,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 $"Faltas. {awayTeam} total",
                 $"{homeTeam} total",
                 $"{awayTeam} total",
-
-
-                //$"Todos os chutes. {homeTeam} total",
-                //$"Todos os chutes. {awayTeam} total",
+                $"Todos os chutes. {homeTeam} total",
+                $"Todos os chutes. {awayTeam} total",
             };
 
             // Adicionar ao dicionário principal evitando duplicações

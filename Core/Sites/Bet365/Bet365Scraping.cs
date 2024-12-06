@@ -12,9 +12,9 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using OpenQA.Selenium.Interactions;
 
-namespace BetSniffer.Api.Core.Sites.Parimatch
+namespace BetSniffer.Api.Core.Sites.Bet365
 {
-    public class Parimatchcraping : IScrapingService
+    public class Bet365Scraping : IScrapingService
     {
         #region VariaveisGlobais
 
@@ -35,7 +35,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         #endregion
 
-        public Parimatchcraping(
+        public Bet365Scraping(
             IWebDriver driver,
             ApplicationDbContext dbContext,
             TeamService teamService,
@@ -62,9 +62,44 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
             _driver.Navigate().GoToUrl(url);
 
-            // Aguarda o carregamento inicial da página
-            WebDriverWait wait = new(_driver, TimeSpan.FromSeconds(10));
-            wait.Until(driver => driver.FindElement(By.CssSelector("[data-id='event-markets']")));
+            // Aguarda o carregamento inicial da página com tentativas
+            int maxAttempts = 3;
+            int attempt = 0;
+            bool elementFound = false;
+            IWebElement element = null;
+
+            while (attempt < maxAttempts && !elementFound)
+            {
+                try
+                {
+                    WebDriverWait wait = new(_driver, TimeSpan.FromSeconds(10));
+                    element = wait.Until(driver => driver.FindElement(By.CssSelector("div.sph-FixturePodHeader_Wrapper")));
+                    elementFound = true; // Elemento encontrado, sair do loop
+                }
+                catch (WebDriverTimeoutException)
+                {
+                    attempt++;
+                    if (attempt < maxAttempts)
+                    {
+
+                        Thread.Sleep(5000); // Aguarda 5 segundos antes de recarregar
+                        Console.WriteLine($"Elemento não encontrado. Tentando novamente ({attempt}/{maxAttempts})...");
+                        _driver.Navigate().GoToUrl(url); // Recarrega a página
+                    }
+                    else
+                    {
+                        Console.WriteLine("Elemento não encontrado após múltiplas tentativas.");
+                        throw; // Lança exceção após falha em todas as tentativas
+                    }
+                }
+            }
+
+            // Caso tenha encontrado, "element" estará disponível para manipulação
+            if (elementFound)
+            {
+                Console.WriteLine("Elemento encontrado com sucesso!");
+            }
+
 
             // Coleta informações do jogo
             ExtractGameInfo();
@@ -73,7 +108,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
-            ParimatchTags.AddDynamicTags(homeTeam, awayTeam);
+            Bet365Tags.AddDynamicTags(homeTeam, awayTeam);
 
             gamesInfo = new GamesInfo
             {
@@ -282,7 +317,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));
 
             // Lista de tags cadastradas que queremos buscar
-            var tagNames = ParimatchTags.TagNames;            
+            var tagNames = Bet365Tags.TagNames;            
 
             // Lista para armazenar as apostas
             List<BetInfo> bets = new List<BetInfo>();

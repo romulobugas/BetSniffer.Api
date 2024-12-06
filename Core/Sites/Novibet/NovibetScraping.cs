@@ -82,6 +82,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             try
             {
                 var closeButton = wait.Until(driver => driver.FindElement(By.CssSelector(".registerOrLogin_closeButton")));
+                Thread.Sleep(3000);
                 closeButton.Click();
                 Console.WriteLine("Pop-up fechado com sucesso.");
             }
@@ -97,6 +98,10 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             // Aguarda até que o primeiro elemento esperado esteja visível
             try
             {
+                // Após fechar o pop-up, aguarda 3 segundos antes de continuar
+                Console.WriteLine("Aguardando 3 segundos antes de continuar...");
+                Thread.Sleep(3000);
+
                 wait.Until(driver => driver.FindElement(By.XPath("//app-event-marketview")));
             }
             catch (WebDriverTimeoutException)
@@ -247,7 +252,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     AwayTeamId = awayTeamDb,
                     GameDate = gameDateTime,
                     League = gameName,
-                    Site = site
+                    Site = site,
+                    URL = url
                 };
 
                 // Adiciona o novo jogo ao banco
