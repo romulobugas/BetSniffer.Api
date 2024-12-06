@@ -64,6 +64,9 @@ namespace BetSniffer.Api.Data
                 entity.Property(b => b.BetAmount).HasColumnType("decimal(10, 2)");
                 entity.Property(b => b.CaptureDate).HasColumnType("datetime");
                 entity.Property(b => b.GameDate).HasColumnType("datetime");
+                entity.Property(b => b.TagId)
+                      .IsRequired(false) // Define que a coluna pode ser nula
+                      .HasColumnType("int");
 
                 // Relação com a tabela Site
                 entity.HasOne(b => b.Site) // Referência para a tabela Site

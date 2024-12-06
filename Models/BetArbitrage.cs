@@ -60,6 +60,7 @@ namespace BetSniffer.Api.Models
 
         // Propriedade de navegação para Site
         public Site Site { get; set; }
+        public int? TagId { get; set; }
     }
 
     public class GamesInfo

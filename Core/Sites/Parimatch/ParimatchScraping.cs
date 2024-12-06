@@ -312,8 +312,11 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                     string tagName = tagElement.Text.Trim();
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
-                    if (tagNames.Contains(tagName))
+                    if (tagNames.Values.Contains(tagName))
                     {
+
+                        // Recupera o ID da tag a partir do dicionário
+                        int tagId = ParimatchTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
 
                         // Definindo o número máximo de tentativas
                         int maxAttempts = 3;
@@ -384,6 +387,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     continue;
                                 }
 
+
                                 // Substituir o nome do time na tag por "Casa" ou "Visitante"
                                 var adjustedTagName = tagName
                                     .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
@@ -399,7 +403,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     Multiplier = moreMultiplier,
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
-                                    Site = site
+                                    Site = site,
+                                    TagId = tagId
                                 };
 
                                 // Cria a aposta "Menos de"
@@ -412,7 +417,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     Multiplier = lessMultiplier,
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
-                                    Site = site
+                                    Site = site,
+                                    TagId = tagId
                                 };
 
                                 // Adiciona as apostas à lista
@@ -448,6 +454,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                     b.TagName == adjustedTagName &&
                                     b.OverUnder == bet.OverUnder &&
                                     b.BetAmount == bet.BetAmount &&
+                                    b.TagId == bet.TagId &&
                                     b.Site.SiteId == bet.Site.SiteId).FirstOrDefault();
 
                                 if (existingBet == null)

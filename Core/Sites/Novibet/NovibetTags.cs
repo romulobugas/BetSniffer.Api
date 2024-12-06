@@ -1,25 +1,26 @@
 ﻿using OpenQA.Selenium;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
     public static class NovibetTags
     {
         // Dicionário de tags fixas que você quer rastrear
-        public static readonly List<string> TagNames = new()
+        public static readonly Dictionary<int, string> TagNames = new()
         {
-            "Total de Escanteios 🚀" ,
-            "Total de Cartões Amarelos",
-            "Total de Chutes 🚀",
-            "Total de Chutes no gol 🚀",
-            "Total de Impedimentos",
-            "Total de Faltas",
-            "Casa Total de Escanteios",
-            "Visitante Total de Escanteios",
-            "Casa Total de Cartões Amarelos",
-            "Visitante Total de Cartões Amarelos",
-            "Total de Gols 🚀",
-            "Casa Total de Gols",
-            "Visitante Total de Gols",
+            { 1, "Total de Escanteios 🚀" },
+            { 2, "Total de Cartões Amarelos"},
+            { 3, "Total de Chutes 🚀"},
+            { 4, "Total de Chutes no gol 🚀"},
+            { 7, "Total de Impedimentos"},
+            { 5, "Total de Faltas"},
+            { 8, "Casa Total de Escanteios"},
+            { 9, "Visitante Total de Escanteios"},
+            { 10, "Casa Total de Cartões Amarelos"},
+            { 11, "Visitante Total de Cartões Amarelos"},
+            { 6, "Total de Gols 🚀"},
+            { 20, "Casa Total de Gols"},
+            { 21, "Visitante Total de Gols" },
 
             // Adicione outras tags fixas aqui conforme necessário
         };
@@ -45,24 +46,24 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         public static void AddDynamicTags(string homeTeam, string awayTeam)
         {
             // Lista de padrões de tags dinâmicas
-            var dynamicTags = new List<string>
+            var dynamicTags = new Dictionary<int, string>
             {
-                $"{homeTeam} - Total de Faltas",
-                $"{awayTeam} - Total de Faltas",
-                $"{homeTeam} - Total de Chutes no gol 🚀",
-                $"{awayTeam} - Total de Chutes no gol 🚀",
-                $"{homeTeam} - Total de Chutes 🚀",
-                $"{awayTeam} - Total de Chutes 🚀",
-                $"{homeTeam} - Total de Impedimentos",
-                $"{awayTeam} - Total de Impedimentos",
+                { 18, $"{homeTeam} - Total de Faltas"},
+                { 19, $"{awayTeam} - Total de Faltas"},
+                { 12, $"{homeTeam} - Total de Chutes no gol 🚀"},
+                { 13, $"{awayTeam} - Total de Chutes no gol 🚀"},
+                { 14, $"{homeTeam} - Total de Chutes 🚀"},
+                { 15, $"{awayTeam} - Total de Chutes 🚀"},
+                { 16, $"{homeTeam} - Total de Impedimentos"},
+                { 17,  $"{awayTeam} - Total de Impedimentos" },
             };
 
             // Adicionar ao dicionário principal evitando duplicações
             foreach (var tag in dynamicTags)
             {
-                if (!TagNames.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                if (!TagNames.ContainsKey(tag.Key))
                 {
-                    TagNames.Add(tag);
+                    TagNames.Add(tag.Key, tag.Value);
                 }
             }
         }

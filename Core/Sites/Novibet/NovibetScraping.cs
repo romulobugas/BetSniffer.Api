@@ -6,8 +6,8 @@ using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
-using BetSniffer.Api.Models;
 using System.Globalization;
+using BetSniffer.Api.Core.Sites.Parimatch;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -404,8 +404,12 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     var tagNames = NovibetTags.TagNames;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
-                    if (tagNames.Contains(tagName))
+                    if (tagNames.Values.Contains(tagName))
                     {
+
+                        // Recupera o ID da tag a partir do dicionário
+                        int tagId = NovibetTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
+
                         // Expande as apostas, se necessário
                         try
                         {
@@ -476,7 +480,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         Multiplier = decimal.Parse(multiplier.Replace(",", "."), CultureInfo.InvariantCulture),
                                         GameDate = gamesInfo.GameDate,
                                         CaptureDate = DateTime.Now,
-                                        Site = gamesInfo.Site
+                                        Site = gamesInfo.Site,
+                                        TagId = tagId
                                     });
                                 }
                             }
@@ -489,6 +494,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                     b.TagName == bet.TagName &&
                                     b.OverUnder == bet.OverUnder &&
                                     b.BetAmount == bet.BetAmount &&
+                                    b.TagId == bet.TagId &&
                                     b.Site.SiteId == bet.Site.SiteId);
 
                                 if (existingBet != null)
