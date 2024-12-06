@@ -222,9 +222,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             }
 
 
-            // Implementação dos times usando TeamService
-            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
-            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
+            // Inicializa informações do jogo
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam, gameDateTime, awayTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam, gameDateTime, homeTeam);
 
 
             NovibetTags.AddDynamicTags(homeTeam, awayTeam);
@@ -264,6 +264,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             List<TagInfo> allTagInfos = new List<TagInfo>();
 
             // Captura todas as categorias disponíveis
+            Thread.Sleep(3000);
             var categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide"));
             if (categoryElements == null || !categoryElements.Any())
                 throw new Exception("Nenhuma categoria encontrada no carrossel.");
@@ -388,6 +389,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             List<TagInfo> tagInfos = new List<TagInfo>();
 
             // Encontra todos os contêineres de aposta
+            Thread.Sleep(3000);
             var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
 
             foreach (var eventMarketView in eventMarketViews)

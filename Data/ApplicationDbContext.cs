@@ -46,6 +46,10 @@ namespace BetSniffer.Api.Data
                 entity.HasOne(g => g.AwayTeam) // Relacionamento com AwayTeam
                       .WithMany(t => t.AwayGames) // Coleção de AwayGames na tabela Teams
                       .HasForeignKey(g => g.AwayTeamId); // Chave estrangeira AwayTeamId
+                entity.Property(g => g.URL)
+                      .HasColumnType("varchar(500)") // Tipo adequado no banco
+                      .IsRequired(false); // Permite nulo
+
             });
 
             // Configuração da tabela BetInfo

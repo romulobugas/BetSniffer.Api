@@ -70,8 +70,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             ExtractGameInfo();
 
             // Inicializa informações do jogo
-            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
-            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam, gameDateTime, awayTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam, gameDateTime, homeTeam);
 
             ParimatchTags.AddDynamicTags(homeTeam, awayTeam);
 

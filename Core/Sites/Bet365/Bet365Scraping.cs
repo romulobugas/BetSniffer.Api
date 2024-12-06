@@ -105,8 +105,8 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             ExtractGameInfo();
 
             // Inicializa informações do jogo
-            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
-            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam, gameDateTime, awayTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam, gameDateTime, homeTeam);
 
             Bet365Tags.AddDynamicTags(homeTeam, awayTeam);
 

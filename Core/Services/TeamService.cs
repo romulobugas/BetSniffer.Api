@@ -1,82 +1,190 @@
 ﻿using BetSniffer.Api.Data;
 using BetSniffer.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace BetSniffer.Api.Core.Services
 {
     public class TeamService
     {
         private readonly ApplicationDbContext _context;
+        private List<AliasInfo> _aliasCache;
+        private const double MATCH_THRESHOLD = 0.7;
+        private const int MIN_NAME_LENGTH = 4; // Novo: comprimento mínimo para considerar uma correspondência
 
         public TeamService(ApplicationDbContext context)
         {
             _context = context;
+            RefreshAliasCache();
         }
 
-        /// <summary>
-        /// Verifica se um time já existe no banco. Caso contrário, cadastra um novo.
-        /// Caso o time já exista, verifica se o alias existe. Se não, adiciona.
-        /// </summary>
-        /// <param name="teamName">Nome do time a ser verificado.</param>
-        /// <returns>O ID do time encontrado ou cadastrado.</returns>
-        public int EnsureTeamExists(string teamName)
+        private void RefreshAliasCache()
         {
-            // Normaliza o nome do time para consistência, mas vamos garantir que
-            // o nome do time exato seja utilizado na verificação e no cadastro
-            var normalizedTeamName = NormalizeTeamName(teamName);
+            var teams = _context.Teams
+                .AsNoTracking()
+                .Select(t => new { t.TeamId, t.NormalizedName, t.Aliases })
+                .ToList();
 
-            // Procura o time no banco pelos aliases ou pelo nome normalizado
-            var team = _context.Teams
-                .FirstOrDefault(t => t.NormalizedName == normalizedTeamName
-                    || (t.Aliases != null && t.Aliases.Contains(teamName)));
+            _aliasCache = new List<AliasInfo>();
 
-            if (team != null)
+            foreach (var team in teams)
             {
-                // Time encontrado, agora verifica se o alias já está presente
-                AddAliasIfNotExists(team, teamName);
-                return team.TeamId; // Retorna o ID do time encontrado
+                var aliases = team.Aliases.Split(';');
+                foreach (var alias in aliases)
+                {
+                    _aliasCache.Add(new AliasInfo
+                    {
+                        TeamId = team.TeamId,
+                        Alias = alias.Trim(),
+                        NormalizedAlias = NormalizeTeamName(alias.Trim()),
+                        OriginalName = team.NormalizedName
+                    });
+                }
+                _aliasCache.Add(new AliasInfo
+                {
+                    TeamId = team.TeamId,
+                    Alias = team.NormalizedName,
+                    NormalizedAlias = NormalizeTeamName(team.NormalizedName),
+                    OriginalName = team.NormalizedName
+                });
+            }
+        }
+
+        public int EnsureTeamExists(string teamName, DateTime gameDate, string rivalTeamName)
+        {
+            var matchingTeam = FindTeamByGameAndRival(teamName, gameDate, rivalTeamName);
+
+            if (matchingTeam != null)
+            {
+                AddAliasIfNotExists(matchingTeam.TeamId, teamName);
+                return matchingTeam.TeamId;
             }
 
-            // Se o time não for encontrado, cria um novo time
-            team = new Team
+            var matchResult = FindBestMatch(teamName);
+
+            if (matchResult.TeamId.HasValue)
             {
-                NormalizedName = normalizedTeamName,
-                Aliases = teamName // Armazena o alias diretamente como string
+                if (matchResult.Score >= MATCH_THRESHOLD)
+                {
+                    AddAliasIfNotExists(matchResult.TeamId.Value, teamName);
+                    return matchResult.TeamId.Value;
+                }
+                else
+                {
+                    Console.WriteLine($"Correspondência ambígua encontrada para '{teamName}'. Score: {matchResult.Score}");
+                }
+            }
+
+            var newTeam = new Team
+            {
+                NormalizedName = NormalizeTeamName(teamName),
+                Aliases = teamName
             };
 
-            _context.Teams.Add(team);
+            _context.Teams.Add(newTeam);
             _context.SaveChanges();
 
-            return team.TeamId; // Retorna o ID do novo time
+            _aliasCache.Add(new AliasInfo { TeamId = newTeam.TeamId, Alias = teamName, NormalizedAlias = NormalizeTeamName(teamName), OriginalName = teamName });
+
+            return newTeam.TeamId;
         }
 
-        /// <summary>
-        /// Adiciona um alias ao time, se não existir.
-        /// </summary>
-        /// <param name="team">O time ao qual o alias será adicionado.</param>
-        /// <param name="alias">Alias a ser adicionado.</param>
-        /// <returns>Task</returns>
-        private void AddAliasIfNotExists(Team team, string alias)
+        private Team FindTeamByGameAndRival(string teamName, DateTime gameDate, string rivalTeamName)
         {
-            if (team.Aliases == null)
+            var possibleTeamIds = _aliasCache
+                .Where(a => IsGoodMatch(a.Alias, teamName))
+                .Select(a => a.TeamId)
+                .Distinct()
+                .ToList();
+
+            var possibleRivalIds = _aliasCache
+                .Where(a => IsGoodMatch(a.Alias, rivalTeamName))
+                .Select(a => a.TeamId)
+                .Distinct()
+                .ToList();
+
+            var game = _context.GamesInfo
+                .Include(g => g.HomeTeam)
+                .Include(g => g.AwayTeam)
+                .Where(g => g.GameDate.Date == gameDate.Date)
+                .FirstOrDefault(g =>
+                    (possibleTeamIds.Contains(g.HomeTeam.TeamId) && possibleRivalIds.Contains(g.AwayTeam.TeamId)) ||
+                    (possibleTeamIds.Contains(g.AwayTeam.TeamId) && possibleRivalIds.Contains(g.HomeTeam.TeamId)));
+
+            if (game != null)
             {
-                team.Aliases = alias; // Se o campo for null, inicializa com o alias
-            }
-            else if (!team.Aliases.Contains(alias))
-            {
-                team.Aliases += ";" + alias; // Adiciona o novo alias, separando por vírgula
+                return possibleTeamIds.Contains(game.HomeTeam.TeamId) ? game.HomeTeam : game.AwayTeam;
             }
 
-            _context.Teams.Update(team);
-            _context.SaveChanges();
+            return null;
         }
 
-        /// <summary>
-        /// Normaliza o nome do time para evitar duplicatas.
-        /// </summary>
-        /// <param name="teamName">Nome do time a ser normalizado.</param>
-        /// <returns>Nome normalizado.</returns>
+        private (int? TeamId, double Score) FindBestMatch(string teamName)
+        {
+            var bestMatch = _aliasCache
+                .Select(a => new
+                {
+                    a.TeamId,
+                    Score = CalculateSimilarity(a.Alias, teamName)
+                })
+                .Where(m => m.Score >= MATCH_THRESHOLD) // Novo: filtra apenas correspondências acima do limiar
+                .OrderByDescending(m => m.Score)
+                .FirstOrDefault();
+
+            return (bestMatch?.TeamId, bestMatch?.Score ?? 0);
+        }
+
+        private bool IsGoodMatch(string s1, string s2)
+        {
+            if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
+                return false;
+
+            if (s1.Length < MIN_NAME_LENGTH || s2.Length < MIN_NAME_LENGTH)
+                return false;
+
+            var similarity = CalculateSimilarity(s1, s2);
+            return similarity >= MATCH_THRESHOLD;
+        }
+
+        private double CalculateSimilarity(string s1, string s2)
+        {
+            if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
+                return 0;
+
+            s1 = s1.ToLower();
+            s2 = s2.ToLower();
+
+            // Novo: verifica se uma string contém a outra
+            if (s1.Contains(s2) || s2.Contains(s1))
+                return 1.0;
+
+            var set1 = new HashSet<char>(s1);
+            var set2 = new HashSet<char>(s2);
+
+            var intersection = set1.Intersect(set2).Count();
+            var union = set1.Union(set2).Count();
+
+            return (double)intersection / union;
+        }
+
+        private void AddAliasIfNotExists(int teamId, string alias)
+        {
+            if (!_aliasCache.Any(a => a.TeamId == teamId && a.Alias == alias))
+            {
+                var team = _context.Teams.Find(teamId);
+                if (team != null)
+                {
+                    team.Aliases += ";" + alias;
+                    _context.Teams.Update(team);
+                    _context.SaveChanges();
+
+                    _aliasCache.Add(new AliasInfo { TeamId = teamId, Alias = alias, NormalizedAlias = NormalizeTeamName(alias), OriginalName = team.NormalizedName });
+                }
+            }
+        }
+
         private string NormalizeTeamName(string teamName)
         {
             return teamName
@@ -87,4 +195,13 @@ namespace BetSniffer.Api.Core.Services
                 .Trim();
         }
     }
+
+    public class AliasInfo
+    {
+        public int TeamId { get; set; }
+        public string Alias { get; set; }
+        public string NormalizedAlias { get; set; }
+        public string OriginalName { get; set; }
+    }
 }
+

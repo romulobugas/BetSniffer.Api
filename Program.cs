@@ -10,6 +10,7 @@ using OpenQA.Selenium;
 using System.Diagnostics;
 using BetSniffer.Api.Models;
 using Microsoft.Extensions.DependencyInjection;
+using BetSniffer.Api.Controllers;
 
 namespace BetSniffer.Api
 {
@@ -62,6 +63,9 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<Parimatchcraping>();
             builder.Services.AddScoped<Bet365Scraping>(); // Registro explícito de Bet365Scraping
             builder.Services.AddScoped<TeamService>();
+            builder.Services.AddScoped<BatchScrapingController>();
+            builder.Services.AddScoped<GamesUpdateController>();
+
 
             // Registro do roteamento dinâmico para IScrapingService
             builder.Services.AddScoped<Func<string, IScrapingService>>(serviceProvider => siteName =>
