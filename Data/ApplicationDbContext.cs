@@ -5,10 +5,11 @@ namespace BetSniffer.Api.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public DbSet<GamesInfo> GamesInfo { get; set; } // Nome correto da tabela
-        public DbSet<BetInfo> BetInfo { get; set; } // Nome correto da tabela
-        public DbSet<Site> Site { get; set; } // Tabela Site
-        public DbSet<Team> Teams { get; set; } // Tabela Teams
+        public DbSet<GamesInfo> GamesInfo { get; set; }
+        public DbSet<BetInfo> BetInfo { get; set; }
+        public DbSet<Site> Site { get; set; }
+        public DbSet<Team> Teams { get; set; }
+        public DbSet<BetArbitrage> BetArbitrage { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -22,84 +23,92 @@ namespace BetSniffer.Api.Data
             // Configuração da tabela GamesInfo
             modelBuilder.Entity<GamesInfo>(entity =>
             {
-                entity.ToTable("GamesInfo"); // Nome correto da tabela no banco
-                entity.HasKey(g => g.GameId); // Chave primária
-                entity.Property(g => g.GameId).ValueGeneratedOnAdd(); // Auto-incremento
-                entity.Property(g => g.League).HasColumnType("varchar(100)");
+                entity.HasKey(g => g.GameId);
+                entity.Property(g => g.GameDate).HasColumnType("datetime2");
+                entity.Property(g => g.URL).HasMaxLength(500).IsRequired(false);
+                entity.Property(g => g.Status).HasDefaultValue(0);
+                entity.Property(g => g.LastUpdated).HasColumnType("datetime2").IsRequired(false);
 
-                // Substituição de HomeTeam e AwayTeam por IDs
-                entity.Property(g => g.HomeTeamId).IsRequired();
-                entity.Property(g => g.AwayTeamId).IsRequired();
+                // Relacionamento com Site
+                entity.HasOne(g => g.Site)
+                      .WithMany(s => s.GamesInfo)
+                      .HasForeignKey(g => g.SiteId)
+                      .OnDelete(DeleteBehavior.Cascade);
 
-                // Relação com a tabela Site
-                entity.HasOne(g => g.Site) // Referência para a tabela Site
-                      .WithMany(s => s.GamesInfo) // Coleção de GamesInfo na tabela Site
-                      .HasForeignKey(g => g.SiteId) // Chave estrangeira SiteId
-                      .OnDelete(DeleteBehavior.Cascade); // Cascata na deleção
+                // Relacionamento com Team (HomeTeam)
+                entity.HasOne(g => g.HomeTeam)
+                      .WithMany(t => t.HomeGames)
+                      .HasForeignKey(g => g.HomeTeamId)
+                      .OnDelete(DeleteBehavior.Restrict);
 
-                // Relação com Teams (HomeTeam)
-                entity.HasOne(g => g.HomeTeam) // Relacionamento com HomeTeam
-                      .WithMany(t => t.HomeGames) // Coleção de HomeGames na tabela Teams
-                      .HasForeignKey(g => g.HomeTeamId); // Chave estrangeira HomeTeamId
-
-                // Relação com Teams (AwayTeam)
-                entity.HasOne(g => g.AwayTeam) // Relacionamento com AwayTeam
-                      .WithMany(t => t.AwayGames) // Coleção de AwayGames na tabela Teams
-                      .HasForeignKey(g => g.AwayTeamId); // Chave estrangeira AwayTeamId
+                // Relacionamento com Team (AwayTeam)
+                entity.HasOne(g => g.AwayTeam)
+                      .WithMany(t => t.AwayGames)
+                      .HasForeignKey(g => g.AwayTeamId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Configuração da tabela BetInfo
             modelBuilder.Entity<BetInfo>(entity =>
             {
-                entity.ToTable("BetInfo"); // Nome correto da tabela no banco
-                entity.HasKey(b => b.BetId); // Chave primária
-                entity.Property(b => b.BetId).ValueGeneratedOnAdd(); // Auto-incremento
-                entity.Property(b => b.TagName).HasColumnType("varchar(100)");
-                entity.Property(b => b.OverUnder).HasColumnType("varchar(10)");
-                entity.Property(b => b.Multiplier).HasColumnType("decimal(10, 2)");
+                entity.HasKey(b => b.BetId);
+                entity.Property(b => b.TagName).HasMaxLength(100);
+                entity.Property(b => b.OverUnder).HasMaxLength(10);
                 entity.Property(b => b.BetAmount).HasColumnType("decimal(10, 2)");
+                entity.Property(b => b.Multiplier).HasColumnType("decimal(10, 2)");
                 entity.Property(b => b.CaptureDate).HasColumnType("datetime");
                 entity.Property(b => b.GameDate).HasColumnType("datetime");
 
-                // Relação com a tabela Site
-                entity.HasOne(b => b.Site) // Referência para a tabela Site
-                      .WithMany(s => s.BetInfo) // Coleção de BetInfo na tabela Site
-                      .HasForeignKey(b => b.SiteId) // Chave estrangeira SiteId
-                      .OnDelete(DeleteBehavior.Cascade); // Cascata na deleção
-
-                // Relação com GamesInfo
+                // Relacionamento com GamesInfo
                 entity.HasOne(b => b.GamesInfo)
-                      .WithMany(g => g.Bets) // Coleção de Bets na tabela GamesInfo
-                      .HasForeignKey(b => b.GameId) // Chave estrangeira GameId
-                      .OnDelete(DeleteBehavior.Cascade); // Cascata na deleção
+                      .WithMany(g => g.Bets)  // Relacionamento um para muitos
+                      .HasForeignKey(b => b.GameId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Relacionamento com Site
+                entity.HasOne(b => b.Site)
+                      .WithMany(s => s.BetInfo)
+                      .HasForeignKey(b => b.SiteId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Configuração da tabela Site
             modelBuilder.Entity<Site>(entity =>
             {
-                entity.ToTable("Site"); // Nome correto da tabela no banco
-                entity.HasKey(s => s.SiteId); // Chave primária
-                entity.Property(s => s.SiteId).ValueGeneratedOnAdd(); // Auto-incremento
-                entity.Property(s => s.Name).HasColumnType("varchar(100)");
+                entity.HasKey(s => s.SiteId);
+                entity.Property(s => s.Name).HasMaxLength(100);
             });
 
-            // Configuração da tabela Teams
+            // Configuração da tabela Team
             modelBuilder.Entity<Team>(entity =>
             {
-                entity.ToTable("Teams");
-                entity.HasKey(t => t.TeamId); // Chave primária
-                entity.Property(t => t.TeamId).ValueGeneratedOnAdd(); // Auto-incremento
-                entity.Property(t => t.NormalizedName).HasColumnType("varchar(100)").IsRequired(); // Nome normalizado
-                entity.Property(t => t.Aliases).HasColumnType("nvarchar(max)").IsRequired(); // Mapeamento correto
+                entity.HasKey(t => t.TeamId);
+                entity.Property(t => t.NormalizedName).HasMaxLength(100).IsRequired();
+                entity.Property(t => t.Aliases).HasColumnType("nvarchar(max)");
 
-                // Relacionamentos
-                entity.HasMany(t => t.HomeGames) // Relacionamento HomeGames
-                      .WithOne(g => g.HomeTeam) // Relacionamento inverso
-                      .HasForeignKey(g => g.HomeTeamId); // Chave estrangeira HomeTeamId
+                // Relacionamento com GamesInfo
+                entity.HasMany(t => t.HomeGames)
+                      .WithOne(g => g.HomeTeam)
+                      .HasForeignKey(g => g.HomeTeamId);
 
-                entity.HasMany(t => t.AwayGames) // Relacionamento AwayGames
-                      .WithOne(g => g.AwayTeam) // Relacionamento inverso
-                      .HasForeignKey(g => g.AwayTeamId); // Chave estrangeira AwayTeamId
+                entity.HasMany(t => t.AwayGames)
+                      .WithOne(g => g.AwayTeam)
+                      .HasForeignKey(g => g.AwayTeamId);
+            });
+
+            // Configuração da tabela BetArbitrage
+            modelBuilder.Entity<BetArbitrage>(entity =>
+            {
+                entity.HasKey(b => b.Id);
+                entity.Property(b => b.Game).HasMaxLength(100);
+                entity.Property(b => b.TagName).HasMaxLength(100);
+                entity.Property(b => b.BetMoreThan).HasMaxLength(50);
+                entity.Property(b => b.BetLessThan).HasMaxLength(50);
+                entity.Property(b => b.BetMoreThanMultiplier).HasColumnType("decimal(10, 2)");
+                entity.Property(b => b.BetLessThanMultiplier).HasColumnType("decimal(10, 2)");
+                entity.Property(b => b.CaptureDate).HasColumnType("datetime");
+                entity.Property(b => b.GameDate).HasColumnType("datetime");
+                entity.Property(b => b.ArbitragePercentage).HasColumnType("decimal(10, 2)");
             });
         }
     }

@@ -1,21 +1,13 @@
 ﻿using BetSniffer.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
-using Microsoft.EntityFrameworkCore.Internal;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
-using BetSniffer.Api.Core.Services;
 using System.Globalization;
-using static System.Net.Mime.MediaTypeNames;
+using BetSniffer.Api.Core.Sites.Parimatch;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -24,59 +16,41 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         #region VariaveisGlobais
 
         private readonly IWebDriver _driver;
-
-        private string gameName;
-
-        private string gameDateText;
-
-        private string homeTeam;
-
-        private string awayTeam;
-
-        private GamesInfo gamesInfo;
-
-        private DateTime gameDateTime;
-
-        private readonly ApplicationDbContext _dbContext;
-
+        private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
+        private readonly IRepositoryService<BetInfo> _betInfoRepository;
         private readonly TeamService _teamService;
+        private string gameName;
+        private string gameDateText;
+        private string homeTeam;
+        private string awayTeam;
+        private GamesInfo gamesInfo;
+        private DateTime gameDateTime;
+        private readonly ApplicationDbContext _dbContext;
 
         #endregion
 
-        public NovibetScraping(ApplicationDbContext dbContext, TeamService teamService)
+        public NovibetScraping(
+            IWebDriver driver
+            , ApplicationDbContext dbContext
+            , TeamService teamService
+            , IRepositoryService<GamesInfo> gamesInfoRepository
+            , IRepositoryService<BetInfo> betInfoRepository
+            )
         {
+            _driver = driver ?? throw new ArgumentNullException(nameof(driver));
+            _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
+            _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
+            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-
-            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));  // Inicializa o TeamService corretamente
-            // Inicializa o driver aqui no construtor
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
-            //options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
-            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
-            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
-
-            _driver = new ChromeDriver(options);  // Inicializa o driver aqui
-        }
-
-        public NovibetScraping()
-        {
-            // Inicializa o driver aqui no construtor
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--disable-gpu");  // Desabilita a aceleração de GPU
-            //options.AddArgument("--headless");     // Rodar em modo headless (sem interface gráfica)
-            options.AddArgument("--no-sandbox");   // Desativa o sandbox (pode ajudar em servidores)
-            options.AddArgument("--disable-software-rasterizer"); // Desativa o rasterizador de software
-
-            _driver = new ChromeDriver(options);  // Inicializa o driver aqui
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
         public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
         {
-            if (_driver == null)
-            {
-                throw new InvalidOperationException("O driver não foi inicializado corretamente.");
-            }
+            // Validação básica
+            if (string.IsNullOrEmpty(url)) throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
+            if (string.IsNullOrEmpty(siteName)) throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
+
 
             // Verifica se o _dbContext foi inicializado corretamente
             if (_dbContext == null)
@@ -108,6 +82,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             try
             {
                 var closeButton = wait.Until(driver => driver.FindElement(By.CssSelector(".registerOrLogin_closeButton")));
+                Thread.Sleep(3000);
                 closeButton.Click();
                 Console.WriteLine("Pop-up fechado com sucesso.");
             }
@@ -123,12 +98,15 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             // Aguarda até que o primeiro elemento esperado esteja visível
             try
             {
+                // Após fechar o pop-up, aguarda 3 segundos antes de continuar
+                Console.WriteLine("Aguardando 3 segundos antes de continuar...");
+                Thread.Sleep(3000);
+
                 wait.Until(driver => driver.FindElement(By.XPath("//app-event-marketview")));
             }
             catch (WebDriverTimeoutException)
             {
                 Console.WriteLine("Tempo de espera excedido, o elemento não foi encontrado.");
-                _driver.Quit();
                 return new List<TagInfo>();
             }
 
@@ -244,28 +222,49 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             }
 
 
-            // Implementação dos times usando TeamService
-            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
-            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
+            // Inicializa informações do jogo
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam, gameDateTime, awayTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam, gameDateTime, homeTeam);
 
 
             NovibetTags.AddDynamicTags(homeTeam, awayTeam);
 
 
-            gamesInfo = new GamesInfo
-            {
-                HomeTeamId = homeTeamDb,
-                AwayTeamId = awayTeamDb,
-                GameDate = gameDateTime,
-                League = gameName,
-                Site = site
+            // Verifica se o jogo já existe no banco
+            var existingGame = _dbContext.GamesInfo
+                .FirstOrDefault(g =>
+                    g.HomeTeamId == homeTeamDb &&
+                    g.AwayTeamId == awayTeamDb &&
+                    g.GameDate == gameDateTime &&
+                    g.Site.SiteId == site.SiteId); // A comparação é feita usando o SiteId
 
-            };
+            if (existingGame != null)
+            {
+                // Se o jogo já existe no banco, preenche o gamesInfo com os dados existentes
+                gamesInfo = existingGame;
+            }
+            else
+            {
+                // Se o jogo não existir no banco, cria um novo GamesInfo
+                gamesInfo = new GamesInfo
+                {
+                    HomeTeamId = homeTeamDb,
+                    AwayTeamId = awayTeamDb,
+                    GameDate = gameDateTime,
+                    League = gameName,
+                    Site = site,
+                    URL = url
+                };
+
+                // Adiciona o novo jogo ao banco
+                _dbContext.GamesInfo.Add(gamesInfo);
+            }
 
             // Lista para armazenar resultados
             List<TagInfo> allTagInfos = new List<TagInfo>();
 
             // Captura todas as categorias disponíveis
+            Thread.Sleep(3000);
             var categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide"));
             if (categoryElements == null || !categoryElements.Any())
                 throw new Exception("Nenhuma categoria encontrada no carrossel.");
@@ -378,12 +377,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 i++; // Move para a próxima categoria
             }
 
-            // Encerra o WebDriver
-            _driver.Quit();
             return allTagInfos;
-
-
-
 
         }
 
@@ -395,34 +389,36 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             List<TagInfo> tagInfos = new List<TagInfo>();
 
             // Encontra todos os contêineres de aposta
+            Thread.Sleep(3000);
             var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
 
             foreach (var eventMarketView in eventMarketViews)
             {
                 try
                 {
-
                     // Verifica se o evento contém uma tag válida
                     var tagElement = eventMarketView.FindElement(By.XPath(".//span[contains(@class, 'eventMarketview_title')]"));
-
                     string tagName = tagElement.Text.Trim();
 
                     // Lista de tags cadastradas que queremos buscar
                     var tagNames = NovibetTags.TagNames;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
-                    if (tagNames.Contains(tagName))
+                    if (tagNames.Values.Contains(tagName))
                     {
-                        // Verifica se o botão "Ver Mais" (expandir aposta) está presente
+
+                        // Recupera o ID da tag a partir do dicionário
+                        int tagId = NovibetTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
+
+                        // Expande as apostas, se necessário
                         try
                         {
                             var expandCollapseButton = eventMarketView.FindElement(By.XPath(".//sb-market-bet-expand-collapse//span[contains(text(), 'Ver Mais')]"));
                             if (expandCollapseButton != null)
                             {
-                                // Clica no botão "Ver Mais" para expandir as apostas
                                 expandCollapseButton.Click();
 
-                                // Espera um tempo para garantir que as apostas foram carregadas após o clique
+                                // Aguarda as apostas carregarem
                                 WebDriverWait waitForLoad = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
                                 waitForLoad.Until(driver => driver.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption')]")).Count > 0);
                             }
@@ -433,63 +429,49 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             // Não há necessidade de fazer nada, pois as apostas já podem estar visíveis
                         }
 
+                        // Remove emojis do texto da tag
+                        string pattern = @"[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u200D\uFE0F]";
+                        tagName = Regex.Replace(tagName, pattern, "").Trim();
 
-
-                        // Captura todo o HTML do app-event-marketview
-                        string eventMarketViewHtml = eventMarketView.GetAttribute("outerHTML");
-
-                        // Encontrar todas as apostas dentro do mesmo app-event-marketview
+                        // Encontra apostas e multiplicadores
                         var betElements = eventMarketView.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption singleLineEllipsis')]"));
-
-                        // Encontrar todos os multiplicadores de apostas dentro do app-event-marketview
                         var multiplierElements = eventMarketView.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_price')]"));
 
-                        // Verifica se o número de apostas é igual ao número de multiplicadores
-                        int betCount = betElements.Count;
-                        int multiplierCount = multiplierElements.Count;
-
-                        if (betCount == multiplierCount)
+                        if (betElements.Count == multiplierElements.Count)
                         {
-                            // Itera sobre as apostas e seus multiplicadores
-                            for (int i = 0; i < betCount; i++)
+                            // Cria uma lista para armazenar as apostas atuais
+                            var currentBets = new List<BetInfo>();
+
+                            for (int i = 0; i < betElements.Count; i++)
                             {
                                 string betName = betElements[i].Text.Trim();
+                                string multiplier = multiplierElements[i].Text.Trim();
+
                                 string overUnder = string.Empty;
                                 decimal betAmount = 0;
 
-                                // Expressão regular para capturar "Mais de" ou "Menos de"
-                                string patternName = @"^(Mais de|Menos de)";
-                                Match nameMatch = Regex.Match(betName, patternName);
-
-                                // Expressão regular para capturar o número (com ou sem vírgulas) ou o formato "+número"
-                                string patternDecimal = @"(\+?\d+(?:,\d+)?)";
-                                Match matchDecimal = Regex.Match(betName, patternDecimal);
-
-                                string multiplier = multiplierElements[i].Text.Trim();
-
                                 if (!string.IsNullOrEmpty(betName) && !string.IsNullOrEmpty(multiplier))
                                 {
-                                    if (nameMatch.Success)
+                                    if (Regex.Match(betName, @"^(Mais de|Menos de)").Success)
                                     {
-                                        overUnder = nameMatch.Value;
+                                        overUnder = Regex.Match(betName, @"^(Mais de|Menos de)").Value;
                                     }
                                     else if (betName.StartsWith("+") || betName.EndsWith("+"))
                                     {
                                         overUnder = "Mais de";
                                     }
 
-                                    if (matchDecimal.Success)
+                                    if (Regex.Match(betName, @"(\+?\d+(?:,\d+)?)").Success)
                                     {
-                                        string betAmountString = matchDecimal.Value.TrimStart('+');
-                                        betAmount = decimal.Parse(betAmountString.Replace(",", "."), CultureInfo.InvariantCulture);
+                                        betAmount = decimal.Parse(Regex.Match(betName, @"(\+?\d+(?:,\d+)?)").Value.Replace(",", "."), CultureInfo.InvariantCulture);
                                     }
 
-                                    // Substituir o nome do time na tag por "Casa" ou "Visitante"
+                                    // Substituir os nomes dos times por "Casa" e "Visitante"
                                     var adjustedTagName = tagName
                                         .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
                                         .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
 
-                                    var betInfo = new BetInfo
+                                    currentBets.Add(new BetInfo
                                     {
                                         GamesInfo = gamesInfo,
                                         TagName = adjustedTagName,
@@ -498,88 +480,55 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         Multiplier = decimal.Parse(multiplier.Replace(",", "."), CultureInfo.InvariantCulture),
                                         GameDate = gamesInfo.GameDate,
                                         CaptureDate = DateTime.Now,
-                                        Site = gamesInfo.Site
-                                    };
-
-                                    // Adiciona a aposta e multiplicador no formato desejado
-                                    bets.Add(betInfo);
+                                        Site = gamesInfo.Site,
+                                        TagId = tagId
+                                    });
                                 }
                             }
 
-                            // Se encontrou apostas, formata e adiciona ao retorno
-                            if (bets.Count > 0)
+                            // **1. Busca apostas existentes no banco com todos os critérios**
+                            foreach (var bet in currentBets)
                             {
+                                var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
+                                    b.GamesInfo.GameId == gamesInfo.GameId &&
+                                    b.TagName == bet.TagName &&
+                                    b.OverUnder == bet.OverUnder &&
+                                    b.BetAmount == bet.BetAmount &&
+                                    b.TagId == bet.TagId &&
+                                    b.Site.SiteId == bet.Site.SiteId);
 
-                                tagInfos.Add(new TagInfo(gamesInfo, bets));
-
-                                // Verifica se o jogo já existe
-                                var existingGame = _dbContext.GamesInfo
-                                    .Include(g => g.Bets) // Carrega as apostas relacionadas
-                                    .FirstOrDefault(g =>
-                                        g.HomeTeamId == gamesInfo.HomeTeamId &&
-                                        g.AwayTeamId == gamesInfo.AwayTeamId &&
-                                        g.GameDate == gamesInfo.GameDate &&
-                                        g.League == gamesInfo.League &&
-                                        g.Site.SiteId == gamesInfo.Site.SiteId);
-
-                                if (existingGame == null)
+                                if (existingBet != null)
                                 {
-                                    // Se o jogo não existir, adiciona ao banco
-                                    _dbContext.GamesInfo.Add(gamesInfo);
-                                    existingGame = gamesInfo;
-                                }
-
-                                // Verifica e atualiza as apostas
-                                foreach (var bet in bets)
-                                {
-                                    // Procura a aposta correspondente no banco
-                                    var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
-                                        b.TagName == bet.TagName &&
-                                        b.OverUnder == bet.OverUnder &&
-                                        b.BetAmount == bet.BetAmount &&
-                                        b.GameDate == bet.GameDate &&
-                                        b.Site.SiteId == bet.Site.SiteId);
-
-                                    if (existingBet == null)
-                                    {
-                                        // Adiciona nova aposta, pois não existe no banco
-                                        existingGame.Bets.Add(bet); // Associa o BetInfo diretamente ao GamesInfo
-                                    }
-                                    else if (existingBet.Multiplier != bet.Multiplier)
-                                    {
-                                        // Atualiza o multiplicador da aposta existente
-                                        _dbContext.Attach(existingBet);
-                                        existingBet.Multiplier = bet.Multiplier;
-                                        existingBet.CaptureDate = DateTime.Now; // Atualiza a data de captura
-                                        _dbContext.Entry(existingBet).Property(x => x.Multiplier).IsModified = true;
-                                        _dbContext.Entry(existingBet).Property(x => x.CaptureDate).IsModified = true;
-                                    }
-                                }
-
-                                // Salva alterações no banco
-                                _dbContext.SaveChanges();
-
-                                // Salva alterações no banco somente se houver pelo menos uma aposta válida
-                                if (existingGame.Bets.Any())
-                                {
-                                    _dbContext.SaveChanges();
+                                    // **Deletar apostas duplicadas que já estão no banco**
+                                    Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");
+                                    _dbContext.BetInfo.Remove(existingBet);
                                 }
                             }
 
+                            // **2. Adicionar as novas apostas**
+                            _dbContext.BetInfo.AddRange(currentBets);
+
+                            // **3. Salvar as alterações no banco de dados**
+                            if (_dbContext.ChangeTracker.HasChanges())
+                            {
+                                _dbContext.SaveChanges();
+                                Console.WriteLine("Alterações salvas com sucesso.");
+                            }
                         }
                     }
                 }
                 catch (NoSuchElementException)
                 {
-                    // Se o elemento não for encontrado, apenas ignora
+                    // Ignora erros de elementos não encontrados
                     continue;
                 }
                 catch (WebDriverTimeoutException)
                 {
-                    // Se o elemento não aparecer dentro do tempo limite, ignora
+                    // Ignora erros de timeout
                     continue;
                 }
             }
+
 
             return tagInfos;
         }

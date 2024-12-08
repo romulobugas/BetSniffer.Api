@@ -3,8 +3,14 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Sites.Novibet;
 using BetSniffer.Api.Core.Sites.Parimatch;
+using BetSniffer.Api.Core.Sites.Bet365; // Importado Bet365
 using BetSniffer.Api.Core.Interfaces;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium;
 using System.Diagnostics;
+using BetSniffer.Api.Models;
+using Microsoft.Extensions.DependencyInjection;
+using BetSniffer.Api.Controllers;
 
 namespace BetSniffer.Api
 {
@@ -14,70 +20,125 @@ namespace BetSniffer.Api
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Configura Kestrel para escutar em HTTPS apenas
+            // Identificar o ambiente atual
+            var environment = builder.Environment.EnvironmentName;
+
+            // Configuração do Kestrel para HTTP/HTTPS com base no ambiente
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
-                serverOptions.ListenAnyIP(5001, listenOptions =>
+                if (environment != "Production")
                 {
-                    listenOptions.UseHttps(); // Configura HTTPS na porta 5001
-                });
+                    serverOptions.ListenAnyIP(5001, listenOptions =>
+                    {
+                        listenOptions.UseHttps(); // HTTPS para desenvolvimento
+                    });
+                }
+                else
+                {
+                    serverOptions.ListenAnyIP(5000); // Apenas HTTP em produção
+                }
             });
 
-            // Registra o DbContext para o banco de dados
+            // Configuração do WebDriver como Singleton
+            builder.Services.AddSingleton<IWebDriver>(serviceProvider =>
+            {
+                var options = new ChromeOptions();
+                options.AddArgument("--disable-gpu");
+                options.AddArgument("--no-sandbox");
+                options.AddArgument("--headless"); // Remova esta linha para depuração visual
+                return new ChromeDriver(options);
+            });
+
+            // Registro do DbContext
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;"));
+                options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;"
+                ));
 
-            // Registra serviços de scraping usando a interface IScrapingService
+            // Registro de repositórios genéricos
+            builder.Services.AddScoped(typeof(IRepositoryService<>), typeof(RepositoryService<>));
+
+            // Registro de serviços específicos
             builder.Services.AddScoped<NovibetScraping>();
-            builder.Services.AddScoped<ParimatchScraping>();
+            builder.Services.AddScoped<Parimatchcraping>();
+            builder.Services.AddScoped<Bet365Scraping>(); // Registro explícito de Bet365Scraping
             builder.Services.AddScoped<TeamService>();
+            builder.Services.AddScoped<BatchScrapingController>();
+            builder.Services.AddScoped<GamesUpdateController>();
 
-            // Registrar o serviço de roteamento dinâmico para IScrapingService
+
+            // Registro do roteamento dinâmico para IScrapingService
             builder.Services.AddScoped<Func<string, IScrapingService>>(serviceProvider => siteName =>
             {
+                var dbContext = serviceProvider.GetRequiredService<ApplicationDbContext>();
+                var teamService = serviceProvider.GetRequiredService<TeamService>();
+                var gamesInfoRepository = serviceProvider.GetRequiredService<IRepositoryService<GamesInfo>>();
+                var betInfoRepository = serviceProvider.GetRequiredService<IRepositoryService<BetInfo>>();
+                var driver = serviceProvider.GetRequiredService<IWebDriver>();
+
+                // Serviço dinâmico para diferentes sites de scraping
                 return siteName.ToLower() switch
                 {
-                    "novibet" => serviceProvider.GetRequiredService<NovibetScraping>(),
-                    "parimatch" => serviceProvider.GetRequiredService<ParimatchScraping>(),
+                    "novibet" => new NovibetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    "parimatch" => new Parimatchcraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    "bet365" => new Bet365Scraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
                     _ => throw new ArgumentException($"Serviço de scraping para o site {siteName} não encontrado.")
                 };
             });
 
-            // Configurar CORS para liberar tudo
+            // Configuração de CORS (liberação total)
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
                 {
-                    policy.AllowAnyOrigin()  // Permite todas as origens
-                          .AllowAnyMethod()  // Permite todos os métodos HTTP (GET, POST, etc.)
-                          .AllowAnyHeader(); // Permite todos os cabeçalhos
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
                 });
             });
 
-            // Registra outros serviços
+            // Registro de serviços básicos
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddControllers();
 
             var app = builder.Build();
 
-            // Ativar a política de CORS
+            // Configuração de CORS
             app.UseCors("AllowAll");
 
-            // Configura o Swagger para estar disponível em todos os ambientes
+            // Configuração de Swagger
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "BetSniffer API V1");
-                c.RoutePrefix = string.Empty; // Deixa o Swagger na raiz do aplicativo
+                c.RoutePrefix = string.Empty; // Swagger na raiz
             });
 
-            // Abrir automaticamente o navegador no HTTPS ao iniciar
-            OpenBrowser("https://localhost:5001");
+            // Abrir o navegador automaticamente em desenvolvimento
+            if (environment != "Production")
+            {
+                OpenBrowser("https://localhost:5001");
+            }
 
+            // Redirecionamento para HTTPS
             app.UseHttpsRedirection();
+
+            // Mapear controladores
             app.MapControllers();
 
+            // Finalização do WebDriver
+            using (var scope = app.Services.CreateScope())
+            {
+                var driver = scope.ServiceProvider.GetRequiredService<IWebDriver>();
+                app.Lifetime.ApplicationStopping.Register(() =>
+                {
+                    driver.Quit();
+                    driver.Dispose();
+                });
+            }
+
+            // Executar o aplicativo
             app.Run();
         }
 

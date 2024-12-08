@@ -52,7 +52,7 @@ namespace BetSniffer.Api.Models
 
         // Propriedade de navegação para GamesInfo
         [JsonIgnore]
-        public GamesInfo GamesInfo { get; set; }
+        public virtual GamesInfo GamesInfo { get; set; }
 
         // Chave estrangeira para Site
         [ForeignKey("Site")] // Relacionamento com a tabela Site
@@ -60,34 +60,48 @@ namespace BetSniffer.Api.Models
 
         // Propriedade de navegação para Site
         public Site Site { get; set; }
+        public int? TagId { get; set; }
+
+
     }
 
     public class GamesInfo
     {
+        [Key]
         public int GameId { get; set; }
 
-        // Relacionamentos com Times
-        [ForeignKey("HomeTeam")]
+        // Chave estrangeira para o Site
+        [ForeignKey("SiteId")]
+        public virtual Site Site { get; set; }  // Marcar como virtual para Lazy Loading
+
         public int HomeTeamId { get; set; }
-        public Team HomeTeam { get; set; }
-
-        [ForeignKey("AwayTeam")]
         public int AwayTeamId { get; set; }
-        public Team AwayTeam { get; set; }
 
+        // Chave estrangeira
+        public int? SiteId { get; set; }
+
+        [Column(TypeName = "datetime2")]
         public DateTime GameDate { get; set; }
 
+        [StringLength(100)]
         public string League { get; set; }
 
-        // Chave estrangeira para Site
-        [ForeignKey("Site")]
-        public int SiteId { get; set; } // Chave estrangeira para o Site
+        [Url]
+        public string URL { get; set; }
 
-        // Propriedade de navegação para Site
-        public Site Site { get; set; }
+        [Range(0, 255)]
+        public byte Status { get; set; } = 0;
 
-        // Propriedade de navegação para Bets
-        public ICollection<BetInfo> Bets { get; set; } = new List<BetInfo>();
+        [Column(TypeName = "datetime2")]
+        public DateTime? LastUpdated { get; set; }
+
+        // Propriedades de navegação
+        public virtual Team HomeTeam { get; set; } // Relacionamento com o time da casa
+        public virtual Team AwayTeam { get; set; } // Relacionamento com o time visitante
+
+        // Relacionamento com BetInfo (um para muitos)
+        public virtual ICollection<BetInfo> Bets { get; set; }  // Adicionando a coleção de Bets
+
     }
 
     public class Site

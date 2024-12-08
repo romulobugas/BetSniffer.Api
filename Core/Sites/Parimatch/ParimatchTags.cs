@@ -5,17 +5,17 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 {
     public static class ParimatchTags
     {
-        // Dicionário de tags fixas que você quer rastrear
-        public static readonly List<string> TagNames = new()
+        public static readonly Dictionary<int, string> TagNames = new()
         {
-            "Escanteios. Total",
-            "Cartões amarelos. Total",
-            "Todos os chutes. Total",
-            "Chutes no gol. Total",
-            "Faltas. Total",
-            "Total",
-
-            // Adicione outras tags fixas aqui conforme necessário
+            { 1, "Escanteios. Total" },
+            { 2, "Cartões amarelos. Total" },
+            { 3, "Todos os chutes. Total" },
+            { 4, "Chutes no gol. Total" },
+            { 5, "Faltas. Total" },
+            { 6, "Total" },
+            { 7, "Impedimentos. Total" },
+        
+            // Adicione outras tags fixas com IDs aqui
         };
 
         // Dicionário de tags fixas que você quer rastrear
@@ -38,35 +38,34 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
         // Método para adicionar tags dinâmicas com nomes de times
         public static void AddDynamicTags(string homeTeam, string awayTeam)
         {
-            // Lista de padrões de tags dinâmicas
-            var dynamicTags = new List<string>
+            // Dicionário de padrões de tags dinâmicas com IDs fixos
+            var dynamicTags = new Dictionary<int, string>
             {
-                $"Escanteios. {homeTeam} total",
-                $"Escanteios. {awayTeam} total",
-                $"Cartões amarelos. {homeTeam} total",
-                $"Cartões amarelos. {awayTeam} total",
-                $"Chutes no gol. {homeTeam} total",
-                $"Chutes no gol. {awayTeam} total",
-                $"Todos os chutes. {homeTeam} total",
-                $"Todos os chutes. {awayTeam} total",
-                $"Impedimentos. {homeTeam} total",
-                $"Impedimentos. {awayTeam} total",
-                $"Faltas. {homeTeam} total",
-                $"Faltas. {awayTeam} total",
-
-
-                $"{homeTeam} - Total de Impedimentos",
-                $"{awayTeam} - Total de Impedimentos",
+                { 8, $"Escanteios. {homeTeam} total" },
+                { 9, $"Escanteios. {awayTeam} total" },
+                { 10, $"Cartões amarelos. {homeTeam} total" },
+                { 11, $"Cartões amarelos. {awayTeam} total" },
+                { 12, $"Chutes no gol. {homeTeam} total" },
+                { 13, $"Chutes no gol. {awayTeam} total" },
+                { 14, $"Todos os chutes. {homeTeam} total" },
+                { 15, $"Todos os chutes. {awayTeam} total" },
+                { 16, $"Impedimentos. {homeTeam} total" },
+                { 17, $"Impedimentos. {awayTeam} total" },
+                { 18, $"Faltas. {homeTeam} total" },
+                { 19, $"Faltas. {awayTeam} total" },
+                { 20, $"{homeTeam} total" },
+                { 21, $"{awayTeam} total" }
             };
 
             // Adicionar ao dicionário principal evitando duplicações
             foreach (var tag in dynamicTags)
             {
-                if (!TagNames.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                if (!TagNames.ContainsKey(tag.Key))
                 {
-                    TagNames.Add(tag);
+                    TagNames.Add(tag.Key, tag.Value);
                 }
             }
         }
+
     }
 }
