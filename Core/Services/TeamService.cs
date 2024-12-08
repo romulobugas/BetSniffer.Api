@@ -11,7 +11,7 @@ namespace BetSniffer.Api.Core.Services
     {
         private readonly ApplicationDbContext _context;
         private List<AliasInfo> _aliasCache;
-        private const double MATCH_THRESHOLD = 0.9;
+        private const double MATCH_THRESHOLD = 1;
         private const int MIN_NAME_LENGTH = 7; // Novo: comprimento mínimo para considerar uma correspondência
 
         public TeamService(ApplicationDbContext context)

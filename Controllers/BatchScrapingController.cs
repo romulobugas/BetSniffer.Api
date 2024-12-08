@@ -45,7 +45,7 @@ namespace BetSniffer.Api.Controllers
 
             var options = new ChromeOptions();
             options.AddArgument("--no-sandbox");
-            options.AddArgument("--force-device-scale-factor=1");
+            options.AddArgument("--force-device-scale-factor=0.1");
             options.AddArgument("--start-maximized");
             options.AddArgument("--disable-blink-features=AutomationControlled");
             options.AddExcludedArgument("enable-automation");
@@ -182,27 +182,30 @@ namespace BetSniffer.Api.Controllers
                 // Define o final do dia informado para a data final (23:59:59)
                 DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1); // 23:59:59 do último dia informado
 
-                // Obtém os jogos dentro do intervalo de tempo
+                // Obtém os jogos dentro do intervalo de tempo com os critérios de casamentos e URLs
                 var games = _dbContext.GamesInfo
                     .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
-                    .ToList(); // Trazer para o lado do cliente para fazer o agrupamento
+                    .Join(_dbContext.GamesInfo,
+                        g1 => new { g1.HomeTeamId, g1.AwayTeamId },
+                        g2 => new { g2.HomeTeamId, g2.AwayTeamId },
+                        (g1, g2) => new { g1, g2 })
+                    .Where(x => x.g1.SiteId != x.g2.SiteId) // Apenas jogos casados com SiteId diferente
+                    .Where(x => !string.IsNullOrEmpty(x.g1.URL) && !string.IsNullOrEmpty(x.g2.URL)) // Apenas jogos com URL em ambos os sites
+                    .Select(x => new {
+                        URL1 = x.g1.URL,  // Renomeia a propriedade para evitar conflito
+                        URL2 = x.g2.URL   // Renomeia a propriedade para evitar conflito
+                    })
+                    .Distinct() // Evita URLs duplicadas
+                    .ToList(); // Trazer para o lado do cliente para manipulação
 
-                // Agrupar os jogos por GameDate, HomeTeam e AwayTeam
-                var groupedGames = games
-                    .GroupBy(g => new { g.GameDate, g.HomeTeam, g.AwayTeam })
-                    .Where(g => g.Count() > 1) // Apenas grupos com mais de um jogo
-                    .SelectMany(g => g)
-                    .ToList(); // Trazer para o lado do cliente para seleção
-
-                if (groupedGames.Count == 0)
+                if (games.Count == 0)
                 {
                     return Ok(new { message = "Nenhum jogo encontrado para o intervalo de datas informado." });
                 }
 
-                // Obter a lista de URLs dos jogos agrupados
-                var urlsToScrape = groupedGames
-                    .Where(g => !string.IsNullOrEmpty(g.URL)) // Filtra jogos que possuem URL
-                    .Select(g => g.URL) // Extrai a URL de cada jogo
+                // Obter a lista de URLs dos jogos encontrados
+                var urlsToScrape = games
+                    .SelectMany(g => new[] { g.URL1, g.URL2 }) // Extrai as URLs de ambos os sites
                     .Distinct() // Evita URLs duplicadas
                     .ToList();
 
@@ -221,8 +224,6 @@ namespace BetSniffer.Api.Controllers
                 return StatusCode(500, new { message = $"Erro ao atualizar os jogos: {ex.Message}" });
             }
         }
-
-
 
         // Função nativa do Windows para trazer a janela para o primeiro plano
         [DllImport("user32.dll")]
