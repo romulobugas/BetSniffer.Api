@@ -114,7 +114,7 @@ namespace BetSniffer.Api.Controllers
             {
                 "novibet" => new NovibetScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 "parimatch" => new Parimatchcraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
-                "bet365" => new Bet365Scraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
+                //"bet365" => new Bet365Scraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
@@ -148,6 +148,81 @@ namespace BetSniffer.Api.Controllers
                 Console.WriteLine($"Erro ao trazer o navegador para frente: {ex.Message}");
             }
         }
+
+        // Método para atualização dos jogos com o mesmo GameDate, HomeTeam e AwayTeam
+        [HttpPut("batch-update-same-games")]
+        public IActionResult UpdateSameGames([FromQuery] string startDate, [FromQuery] string endDate)
+        {
+            try
+            {
+                // Converter as strings das datas para DateTime
+                DateTime startGameDate;
+                DateTime endGameDate;
+
+                if (!DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out startGameDate))
+                {
+                    return BadRequest(new { message = "Data inicial inválida. O formato correto é dd/MM/yyyy." });
+                }
+
+                if (!DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out endGameDate))
+                {
+                    return BadRequest(new { message = "Data final inválida. O formato correto é dd/MM/yyyy." });
+                }
+
+                // Adiciona 2 horas e 30 minutos à data inicial (caso a data inicial seja a atual)
+                DateTime startOfDay = startGameDate.Date;
+
+                // Verifica se a data inicial é a data de hoje e ajusta o horário para a hora atual + 2:30h
+                if (startGameDate.Date == DateTime.Today)
+                {
+                    startOfDay = DateTime.Today.AddHours(DateTime.Now.Hour).AddMinutes(DateTime.Now.Minute).AddSeconds(DateTime.Now.Second);
+                    startOfDay = startOfDay.AddHours(2).AddMinutes(30); // Adiciona 2 horas e 30 minutos ao horário atual
+                }
+
+                // Define o final do dia informado para a data final (23:59:59)
+                DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1); // 23:59:59 do último dia informado
+
+                // Obtém os jogos dentro do intervalo de tempo
+                var games = _dbContext.GamesInfo
+                    .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
+                    .ToList(); // Trazer para o lado do cliente para fazer o agrupamento
+
+                // Agrupar os jogos por GameDate, HomeTeam e AwayTeam
+                var groupedGames = games
+                    .GroupBy(g => new { g.GameDate, g.HomeTeam, g.AwayTeam })
+                    .Where(g => g.Count() > 1) // Apenas grupos com mais de um jogo
+                    .SelectMany(g => g)
+                    .ToList(); // Trazer para o lado do cliente para seleção
+
+                if (groupedGames.Count == 0)
+                {
+                    return Ok(new { message = "Nenhum jogo encontrado para o intervalo de datas informado." });
+                }
+
+                // Obter a lista de URLs dos jogos agrupados
+                var urlsToScrape = groupedGames
+                    .Where(g => !string.IsNullOrEmpty(g.URL)) // Filtra jogos que possuem URL
+                    .Select(g => g.URL) // Extrai a URL de cada jogo
+                    .Distinct() // Evita URLs duplicadas
+                    .ToList();
+
+                if (urlsToScrape.Count == 0)
+                {
+                    return Ok(new { message = "Nenhum jogo com URL para scraping foi encontrado." });
+                }
+
+                // Envia a lista de URLs para o método ScrapeTagsBatch
+                var result = ScrapeTagsBatch(urlsToScrape);
+
+                return Ok(new { message = "Jogos para o intervalo de datas informado foram atualizados com sucesso." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Erro ao atualizar os jogos: {ex.Message}" });
+            }
+        }
+
+
 
         // Função nativa do Windows para trazer a janela para o primeiro plano
         [DllImport("user32.dll")]

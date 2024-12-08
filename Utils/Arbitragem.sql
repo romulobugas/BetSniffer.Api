@@ -36,8 +36,7 @@ WITH ArbitrageCalculation AS (
     JOIN
         [Site] s2 ON b2.SiteId = s2.SiteId
     WHERE 
-        ((b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de') 
-        OR (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de'))
+        ((b1.OverUnder != b2.OverUnder)) --Onde fazemos a diferença entre aposta acima e abaixo
         AND b1.SiteId = 3  -- Novibet
         AND b2.SiteId = 4  -- Parimach
         and g1.GameDate >= GETDATE() and g2.GameDate >= GETDATE()
@@ -138,6 +137,5 @@ JOIN
 JOIN 
     Teams t2 ON ac.AwayTeamId_X = t2.TeamId,
     DefinedStake
-where t1.NormalizedName = 'brentford'
 	
 order by 1 desc;
