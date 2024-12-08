@@ -36,56 +36,13 @@ WITH ArbitrageCalculation AS (
     JOIN
         [Site] s2 ON b2.SiteId = s2.SiteId
     WHERE 
-        ((b1.OverUnder != b2.OverUnder)) --Onde fazemos a diferença entre aposta acima e abaixo
+        ((b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de') 
+        OR (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de'))
         AND b1.SiteId = 3  -- Novibet
         AND b2.SiteId = 4  -- Parimach
         and g1.GameDate >= GETDATE() and g2.GameDate >= GETDATE()
         AND (
-            (b1.TagName = 'Total de Escanteios' AND b2.TagName = 'Escanteios. Total')
-            OR
-            (b1.TagName = 'Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Total')
-			OR
-			(b1.TagName = 'Total de Chutes no gol' AND b2.TagName = 'Chutes no gol. Total')
-			OR
-			(b1.TagName = 'Casa Total de Escanteios' AND b2.TagName = 'Escanteios. Casa total')
-			OR
-			(b1.TagName = 'Visitante Total de Escanteios' AND b2.TagName = 'Escanteios. Visitante total')
-			OR
-			(b1.TagName = 'Total de Escanteios' AND b2.TagName = 'Escanteios. Total')
-			OR
-			(b1.TagName = 'Total de Faltas' AND b2.TagName = 'Faltas. Total')
-			OR
-			(b1.TagName = 'Total de Gols' AND b2.TagName = 'Total')
-			OR
-			(b1.TagName = 'Casa Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Casa total')
-			OR
-			(b1.TagName = 'Visitante Total de Cartões Amarelos' AND b2.TagName = 'Cartões amarelos. Visitante total')
-			OR
-			(b1.TagName = 'Total de Impedimentos' AND b2.TagName = 'Impedimentos. Total')
-			OR
-			(b1.TagName = 'Casa Total de Gols' AND b2.TagName = 'Casa total')
-			OR
-			(b1.TagName = 'Casa - Total de Chutes' AND b2.TagName = 'Todos os chutes. Casa total')
-			OR
-			(b1.TagName = 'Visitante - Total de Chutes' AND b2.TagName = 'Todos os chutes. Visitante total')
-			OR
-			(b1.TagName = 'Visitante Total de Gols' AND b2.TagName = 'Visitante total')
-			OR
-			(b1.TagName = 'Casa - Total de Chutes no gol' AND b2.TagName = 'Chutes no gol. Casa total')
-			OR
-			(b1.TagName = 'Casa - Total de Faltas' AND b2.TagName = 'Faltas. Casa total')
-			OR
-			(b1.TagName = 'Casa - Total de Impedimentos' AND b2.TagName = 'Impedimentos. Casa total')
-			OR
-			(b1.TagName = 'Visitante - Total de Chutes no gol' AND b2.TagName = 'Chutes no gol. Visitante total')
-			OR
-			(b1.TagName = 'Total de Chutes' AND b2.TagName = 'Chutes no gol. Total')
-			OR
-			(b1.TagName = 'Visitante - Total de Faltas' AND b2.TagName = 'Faltas. Visitante total')
-			OR
-			(b1.TagName = 'Visitante - Total de Impedimentos' AND b2.TagName = 'Impedimentos. Visitante total')
-			OR
-			(b1.TagName = 'Total de Chutes' AND b2.TagName = 'Todos os chutes. Total')
+            b1.TagId = b2.TagId
         )
         AND b1.BetAmount = b2.BetAmount -- Mesma linha de aposta (mesmo total de escanteios ou Cartões)
 ),
@@ -137,5 +94,6 @@ JOIN
 JOIN 
     Teams t2 ON ac.AwayTeamId_X = t2.TeamId,
     DefinedStake
+where t1.NormalizedName = 'brentford'
 	
 order by 1 desc;
