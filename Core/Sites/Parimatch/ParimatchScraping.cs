@@ -292,6 +292,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                     break;
                 }
             }
+            Console.WriteLine("Todas as abas processadas com sucesso");
+
         }
 
 

@@ -1,6 +1,6 @@
 USE [BetArbitrageDB]
 GO
-/****** Object:  Table [dbo].[BetInfo]    Script Date: 03/12/2024 11:46:34 ******/
+/****** Object:  Table [dbo].[BetInfo]    Script Date: 09/12/2024 13:32:20 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -15,13 +15,14 @@ CREATE TABLE [dbo].[BetInfo](
 	[CaptureDate] [datetime2](7) NULL,
 	[GameDate] [datetime2](7) NULL,
 	[SiteId] [int] NULL,
+	[TagId] [int] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[BetId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[GamesInfo]    Script Date: 03/12/2024 11:46:34 ******/
+/****** Object:  Table [dbo].[GamesInfo]    Script Date: 09/12/2024 13:32:20 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -33,13 +34,16 @@ CREATE TABLE [dbo].[GamesInfo](
 	[GameDate] [datetime2](7) NULL,
 	[League] [varchar](100) NULL,
 	[SiteId] [int] NULL,
+	[URL] [nvarchar](500) NULL,
+	[Status] [tinyint] NOT NULL,
+	[LastUpdated] [datetime2](7) NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[GameId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Site]    Script Date: 03/12/2024 11:46:34 ******/
+/****** Object:  Table [dbo].[Site]    Script Date: 09/12/2024 13:32:20 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -53,7 +57,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-/****** Object:  Table [dbo].[Teams]    Script Date: 03/12/2024 11:46:34 ******/
+/****** Object:  Table [dbo].[Teams]    Script Date: 09/12/2024 13:32:20 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -72,106 +76,7 @@ UNIQUE NONCLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-ALTER TABLE [dbo].[BetInfo]  WITH CHECK ADD  CONSTRAINT [FK_BetInfo_Game] FOREIGN KEY([GameId])
-REFERENCES [dbo].[GamesInfo] ([GameId])
-GO
-ALTER TABLE [dbo].[BetInfo] CHECK CONSTRAINT [FK_BetInfo_Game]
-GO
-ALTER TABLE [dbo].[BetInfo]  WITH CHECK ADD  CONSTRAINT [FK_BetInfo_Site] FOREIGN KEY([SiteId])
-REFERENCES [dbo].[Site] ([SiteId])
-ON DELETE CASCADE
-GO
-ALTER TABLE [dbo].[BetInfo] CHECK CONSTRAINT [FK_BetInfo_Site]
-GO
-ALTER TABLE [dbo].[GamesInfo]  WITH CHECK ADD  CONSTRAINT [FK_GamesInfo_AwayTeam] FOREIGN KEY([AwayTeamId])
-REFERENCES [dbo].[Teams] ([TeamId])
-GO
-ALTER TABLE [dbo].[GamesInfo] CHECK CONSTRAINT [FK_GamesInfo_AwayTeam]
-GO
-ALTER TABLE [dbo].[GamesInfo]  WITH CHECK ADD  CONSTRAINT [FK_GamesInfo_HomeTeam] FOREIGN KEY([HomeTeamId])
-REFERENCES [dbo].[Teams] ([TeamId])
-GO
-ALTER TABLE [dbo].[GamesInfo] CHECK CONSTRAINT [FK_GamesInfo_HomeTeam]
-GO
-ALTER TABLE [dbo].[GamesInfo]  WITH CHECK ADD  CONSTRAINT [FK_GamesInfo_Site] FOREIGN KEY([SiteId])
-REFERENCES [dbo].[Site] ([SiteId])
-ON DELETE CASCADE
-GO
-ALTER TABLE [dbo].[GamesInfo] CHECK CONSTRAINT [FK_GamesInfo_Site]
-GO
-USE [BetArbitrageDB]
-GO
-/****** Object:  Table [dbo].[BetInfo]    Script Date: 03/12/2024 11:46:34 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[BetInfo](
-	[BetId] [int] IDENTITY(1,1) NOT NULL,
-	[GameId] [int] NULL,
-	[TagName] [varchar](100) NULL,
-	[OverUnder] [varchar](10) NULL,
-	[BetAmount] [decimal](10, 2) NULL,
-	[Multiplier] [decimal](10, 2) NULL,
-	[CaptureDate] [datetime2](7) NULL,
-	[GameDate] [datetime2](7) NULL,
-	[SiteId] [int] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[BetId] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[GamesInfo]    Script Date: 03/12/2024 11:46:34 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[GamesInfo](
-	[GameId] [int] IDENTITY(1,1) NOT NULL,
-	[HomeTeamId] [int] NOT NULL,
-	[AwayTeamId] [int] NOT NULL,
-	[GameDate] [datetime2](7) NULL,
-	[League] [varchar](100) NULL,
-	[SiteId] [int] NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[GameId] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[Site]    Script Date: 03/12/2024 11:46:34 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[Site](
-	[SiteId] [int] IDENTITY(1,1) NOT NULL,
-	[Name] [varchar](100) NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[SiteId] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY]
-GO
-/****** Object:  Table [dbo].[Teams]    Script Date: 03/12/2024 11:46:34 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-CREATE TABLE [dbo].[Teams](
-	[TeamId] [int] IDENTITY(1,1) NOT NULL,
-	[NormalizedName] [nvarchar](255) NOT NULL,
-	[Aliases] [nvarchar](max) NOT NULL,
-PRIMARY KEY CLUSTERED 
-(
-	[TeamId] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
-UNIQUE NONCLUSTERED 
-(
-	[NormalizedName] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+ALTER TABLE [dbo].[GamesInfo] ADD  DEFAULT ((0)) FOR [Status]
 GO
 ALTER TABLE [dbo].[BetInfo]  WITH CHECK ADD  CONSTRAINT [FK_BetInfo_Game] FOREIGN KEY([GameId])
 REFERENCES [dbo].[GamesInfo] ([GameId])
