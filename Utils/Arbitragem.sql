@@ -36,10 +36,9 @@ WITH ArbitrageCalculation AS (
     JOIN
         [Site] s2 ON b2.SiteId = s2.SiteId
     WHERE 
-        ((b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de') 
-        OR (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de'))
-        AND b1.SiteId = 3  -- Novibet
-        AND b2.SiteId = 4  -- Parimach
+        (b1.OverUnder <> b2.OverUnder)
+        AND b1.SiteId = 1  -- Novibet
+        AND b2.SiteId = 2  -- Parimach
         and g1.GameDate >= GETDATE() and g2.GameDate >= GETDATE()
         AND (
             b1.TagId = b2.TagId
@@ -68,10 +67,10 @@ SELECT
     OverUnder_X, 
     BetAmount_X, 
     Multiplier_X,       
-    t1.NormalizedName AS HomeTeam,
+    t1.Aliases AS HomeTeam,
     SiteName_X,
     SiteName_Y,
-    t2.NormalizedName AS AwayTeam,              
+    t2.Aliases AS AwayTeam,              
     OverUnder_Y, 
     BetAmount_Y,
     Multiplier_Y,
@@ -94,6 +93,6 @@ JOIN
 JOIN 
     Teams t2 ON ac.AwayTeamId_X = t2.TeamId,
     DefinedStake
-where t1.NormalizedName = 'brentford'
+
 	
 order by 1 desc;
