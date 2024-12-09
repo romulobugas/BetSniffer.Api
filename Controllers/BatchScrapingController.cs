@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using BetSniffer.Api.Core.Sites;
 using System.Diagnostics;
 using BetSniffer.Api.Core.Sites.Bet365;
+using BetSniffer.Api.Core.Sites.Betano;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -45,7 +46,7 @@ namespace BetSniffer.Api.Controllers
 
             var options = new ChromeOptions();
             options.AddArgument("--no-sandbox");
-            options.AddArgument("--force-device-scale-factor=0.1");
+            options.AddArgument("--force-device-scale-factor=1");
             options.AddArgument("--start-maximized");
             options.AddArgument("--disable-blink-features=AutomationControlled");
             options.AddExcludedArgument("enable-automation");
@@ -114,7 +115,7 @@ namespace BetSniffer.Api.Controllers
             {
                 "novibet" => new NovibetScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 "parimatch" => new Parimatchcraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
-                //"bet365" => new Bet365Scraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
+                "betano" => new BetanoScraping(driver, _dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }

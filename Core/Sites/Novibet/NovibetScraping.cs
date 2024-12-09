@@ -227,7 +227,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
 
-            NovibetTags.AddDynamicTags(homeTeam, awayTeam);
+            BetanoTags.AddDynamicTags(homeTeam, awayTeam);
 
 
             // Verifica se o jogo já existe no banco
@@ -405,14 +405,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     string tagName = tagElement.Text.Trim();
 
                     // Lista de tags cadastradas que queremos buscar
-                    var tagNames = NovibetTags.TagNames;
+                    var tagNames = BetanoTags.TagNames;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
                     if (tagNames.Values.Contains(tagName))
                     {
 
                         // Recupera o ID da tag a partir do dicionário
-                        int tagId = NovibetTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
+                        int tagId = BetanoTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
 
                         // Expande as apostas, se necessário
                         try

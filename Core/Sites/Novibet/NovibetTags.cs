@@ -3,7 +3,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
-    public static class NovibetTags
+    public static class BetanoTags
     {
         // Dicionário de tags fixas que você quer rastrear
         public static readonly Dictionary<int, string> TagNames = new()

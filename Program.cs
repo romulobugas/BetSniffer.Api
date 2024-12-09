@@ -11,6 +11,7 @@ using System.Diagnostics;
 using BetSniffer.Api.Models;
 using Microsoft.Extensions.DependencyInjection;
 using BetSniffer.Api.Controllers;
+using BetSniffer.Api.Core.Sites.Betano;
 
 namespace BetSniffer.Api
 {
@@ -61,6 +62,7 @@ namespace BetSniffer.Api
             // Registro de serviços específicos
             builder.Services.AddScoped<NovibetScraping>();
             builder.Services.AddScoped<Parimatchcraping>();
+            builder.Services.AddScoped<BetanoScraping>();
             builder.Services.AddScoped<Bet365Scraping>(); // Registro explícito de Bet365Scraping
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<BatchScrapingController>();
