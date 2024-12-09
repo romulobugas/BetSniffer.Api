@@ -223,8 +223,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
 
             // Inicializa informações do jogo
-            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam, gameDateTime, awayTeam);
-            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam, gameDateTime, homeTeam);
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
 
             NovibetTags.AddDynamicTags(homeTeam, awayTeam);
@@ -242,6 +242,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             {
                 // Se o jogo já existe no banco, preenche o gamesInfo com os dados existentes
                 gamesInfo = existingGame;
+                gamesInfo.Status = 1;
+                gamesInfo.LastUpdated = DateTime.Now;
             }
             else
             {
@@ -253,7 +255,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     GameDate = gameDateTime,
                     League = gameName,
                     Site = site,
-                    URL = url
+                    URL = url,
+                    Status = 1,
+                    LastUpdated = DateTime.Now
                 };
 
                 // Adiciona o novo jogo ao banco

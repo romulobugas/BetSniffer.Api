@@ -70,20 +70,44 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             ExtractGameInfo();
 
             // Inicializa informações do jogo
-            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam, gameDateTime, awayTeam);
-            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam, gameDateTime, homeTeam);
+            var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
+            var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
             ParimatchTags.AddDynamicTags(homeTeam, awayTeam);
 
-            gamesInfo = new GamesInfo
+            // Verifica se o jogo já existe no banco
+            var existingGame = _dbContext.GamesInfo
+                .FirstOrDefault(g =>
+                    g.HomeTeamId == homeTeamDb &&
+                    g.AwayTeamId == awayTeamDb &&
+                    g.GameDate == gameDateTime &&
+                    g.Site.SiteId == site.SiteId); // A comparação é feita usando o SiteId
+
+            if (existingGame != null)
             {
-                HomeTeamId = homeTeamDb,
-                AwayTeamId = awayTeamDb,
-                GameDate = gameDateTime,
-                League = gameName,
-                Site = site,
-                URL = url
-            };
+                // Se o jogo já existe no banco, preenche o gamesInfo com os dados existentes
+                gamesInfo = existingGame;
+                gamesInfo.Status = 1;
+                gamesInfo.LastUpdated = DateTime.Now;
+            }
+            else
+            {
+                // Se o jogo não existir no banco, cria um novo GamesInfo
+                gamesInfo = new GamesInfo
+                {
+                    HomeTeamId = homeTeamDb,
+                    AwayTeamId = awayTeamDb,
+                    GameDate = gameDateTime,
+                    League = gameName,
+                    Site = site,
+                    URL = url,
+                    Status = 1,
+                    LastUpdated = DateTime.Now
+                };
+
+                // Adiciona o novo jogo ao banco
+                _dbContext.GamesInfo.Add(gamesInfo);
+            }
 
             // Processa todas as abas disponíveis
             ProcessTabsAndMarketViews();
@@ -287,21 +311,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             // Lista para armazenar as apostas
             List<BetInfo> bets = new List<BetInfo>();
             List<TagInfo> tagInfos = new List<TagInfo>();
-
-            // Verifica se o jogo já existe no banco
-            var existingGame = _gamesInfoRepository.Find(g =>
-                g.HomeTeamId == gamesInfo.HomeTeamId &&
-                g.AwayTeamId == gamesInfo.AwayTeamId &&
-                g.GameDate == gamesInfo.GameDate &&
-                g.League == gamesInfo.League &&
-                g.Site.SiteId == gamesInfo.Site.SiteId).FirstOrDefault();
-
-            if (existingGame == null)
-            {
-                // Se o jogo não existir, adiciona ao banco
-                _gamesInfoRepository.Add(gamesInfo);
-                existingGame = gamesInfo;
-            }
+                       
 
             foreach (var eventMarketView in eventMarketViews)
             {
@@ -450,7 +460,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
                                 // Procura a aposta correspondente
                                 var existingBet = _betInfoRepository.Find(b =>
-                                    b.GamesInfo.GameId == existingGame.GameId &&
+                                    b.GamesInfo.GameId == gamesInfo.GameId &&
                                     b.TagName == adjustedTagName &&
                                     b.OverUnder == bet.OverUnder &&
                                     b.BetAmount == bet.BetAmount &&
@@ -460,7 +470,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 if (existingBet == null)
                                 {
                                     // Adiciona nova aposta
-                                    bet.GamesInfo = existingGame;
+                                    bet.GamesInfo = gamesInfo;
                                     _betInfoRepository.Add(bet);
                                 }
                                 else
