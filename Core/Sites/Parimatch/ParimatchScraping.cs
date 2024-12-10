@@ -126,6 +126,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         private void ExtractGameInfo()
         {
+            System.Threading.Thread.Sleep(new Random().Next(500, 1500));
+
             var spanElements = _driver.FindElements(By.CssSelector("div[data-testid='event-view-header-soccer-center-container'] span"));
             gameName = spanElements.Count >= 2 ? spanElements[1].Text.Trim() : "Nome não encontrado";
 
@@ -227,7 +229,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             // Rola a página até o topo absoluto usando window.scrollTo
                             var actions = new Actions(_driver);
                             actions.SendKeys(Keys.Home).Perform();  // Simula pressionar a tecla "Home"
-                            Thread.Sleep(500);  // Pausa para garantir que a rolagem tenha ocorrido
+                            System.Threading.Thread.Sleep(new Random().Next(500, 1200));  // Pausa para garantir que a rolagem tenha ocorrido
 
                             Console.WriteLine("Scroll até o topo da página concluído.");
 
@@ -247,7 +249,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 {
                                     retries++;
                                     Console.WriteLine($"Clique interceptado na aba '{tabName}', tentando novamente ({retries}/5).");
-                                    Thread.Sleep(500); // Espera antes de tentar novamente
+                                    System.Threading.Thread.Sleep(new Random().Next(500, 1300)); // Espera antes de tentar novamente
                                 }
                                 catch (Exception ex)
                                 {
@@ -302,7 +304,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
         {
 
             //Aguarda um tempo para carregar todos os mercados
-            Thread.Sleep(3500);
+            System.Threading.Thread.Sleep(new Random().Next(2800, 4850));
 
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));
@@ -350,7 +352,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 toggleButton.Click();
 
                                 // Aguardar 3 segundos
-                                Thread.Sleep(3000);
+                                System.Threading.Thread.Sleep(new Random().Next(1521, 3122));
 
                                 attempt++;  // Incrementa a tentativa
                             }

@@ -63,7 +63,20 @@ namespace BetSniffer.Api.Core.Sites.Betano
             site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ??
                        AddNewSite(siteName);
 
+            System.Threading.Thread.Sleep(new Random().Next(2000, 5000));
+
+
             _driver.Navigate().GoToUrl(url);
+
+            var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+            wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState").Equals("complete"));
+
+            var actions = new Actions(_driver);
+            actions.MoveByOffset(10, 10).Perform(); // Simula um movimento de mouse
+
+            // Espera aleatória entre 2 e 5 segundos
+            Random random = new Random();
+            Thread.Sleep(random.Next(2000, 5000));
 
             string ageVerification = "[data-qa='age-verification-modal-ok-button']";
 
@@ -75,8 +88,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
             _gameService.ClosePopup(_driver, popupSelector);
 
 
-            // Aguarda o carregamento inicial da página
-            WebDriverWait wait = new(_driver, TimeSpan.FromSeconds(10));
             wait.Until(driver => driver.FindElement(By.CssSelector("div.markets")));
            
 
@@ -126,6 +137,9 @@ namespace BetSniffer.Api.Core.Sites.Betano
             // Processa todas as abas disponíveis
             ProcessTabsAndMarketViews();
 
+            _driver.Manage().Cookies.DeleteAllCookies();
+
+
             return new List<TagInfo>(); // Substitua com a lógica para retornar as informações processadas
         }
 
@@ -142,6 +156,9 @@ namespace BetSniffer.Api.Core.Sites.Betano
         {
             try
             {
+                System.Threading.Thread.Sleep(new Random().Next(2000, 5000));
+
+
                 // Captura o texto de data e hora completo
                 var dateElement = _driver.FindElement(By.CssSelector("div.tw-font-bold"));
                 var gameDateTimeText = dateElement.Text.Trim();
@@ -346,7 +363,15 @@ namespace BetSniffer.Api.Core.Sites.Betano
         {
 
             //Aguarda um tempo para carregar todos os mercados
-            Thread.Sleep(3000);
+            System.Threading.Thread.Sleep(new Random().Next(2000, 5000));
+
+            // Exemplo de movimentação do mouse
+            Actions actions = new Actions(_driver);
+            actions.MoveByOffset(50, 50).Perform(); // Move o mouse para um ponto arbitrário
+
+            // Adiciona uma pausa aleatória para simular o comportamento humano
+            Random random = new Random();
+            Thread.Sleep(random.Next(500, 1500)); // Pausa de 500ms a 1500ms
 
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-marketid]"));
@@ -397,7 +422,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                     eventMarketView.Click();
 
                                     // Aguardar 3 segundos antes de verificar novamente
-                                    Thread.Sleep(2000);
+                                    System.Threading.Thread.Sleep(new Random().Next(2000, 4000));
 
                                     attempt++;  // Incrementa a tentativa
                                 }
@@ -407,7 +432,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 // Caso "selections-group" não seja encontrado, tenta clicar no botão
                                 eventMarketView.Click();
                                 // Aguardar 3 segundos antes de verificar novamente
-                                Thread.Sleep(500);
+                                System.Threading.Thread.Sleep(new Random().Next(500, 1500));
 
                                 attempt++;  // Incrementa a tentativa
                             }

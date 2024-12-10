@@ -12,6 +12,7 @@ using BetSniffer.Api.Core.Sites;
 using System.Diagnostics;
 using BetSniffer.Api.Core.Sites.Bet365;
 using BetSniffer.Api.Core.Sites.Betano;
+using OpenQA.Selenium.Interactions;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -44,23 +45,45 @@ namespace BetSniffer.Api.Controllers
                 return BadRequest(new { message = "A lista de URLs não pode estar vazia." });
             }
 
+            // Obtém o diretório do usuário corrente
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            // Monta o caminho do user-data-dir dinamicamente
+            string userDataDir = Path.Combine(userProfile, "AppData", "Local", "Google", "Chrome", "User Data");
+
             var options = new ChromeOptions();
             options.AddArgument("--no-sandbox");
             options.AddArgument("--force-device-scale-factor=1");
             options.AddArgument("--start-maximized");
-            options.AddArgument("--disable-blink-features=AutomationControlled");
+            //options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-infobars");
+            //options.AddArgument($"user-data-dir={userDataDir}");
+            //options.AddArgument("--profile-directory=Default");
+            options.AddArgument("--disable-features=WebRTC");
+            options.AddArgument("--enable-features=NetworkService,NetworkServiceInProcess");
             options.AddExcludedArgument("enable-automation");
             options.AddAdditionalOption("useAutomationExtension", false);
             options.AddArgument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.198 Safari/537.36");
-            options.AddArgument("--profile-directory=Default");
 
-
+            // Adiciona uma configuração para remover a propriedade navigator.webdriver
+            options.AddExcludedArgument("enable-automation");
+            options.AddArgument("--disable-blink-features=AutomationControlled");
 
             var results = new List<object>();
             var errors = new List<string>();
 
             using (var driver = new ChromeDriver(options))
             {
+                driver.ExecuteScript(@"
+                                        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                                        Object.defineProperty(navigator, 'plugins', { 
+                                            get: () => [{ name: 'Plugin1' }, { name: 'Plugin2' }] 
+                                        });
+                                        Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'en-US'] });
+                                    ");
+
+
+
                 // Garante que o navegador esteja em evidência
                 BringChromeToFront(driver);
 

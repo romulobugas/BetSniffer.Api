@@ -90,7 +90,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             try
             {
                 var closeButton = wait.Until(driver => driver.FindElement(By.CssSelector(".registerOrLogin_closeButton")));
-                Thread.Sleep(3000);
+                System.Threading.Thread.Sleep(new Random().Next(2547, 3245));
                 closeButton.Click();
                 Console.WriteLine("Pop-up fechado com sucesso.");
             }
@@ -108,7 +108,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             {
                 // Após fechar o pop-up, aguarda 3 segundos antes de continuar
                 Console.WriteLine("Aguardando 3 segundos antes de continuar...");
-                Thread.Sleep(3000);
+                System.Threading.Thread.Sleep(new Random().Next(1278, 2147));
 
                 wait.Until(driver => driver.FindElement(By.XPath("//app-event-marketview")));
             }
@@ -276,7 +276,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             List<TagInfo> allTagInfos = new List<TagInfo>();
 
             // Captura todas as categorias disponíveis
-            Thread.Sleep(3000);
+            System.Threading.Thread.Sleep(new Random().Next(2145, 2987));
             var categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide"));
             if (categoryElements == null || !categoryElements.Any())
                 throw new Exception("Nenhuma categoria encontrada no carrossel.");
@@ -401,7 +401,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             List<TagInfo> tagInfos = new List<TagInfo>();
 
             // Encontra todos os contêineres de aposta
-            Thread.Sleep(3000);
+            System.Threading.Thread.Sleep(new Random().Next(2873, 3405));
             var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
 
             foreach (var eventMarketView in eventMarketViews)
