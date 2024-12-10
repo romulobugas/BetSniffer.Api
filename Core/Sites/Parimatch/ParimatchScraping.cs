@@ -302,7 +302,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
         {
 
             //Aguarda um tempo para carregar todos os mercados
-            Thread.Sleep(5000);
+            Thread.Sleep(3500);
 
             // Encontra todos os contêineres de aposta
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));

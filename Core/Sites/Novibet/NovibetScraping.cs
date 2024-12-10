@@ -26,6 +26,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         private GamesInfo gamesInfo;
         private DateTime gameDateTime;
         private readonly ApplicationDbContext _dbContext;
+        private readonly GameService _gameService;
 
         #endregion
 
@@ -42,6 +43,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _gameService = new GameService(_dbContext);
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
@@ -77,6 +79,12 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             // Espera até que os elementos da página estejam carregados
             WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+
+            string novibetCheckboxSelector = "div.ageRestrictionOptions_option:nth-of-type(1)";
+            string novibetConfirmButtonSelector = "nds-button.ageRestrictionModal_button button.button.large.teal";
+
+            // Chama o método para confirmar a verificação de idade
+            _gameService.ConfirmAgeVerificationWithCheckboxAndButton(_driver, novibetCheckboxSelector, novibetConfirmButtonSelector);
 
             // Fechar o pop-up, caso ele apareça
             try

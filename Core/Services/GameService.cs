@@ -73,7 +73,7 @@ namespace BetSniffer.Api.Core.Services
             }
         }
 
-        public void ConfirmAgeVerification(IWebDriver driver, int timeoutSeconds = 10)
+        public void ConfirmAgeVerification(IWebDriver driver,string ageVerification, int timeoutSeconds = 10)
         {
             try
             {
@@ -84,7 +84,7 @@ namespace BetSniffer.Api.Core.Services
                 WebDriverWait wait = new(driver, TimeSpan.FromSeconds(timeoutSeconds));
 
                 // Aguarda até que o botão "Sim" esteja visível
-                var confirmButton = wait.Until(d => d.FindElement(By.CssSelector("[data-qa='age-verification-modal-ok-button']")));
+                var confirmButton = wait.Until(d => d.FindElement(By.CssSelector(ageVerification)));
 
                 // Clica no botão
                 confirmButton.Click();
@@ -99,6 +99,43 @@ namespace BetSniffer.Api.Core.Services
                 Console.WriteLine("Tempo de espera para o botão 'Sim' expirou.");
             }
         }
+
+        public void ConfirmAgeVerificationWithCheckboxAndButton(IWebDriver driver, string checkboxSelector, string confirmButtonSelector, int timeoutSeconds = 10)
+        {
+            try
+            {
+                // Aguarda 3 segundos para garantir o carregamento da tela (caso ela apareça)
+                Thread.Sleep(3000);
+
+                // Cria o WebDriverWait com base no driver fornecido e o tempo de espera
+                WebDriverWait wait = new(driver, TimeSpan.FromSeconds(timeoutSeconds));
+
+                // Verifica se o checkbox da idade está presente
+                var checkbox = wait.Until(d => d.FindElement(By.CssSelector(checkboxSelector)));
+
+                // Marca o checkbox se não estiver marcado
+                if (!checkbox.Selected)
+                {
+                    checkbox.Click();
+                    Console.WriteLine("Checkbox 'Tenho mais de 18 anos' marcado com sucesso.");
+                }
+
+                // Aguarda o botão "Continuar" ficar clicável
+                var confirmButton = wait.Until(d => d.FindElement(By.CssSelector(confirmButtonSelector)));
+                confirmButton.Click();
+                Console.WriteLine("Botão 'Continuar' clicado com sucesso.");
+            }
+            catch (WebDriverTimeoutException)
+            {
+                Console.WriteLine("Tempo de espera para a tela de verificação de idade expirou.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao tentar confirmar a verificação de idade: {ex.Message}");
+            }
+        }
+
+
 
         public void ClosePopup(IWebDriver driver, string popupSelector, int timeoutSeconds = 10)
         {

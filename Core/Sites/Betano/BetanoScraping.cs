@@ -65,7 +65,9 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
             _driver.Navigate().GoToUrl(url);
 
-            _gameService.ConfirmAgeVerification(_driver);
+            string ageVerification = "[data-qa='age-verification-modal-ok-button']";
+
+            _gameService.ConfirmAgeVerification(_driver, ageVerification);
 
 
             string popupSelector = "#landing-page-modal .sb-modal__close__btn";
