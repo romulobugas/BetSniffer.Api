@@ -31,7 +31,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
         public static string CaptureElementCode(IWebElement element)
         {
             // Captura o código dinâmico a partir do atributo 'class' ou qualquer outra lógica necessária
-            string classAttribute = element.GetAttribute("class");
+            string classAttribute = element.GetDomAttribute("class");
             string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
             return elementCode;
         }

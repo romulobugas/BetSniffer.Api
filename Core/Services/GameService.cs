@@ -78,7 +78,7 @@ namespace BetSniffer.Api.Core.Services
             try
             {
 
-                System.Threading.Thread.Sleep(new Random().Next(2000, 5000));
+                System.Threading.Thread.Sleep(new Random().Next(1511, 3522));
 
                 // Cria o WebDriverWait com base no driver fornecido e o tempo de espera
                 WebDriverWait wait = new(driver, TimeSpan.FromSeconds(timeoutSeconds));
@@ -141,7 +141,7 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                System.Threading.Thread.Sleep(new Random().Next(2000, 5000));
+                System.Threading.Thread.Sleep(new Random().Next(1855, 3626));
 
                 // Cria o WebDriverWait com base no driver fornecido e o tempo de espera
                 WebDriverWait wait = new(driver, TimeSpan.FromSeconds(timeoutSeconds));

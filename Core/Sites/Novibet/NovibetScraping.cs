@@ -31,14 +31,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         #endregion
 
         public NovibetScraping(
-            IWebDriver driver
-            , ApplicationDbContext dbContext
+            //IWebDriver driver
+             ApplicationDbContext dbContext
             , TeamService teamService
             , IRepositoryService<GamesInfo> gamesInfoRepository
             , IRepositoryService<BetInfo> betInfoRepository
             )
         {
-            _driver = driver ?? throw new ArgumentNullException(nameof(driver));
+            //_driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));

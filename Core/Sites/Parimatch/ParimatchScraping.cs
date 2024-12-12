@@ -14,7 +14,7 @@ using OpenQA.Selenium.Interactions;
 
 namespace BetSniffer.Api.Core.Sites.Parimatch
 {
-    public class Parimatchcraping : IScrapingService
+    public class ParimatchScraping : IScrapingService
     {
         #region VariaveisGlobais
 
@@ -35,14 +35,14 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         #endregion
 
-        public Parimatchcraping(
-            IWebDriver driver,
+        public ParimatchScraping(
+            //IWebDriver driver,
             ApplicationDbContext dbContext,
             TeamService teamService,
             IRepositoryService<GamesInfo> gamesInfoRepository,
             IRepositoryService<BetInfo> betInfoRepository)
         {
-            _driver = driver ?? throw new ArgumentNullException(nameof(driver));
+            //_driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));

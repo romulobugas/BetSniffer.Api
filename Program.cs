@@ -61,7 +61,7 @@ namespace BetSniffer.Api
 
             // Registro de serviços específicos
             builder.Services.AddScoped<NovibetScraping>();
-            builder.Services.AddScoped<Parimatchcraping>();
+            builder.Services.AddScoped<ParimatchScraping>();
             builder.Services.AddScoped<BetanoScraping>();
             builder.Services.AddScoped<Bet365Scraping>(); // Registro explícito de Bet365Scraping
             builder.Services.AddScoped<TeamService>();
@@ -81,8 +81,8 @@ namespace BetSniffer.Api
                 // Serviço dinâmico para diferentes sites de scraping
                 return siteName.ToLower() switch
                 {
-                    "novibet" => new NovibetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                    "parimatch" => new Parimatchcraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    //"novibet" => new NovibetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    //"parimatch" => new Parimatchcraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
                     "bet365" => new Bet365Scraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
                     _ => throw new ArgumentException($"Serviço de scraping para o site {siteName} não encontrado.")
                 };
