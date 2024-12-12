@@ -7,7 +7,6 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using System.Globalization;
-using BetSniffer.Api.Core.Sites.Parimatch;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -15,7 +14,6 @@ namespace BetSniffer.Api.Core.Sites.Novibet
     {
         #region VariaveisGlobais
 
-        private readonly IWebDriver _driver;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
         private readonly TeamService _teamService;
@@ -27,23 +25,24 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         private DateTime gameDateTime;
         private readonly ApplicationDbContext _dbContext;
         private readonly GameService _gameService;
+        private readonly WebScrapingServiceSelenium _webScrapingService;
 
         #endregion
 
         public NovibetScraping(
-            //IWebDriver driver
-             ApplicationDbContext dbContext
-            , TeamService teamService
-            , IRepositoryService<GamesInfo> gamesInfoRepository
-            , IRepositoryService<BetInfo> betInfoRepository
-            )
+         ApplicationDbContext dbContext,
+         TeamService teamService,
+         IRepositoryService<GamesInfo> gamesInfoRepository,
+         IRepositoryService<BetInfo> betInfoRepository
+        )
         {
-            //_driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _gameService = new GameService(_dbContext);
+            _webScrapingService = new WebScrapingServiceSelenium(); // Inicializa o serviço de scraping
+            _webScrapingService.Initialize(); // Configura o WebDriver
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
@@ -66,66 +65,52 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             if (site == null)
             {
                 // Caso o site não exista, cria um novo registro
-                site = new Site
-                {
-                    Name = siteName
-                };
+                site = new Site { Name = siteName };
                 _dbContext.Site.Add(site);
                 _dbContext.SaveChanges(); // Salva o novo site
                 Console.WriteLine($"Novo site adicionado: {siteName}");
             }
 
-            _driver.Navigate().GoToUrl(url);
+            // Navega para a URL
+            _webScrapingService.NavigateTo(url);
 
-            // Espera até que os elementos da página estejam carregados
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+            System.Threading.Thread.Sleep(new Random().Next(2145, 3992));
 
+            // Confirmar verificação de idade
             string novibetCheckboxSelector = "div.ageRestrictionOptions_option:nth-of-type(1)";
             string novibetConfirmButtonSelector = "nds-button.ageRestrictionModal_button button.button.large.teal";
+            _gameService.ConfirmAgeVerificationWithCheckboxAndButton(_webScrapingService.GetWebDriver(), novibetCheckboxSelector, novibetConfirmButtonSelector);
 
-            // Chama o método para confirmar a verificação de idade
-            _gameService.ConfirmAgeVerificationWithCheckboxAndButton(_driver, novibetCheckboxSelector, novibetConfirmButtonSelector);
-
-            // Fechar o pop-up, caso ele apareça
+            // Fechar o pop-up
             try
             {
-                var closeButton = wait.Until(driver => driver.FindElement(By.CssSelector(".registerOrLogin_closeButton")));
-                System.Threading.Thread.Sleep(new Random().Next(2547, 3245));
+                var closeButton = _webScrapingService.WaitForElement(".registerOrLogin_closeButton", 5000);
+                System.Threading.Thread.Sleep(new Random().Next(1547, 2245));
                 closeButton.Click();
                 Console.WriteLine("Pop-up fechado com sucesso.");
             }
-            catch (NoSuchElementException)
+            catch (Exception ex)
             {
-                Console.WriteLine("Pop-up não encontrado.");
-            }
-            catch (WebDriverTimeoutException)
-            {
-                Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
+                Console.WriteLine($"Erro ao tentar fechar o pop-up: {ex.Message}");
             }
 
             // Aguarda até que o primeiro elemento esperado esteja visível
             try
             {
-                // Após fechar o pop-up, aguarda 3 segundos antes de continuar
-                Console.WriteLine("Aguardando 3 segundos antes de continuar...");
-                System.Threading.Thread.Sleep(new Random().Next(1278, 2147));
-
-                wait.Until(driver => driver.FindElement(By.XPath("//app-event-marketview")));
+                Console.WriteLine("Aguardando até 2 segundos antes de continuar...");
+                System.Threading.Thread.Sleep(new Random().Next(878, 1147));
+                _webScrapingService.WaitForElement("//app-event-marketview", 10000);
             }
-            catch (WebDriverTimeoutException)
+            catch (Exception ex)
             {
-                Console.WriteLine("Tempo de espera excedido, o elemento não foi encontrado.");
+                Console.WriteLine($"Erro ao carregar 'app-event-marketview': {ex.Message}");
                 return new List<TagInfo>();
             }
 
-            // Lista de categorias processadas
+            // Processamento dos elementos
             var processedCategories = new HashSet<int>();
-
-            // Localiza o carrossel de categorias
-            var categoriesCarousel = wait.Until(driver => driver.FindElement(By.CssSelector("app-event-market-categories")));            
-
-            // Encontra todos os contêineres de aposta
-            var eventPresentationViews = _driver.FindElements(By.TagName("app-event-presentation"));
+            var categoriesCarousel = _webScrapingService.WaitForElement("app-event-market-categories", 10000);
+            var eventPresentationViews = _webScrapingService.WaitForElements("app-event-presentation");
 
             foreach (var eventPresentationView in eventPresentationViews)
             {
@@ -235,7 +220,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
 
-            BetanoTags.AddDynamicTags(homeTeam, awayTeam);
+            NovibetTags.AddDynamicTags(homeTeam, awayTeam);
 
 
             // Verifica se o jogo já existe no banco
@@ -277,19 +262,24 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             // Captura todas as categorias disponíveis
             System.Threading.Thread.Sleep(new Random().Next(2145, 2987));
-            var categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide"));
+
+            // Captura apenas os elementos "swiper-slide" dentro do contêiner específico
+            var categoryElements = _webScrapingService.FindElementsWithin(categoriesCarousel, ".swiper-slide", 5000).ToList();
+            int totalCategories = categoryElements.Count; // Total inicial de categorias
+
+            // Verifica se algum elemento foi encontrado
             if (categoryElements == null || !categoryElements.Any())
                 throw new Exception("Nenhuma categoria encontrada no carrossel.");
 
             // Configuração de número máximo de retentativas
-            const int maxRetries = 5;
+            const int maxRetries = 3;
             const int retryDelay = 1000; // Delay em milissegundos
 
             // Botão de navegação para a direita
-            var nextButton = _driver.FindElement(By.CssSelector(".marketCategories_arrowRight.nextBtn.u-flex.u-flexCenter"));
+            var nextButton = _webScrapingService.WaitForElement(".marketCategories_arrowRight.nextBtn.u-flex.u-flexCenter", 10000);
 
             int i = 0; // Índice inicial para o loop principal
-            while (i < categoryElements.Count)
+            while (i < totalCategories)
             {
                 if (processedCategories.Contains(i))
                 {
@@ -304,8 +294,13 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 {
                     try
                     {
+                        // Verifica se o elemento da categoria está disponível antes de interagir
+                        var categoryElement = _webScrapingService.FindElementsWithin(categoriesCarousel, ".swiper-slide .marketCategories_carouselItem", 5000).ElementAtOrDefault(i);
+                        if (categoryElement == null)
+                            throw new Exception($"Categoria {i} não encontrada no carrossel.");
+
                         // Tenta clicar na categoria
-                        categoryElements[i].Click();
+                        categoryElement.Click();
                         processedCategories.Add(i); // Marca como processada
 
                         // Estratégia de retentativa para carregar o elemento necessário
@@ -316,11 +311,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             try
                             {
                                 // Espera que os dados carreguem
-                                wait.Until(driver => driver.FindElements(By.CssSelector("app-event-marketview")).Count > 0);
-                                elementFound = true;
-                                break; // Sai do loop se o elemento for encontrado
+                                var elements = _webScrapingService.WaitForElements("app-event-marketview", retryDelay * maxRetries);
+                                if (elements.Count > 0)
+                                {
+                                    elementFound = true;
+                                    break; // Sai do loop se o elemento for encontrado
+                                }
                             }
-                            catch (WebDriverTimeoutException)
+                            catch (Exception ex)
                             {
                                 if (loadAttempt < maxRetries)
                                 {
@@ -329,13 +327,15 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                 }
                                 else
                                 {
-                                    Console.WriteLine("Excedido o número de tentativas para carregar 'app-event-marketview'.");
+                                    Console.WriteLine($"Excedido o número de tentativas para carregar 'app-event-marketview': {ex.Message}");
                                 }
                             }
                         }
 
                         if (!elementFound)
                             throw new Exception("Falha ao encontrar 'app-event-marketview' após múltiplas tentativas.");
+
+                        Console.WriteLine($"Processando a Categoria: {categoryElement.Text} {i + 1}");
 
                         // Captura as tags para esta categoria
                         var tagInfos = ProcessMarketViews();
@@ -346,39 +346,54 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     catch (ElementClickInterceptedException)
                     {
                         Console.WriteLine($"Categoria {i} interceptada. Tentando usar o botão 'Next' para ajustar...");
-                        if (nextButton.GetAttribute("class").Contains("swiper-button-disabled"))
+                        if (nextButton.GetDomAttribute("class").Contains("swiper-button-disabled"))
                         {
                             Console.WriteLine("Botão 'Next' desabilitado. Não é possível navegar mais.");
                             break; // Sai do loop de tentativas se não houver mais categorias acessíveis
                         }
 
-                        nextButton.Click(); // Clica no botão para ajustar o carrossel
+                        nextButton.Click();
                         Thread.Sleep(retryDelay); // Aguardando para que o layout do carrossel seja ajustado
-                        categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide")); // Recarrega os elementos
+                        categoryElements = _webScrapingService.FindElementsWithin(categoriesCarousel, ".swiper-slide", 5000).ToList(); // Recarrega os elementos
+                        totalCategories = categoryElements.Count; // Atualiza o total de categorias após recarregar
                     }
                     catch (ElementNotInteractableException)
                     {
                         Console.WriteLine($"Categoria {i} não interagível. Tentando usar o botão 'Next' para ajustar...");
-                        if (nextButton.GetAttribute("class").Contains("swiper-button-disabled"))
+                        if (nextButton.GetDomAttribute("class").Contains("swiper-button-disabled"))
                         {
                             Console.WriteLine("Botão 'Next' desabilitado. Não é possível navegar mais.");
                             break; // Sai do loop de tentativas se não houver mais categorias acessíveis
                         }
 
-                        nextButton.Click(); // Clica no botão para ajustar o carrossel
+                        nextButton.Click();
                         Thread.Sleep(retryDelay); // Aguardando para que o layout do carrossel seja ajustado
-                        categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide")); // Recarrega os elementos
+                        categoryElements = _webScrapingService.FindElementsWithin(categoriesCarousel, ".swiper-slide", 5000).ToList(); // Recarrega os elementos
+                        totalCategories = categoryElements.Count; // Atualiza o total de categorias após recarregar
                     }
                     catch (StaleElementReferenceException)
                     {
                         Console.WriteLine($"Elemento da categoria {i} ficou obsoleto. Recarregando elementos...");
-                        categoryElements = categoriesCarousel.FindElements(By.CssSelector(".swiper-slide")); // Recarrega os elementos
+                        categoryElements = _webScrapingService.FindElementsWithin(categoriesCarousel, ".swiper-slide", 5000).ToList(); // Recarrega os elementos
+                        totalCategories = categoryElements.Count; // Atualiza o total de categorias após recarregar
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Erro ao processar categoria {i}: {ex.Message}");
                         attempts++;
                     }
+                }
+
+                // Use Page Up para voltar ao topo antes de sair do processamento da categoria
+                try
+                {
+                    Console.WriteLine("Retornando ao topo da página...");
+                    _webScrapingService.GetWebDriver().FindElement(By.TagName("body")).SendKeys(Keys.Home);
+                    Thread.Sleep(500); // Aguarda um pequeno intervalo para garantir a rolagem
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao tentar voltar ao topo da página: {ex.Message}");
                 }
 
                 if (!categoryProcessed)
@@ -388,6 +403,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
                 i++; // Move para a próxima categoria
             }
+
+            _webScrapingService.Dispose();
 
             return allTagInfos;
 
@@ -402,37 +419,34 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             // Encontra todos os contêineres de aposta
             System.Threading.Thread.Sleep(new Random().Next(2873, 3405));
-            var eventMarketViews = _driver.FindElements(By.TagName("app-event-marketview"));
+            var eventMarketViews = _webScrapingService.WaitForElements("app-event-marketview", 5000);
 
             foreach (var eventMarketView in eventMarketViews)
             {
                 try
                 {
                     // Verifica se o evento contém uma tag válida
-                    var tagElement = eventMarketView.FindElement(By.XPath(".//span[contains(@class, 'eventMarketview_title')]"));
+                    var tagElement = _webScrapingService.FindElementsWithin(eventMarketView, ".//span[contains(@class, 'eventMarketview_title')]").FirstOrDefault();
                     string tagName = tagElement.Text.Trim();
 
                     // Lista de tags cadastradas que queremos buscar
-                    var tagNames = BetanoTags.TagNames;
+                    var tagNames = NovibetTags.TagNames;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada, ignorando diferenças como emojis
                     if (tagNames.Values.Contains(tagName))
                     {
 
                         // Recupera o ID da tag a partir do dicionário
-                        int tagId = BetanoTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
+                        int tagId = NovibetTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
 
                         // Expande as apostas, se necessário
                         try
                         {
-                            var expandCollapseButton = eventMarketView.FindElement(By.XPath(".//sb-market-bet-expand-collapse//span[contains(text(), 'Ver Mais')]"));
+                            var expandCollapseButton = _webScrapingService.TryWaitForElement(".//sb-market-bet-expand-collapse//span[contains(text(), 'Ver Mais')]", 2000);
                             if (expandCollapseButton != null)
                             {
                                 expandCollapseButton.Click();
-
-                                // Aguarda as apostas carregarem
-                                WebDriverWait waitForLoad = new WebDriverWait(_driver, TimeSpan.FromSeconds(5));
-                                waitForLoad.Until(driver => driver.FindElements(By.XPath(".//span[contains(@class, 'marketBetItem_caption')]")).Count > 0);
+                                _webScrapingService.WaitForElements(".//span[contains(@class, 'marketBetItem_caption')]", 5000);
                             }
                         }
                         catch (NoSuchElementException)

@@ -116,6 +116,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
             ProcessTabsAndMarketViews(page);
 
+            _webScrapingService.Dispose();
+
             return new List<TagInfo>();
         }
 
@@ -297,7 +299,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
         private void ProcessTabsAndMarketViews(IPage page)
         {
-            var ignoredTabs = new HashSet<string> { "Bet Builder", "Múltiplas" };
+            var allowedTabs = new HashSet<string> { "Todos" }; // Apenas abas permitidas
 
             while (true)
             {
@@ -327,7 +329,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 continue;
                             }
 
-                            if (ignoredTabs.Contains(tabName))
+                            // Processa apenas as abas permitidas
+                            if (!allowedTabs.Contains(tabName))
                             {
                                 Console.WriteLine($"Ignorando a aba: {tabName}");
                                 continue;
@@ -398,9 +401,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
             Console.WriteLine("Todas as abas processadas com sucesso");
         }
 
-
-
-
         private void ProcessMarketViews(IPage page)
         {
             // Aguarda um tempo para carregar todos os mercados
@@ -413,8 +413,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
             Random random = new Random();
             Thread.Sleep(random.Next(423, 1240)); // Pausa de 500ms a 1500ms
 
-            // Encontra todos os contêineres de aposta
-            var eventMarketViews = page.QuerySelectorAllAsync("div[data-marketid]").GetAwaiter().GetResult();
+            // Encontra todos os contêineres de aposta dentro de <div class="markets">
+            var eventMarketViews = page.QuerySelectorAllAsync("div.markets div[data-marketid]").GetAwaiter().GetResult();
 
             // Lista de tags cadastradas que queremos buscar
             var tagNames = BetanoTags.TagNames;
@@ -457,14 +457,14 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 else
                                 {
                                     eventMarketView.ClickAsync();
-                                    Thread.Sleep(random.Next(1290, 2333));
+                                    Thread.Sleep(random.Next(490, 1229));
                                     retries++;
                                 }
                             }
                             catch
                             {
                                 eventMarketView.ClickAsync();
-                                Thread.Sleep(random.Next(500, 1500));
+                                Thread.Sleep(random.Next(320, 1195));
                                 retries++;
                             }
                         }
@@ -565,7 +565,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
                 {
                     Console.WriteLine($"Erro ao processar o mercado: {ex.Message}");
                 }
-                Thread.Sleep(random.Next(500, 1500));
             }
         }
 

@@ -1,9 +1,11 @@
 ﻿using OpenQA.Selenium;
 
-public static class BetanoTags
+namespace BetSniffer.Api.Core.Sites.Betano
 {
-    // Dicionário de tags fixas que você quer rastrear
-    public static readonly Dictionary<int, List<string>> TagNames = new()
+    public static class BetanoTags
+    {
+        // Dicionário de tags fixas que você quer rastrear
+        public static readonly Dictionary<int, List<string>> TagNames = new()
     {
         { 6, new List<string> { "Total de Gols Mais/Menos", "Total de Gols Mais/Menos (alternativas)" } },
         { 1, new List<string> { "Escanteios Mais/Menos", "Escanteios Mais/Menos (alternativas)" } },
@@ -14,28 +16,28 @@ public static class BetanoTags
         { 5, new List<string> { "Total de Faltas", "Total de Faltas (alternativas)" } },
     };
 
-    // Dicionário de nomes de elementos fixos que você quer rastrear
-    public static readonly List<string> ElementNames = new()
+        // Dicionário de nomes de elementos fixos que você quer rastrear
+        public static readonly List<string> ElementNames = new()
     {
         ".registerOrLogin_closeButton",
         "app-event-marketview",
         // Adicione outros elementos fixos aqui conforme necessário
     };
 
-    // Método para capturar o código dinâmico do elemento
-    public static string CaptureElementCode(IWebElement element)
-    {
-        // Captura o código dinâmico a partir do atributo 'class' ou qualquer outra lógica necessária
-        string classAttribute = element.GetAttribute("class");
-        string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
-        return elementCode;
-    }
+        // Método para capturar o código dinâmico do elemento
+        public static string CaptureElementCode(IWebElement element)
+        {
+            // Captura o código dinâmico a partir do atributo 'class' ou qualquer outra lógica necessária
+            string classAttribute = element.GetAttribute("class");
+            string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
+            return elementCode;
+        }
 
-    // Método para adicionar tags dinâmicas com nomes de times
-    public static void AddDynamicTags(string homeTeam, string awayTeam)
-    {
-        // Lista de padrões de tags dinâmicas
-        var dynamicTags = new Dictionary<int, List<string>>
+        // Método para adicionar tags dinâmicas com nomes de times
+        public static void AddDynamicTags(string homeTeam, string awayTeam)
+        {
+            // Lista de padrões de tags dinâmicas
+            var dynamicTags = new Dictionary<int, List<string>>
         {
             { 8, new List<string> { $"{homeTeam} Escanteios Mais/Menos", $"{homeTeam} Escanteios Mais/Menos (alternativas)" } },
             { 9, new List<string> { $"{awayTeam} Escanteios Mais/Menos", $"{awayTeam} Escanteios Mais/Menos (alternativas)" } },
@@ -53,21 +55,22 @@ public static class BetanoTags
             { 21, new List<string> { $"{awayTeam} - Total de Gols Mais/Menos", $"{awayTeam} - Total de Gols Mais/Menos (alternativas)" } },
         };
 
-        // Adicionar ao dicionário principal evitando duplicações
-        foreach (var tag in dynamicTags)
-        {
-            if (!TagNames.ContainsKey(tag.Key))
+            // Adicionar ao dicionário principal evitando duplicações
+            foreach (var tag in dynamicTags)
             {
-                TagNames[tag.Key] = tag.Value;
-            }
-            else
-            {
-                // Adiciona as tags novas sem duplicar
-                foreach (var tagName in tag.Value)
+                if (!TagNames.ContainsKey(tag.Key))
                 {
-                    if (!TagNames[tag.Key].Contains(tagName))
+                    TagNames[tag.Key] = tag.Value;
+                }
+                else
+                {
+                    // Adiciona as tags novas sem duplicar
+                    foreach (var tagName in tag.Value)
                     {
-                        TagNames[tag.Key].Add(tagName);
+                        if (!TagNames[tag.Key].Contains(tagName))
+                        {
+                            TagNames[tag.Key].Add(tagName);
+                        }
                     }
                 }
             }
