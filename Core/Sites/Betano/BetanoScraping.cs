@@ -10,6 +10,8 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium;
+using Microsoft.OpenApi.Services;
+using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Betano
 {
@@ -477,8 +479,12 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
                         var selectionElements = eventMarketView.QuerySelectorAllAsync(".selections__selection").GetAwaiter().GetResult();
 
+                        var currentBets = new List<BetInfo>();
+
                         foreach (var selectionElement in selectionElements)
                         {
+                            
+
                             try
                             {
                                 var overUnderElement = selectionElement.QuerySelectorAsync(".s-name").GetAwaiter().GetResult();
@@ -502,24 +508,32 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                     continue;
                                 }
 
-                                var adjustedTagName = tagName
-                                    .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
-                                    .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+                                // Substituir o nome do time na tag por "Casa" ou "Visitante", respeitando a estrutura do texto
+                                string adjustedTagName = tagName;
 
-                                var betInfo = new BetInfo
+                                if (tagName.Contains(homeTeam, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    adjustedTagName = adjustedTagName.Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase);
+                                }
+
+                                if (tagName.Contains(awayTeam, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    adjustedTagName = adjustedTagName.Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+                                }
+
+                                currentBets.Add(new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
                                     TagName = adjustedTagName,
                                     OverUnder = overUnderText,
                                     BetAmount = betAmount,
-                                    Multiplier = multiplier,
+                                    Multiplier = decimal.Parse(multiplierText.Replace(",", "."), CultureInfo.InvariantCulture),
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
-                                    Site = site,
+                                    Site = gamesInfo.Site,
                                     TagId = tagId
-                                };
+                                });
 
-                                bets.Add(betInfo);
                             }
                             catch (Exception ex)
                             {
@@ -527,37 +541,34 @@ namespace BetSniffer.Api.Core.Sites.Betano
                             }
                         }
 
-                        if (bets.Count > 0)
+                        // **1. Busca apostas existentes no banco com todos os critérios**
+                        foreach (var bet in currentBets)
                         {
-                            tagInfos.Add(new TagInfo(gamesInfo, bets));
-                            foreach (var bet in bets)
+                            var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
+                                b.GamesInfo.GameId == gamesInfo.GameId &&
+                                b.TagName == bet.TagName &&
+                                b.OverUnder == bet.OverUnder &&
+                                b.BetAmount == bet.BetAmount &&
+                                b.TagId == bet.TagId &&
+                                b.Site.SiteId == bet.Site.SiteId);
+
+                            if (existingBet != null)
                             {
-                                var adjustedTagName = bet.TagName
-                                    .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
-                                    .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
-
-                                var existingBet = _betInfoRepository.Find(b =>
-                                    b.GamesInfo.GameId == gamesInfo.GameId &&
-                                    b.TagName == adjustedTagName &&
-                                    b.OverUnder == bet.OverUnder &&
-                                    b.BetAmount == bet.BetAmount &&
-                                    b.TagId == bet.TagId &&
-                                    b.Site.SiteId == bet.Site.SiteId).FirstOrDefault();
-
-                                if (existingBet == null)
-                                {
-                                    bet.GamesInfo = gamesInfo;
-                                    _betInfoRepository.Add(bet);
-                                }
-                                else
-                                {
-                                    existingBet.Multiplier = bet.Multiplier;
-                                    existingBet.CaptureDate = DateTime.Now;
-                                    _betInfoRepository.SaveOrUpdate(existingBet);
-                                }
+                                // **Deletar apostas duplicadas que já estão no banco**
+                                Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");
+                                _dbContext.BetInfo.Remove(existingBet);
                             }
+                        }
 
+                        // **2. Adicionar as novas apostas**
+                        _dbContext.BetInfo.AddRange(currentBets);
+
+                        // **3. Salvar as alterações no banco de dados**
+                        if (_dbContext.ChangeTracker.HasChanges())
+                        {
                             _dbContext.SaveChanges();
+                            Console.WriteLine("Alterações salvas com sucesso.");
+                            
                         }
                     }
                 }

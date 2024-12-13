@@ -52,6 +52,8 @@ namespace BetSniffer.Api.Data
             modelBuilder.Entity<BetInfo>(entity =>
             {
                 entity.HasKey(b => b.BetId);
+                entity.Property(b => b.BetId)
+                      .ValueGeneratedOnAdd(); // Incremento automático
                 entity.Property(b => b.TagName).HasMaxLength(100);
                 entity.Property(b => b.OverUnder).HasMaxLength(10);
                 entity.Property(b => b.BetAmount).HasColumnType("decimal(10, 2)");

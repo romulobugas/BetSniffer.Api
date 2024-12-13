@@ -26,7 +26,12 @@ namespace BetSniffer.Api.Core.Services
             options.AddArgument("--disable-gpu");
             options.AddArgument("--ignore-certificate-errors");
             options.AddArgument("--start-maximized"); // Abre o navegador em tela cheia
-            options.AddArgument("--disable-infobars"); // Remove a barra de automação
+            options.AddArgument("--disable-infobars"); // Remove a barra de informações do navegador
+            options.AddArgument("--force-device-scale-factor=0.5"); // Define o zoom para 0.5
+            options.AddUserProfilePreference("profile.default_content_setting_values.automatic_downloads", 1); // Permitir downloads automáticos
+            options.AddExcludedArgument("enable-automation"); // Remove o controle de automação visível
+            options.AddAdditionalOption("useAutomationExtension", false); // Desabilita a extensão de automação
+
 
             // Criação do driver
             _driver = new ChromeDriver(options);
@@ -198,7 +203,62 @@ namespace BetSniffer.Api.Core.Services
             }
         }
 
+        public IWebElement FindElementWithin(IWebElement container, string selector, int timeoutMilliseconds = 10000)
+        {
+            try
+            {
+                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                return wait.Until(_ =>
+                {
+                    if (selector.StartsWith("//") || selector.StartsWith(".//"))
+                    {
+                        // Trata como XPath
+                        return container.FindElement(By.XPath(selector));
+                    }
+                    else
+                    {
+                        // Trata como CSS Selector
+                        return container.FindElement(By.CssSelector(selector));
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao buscar elemento '{selector}' dentro do contêiner: {ex.Message}");
+                return null; // Retorna null se o elemento não for encontrado dentro do tempo
+            }
+        }
 
+        public IWebElement TryFindElementWithin(IWebElement container, string selector, int timeoutMilliseconds = 10000)
+        {
+            try
+            {
+                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                return wait.Until(_ =>
+                {
+                    if (selector.StartsWith("//") || selector.StartsWith(".//"))
+                    {
+                        // Trata como XPath
+                        return container.FindElement(By.XPath(selector));
+                    }
+                    else
+                    {
+                        // Trata como CSS Selector
+                        return container.FindElement(By.CssSelector(selector));
+                    }
+                });
+            }
+            catch (WebDriverTimeoutException)
+            {
+                // Retorna null se o elemento não for encontrado dentro do tempo limite
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao buscar elemento '{selector}' dentro do contêiner: {ex.Message}");
+                throw;
+            }
+        }
 
 
         public IWebDriver GetWebDriver()

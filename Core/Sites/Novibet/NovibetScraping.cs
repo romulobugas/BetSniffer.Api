@@ -492,10 +492,18 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         betAmount = decimal.Parse(Regex.Match(betName, @"(\+?\d+(?:,\d+)?)").Value.Replace(",", "."), CultureInfo.InvariantCulture);
                                     }
 
-                                    // Substituir os nomes dos times por "Casa" e "Visitante"
-                                    var adjustedTagName = tagName
-                                        .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
-                                        .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+                                    // Substituir o nome do time na tag por "Casa" ou "Visitante", respeitando a estrutura do texto
+                                    string adjustedTagName = tagName;
+
+                                    if (tagName.Contains(homeTeam, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        adjustedTagName = adjustedTagName.Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase);
+                                    }
+
+                                    if (tagName.Contains(awayTeam, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        adjustedTagName = adjustedTagName.Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+                                    }
 
                                     currentBets.Add(new BetInfo
                                     {

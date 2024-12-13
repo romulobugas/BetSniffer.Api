@@ -1,16 +1,10 @@
 ﻿using BetSniffer.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
-using OpenQA.Selenium.Interactions;
+using System.Text.RegularExpressions;
 
 namespace BetSniffer.Api.Core.Sites.Parimatch
 {
@@ -18,7 +12,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
     {
         #region VariaveisGlobais
 
-        private readonly IWebDriver _driver;
+        private readonly WebScrapingServiceSelenium _webScrapingService;
         private string gameName;
         private string gameDayText;
         private string gameHourText;
@@ -35,18 +29,14 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         #endregion
 
-        public ParimatchScraping(
-            //IWebDriver driver,
-            ApplicationDbContext dbContext,
-            TeamService teamService,
-            IRepositoryService<GamesInfo> gamesInfoRepository,
-            IRepositoryService<BetInfo> betInfoRepository)
+        public ParimatchScraping(ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository, IRepositoryService<BetInfo> betInfoRepository)
         {
-            //_driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
+            _webScrapingService = new WebScrapingServiceSelenium(); // Inicializa o serviço de scraping
+            _webScrapingService.Initialize(); // Configura o WebDriver
         }
 
         public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
@@ -57,14 +47,14 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
 
             // Verifica se o site já existe no banco
-            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ??
-                       AddNewSite(siteName);
+            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ?? AddNewSite(siteName);
 
-            _driver.Navigate().GoToUrl(url);
+            _webScrapingService.NavigateTo(url);
+
+            System.Threading.Thread.Sleep(new Random().Next(5873, 6405));
 
             // Aguarda o carregamento inicial da página
-            WebDriverWait wait = new(_driver, TimeSpan.FromSeconds(10));
-            wait.Until(driver => driver.FindElement(By.CssSelector("[data-id='event-markets']")));
+            _webScrapingService.WaitForElement("[data-id='event-markets']", 10000);
 
             // Coleta informações do jogo
             ExtractGameInfo();
@@ -75,24 +65,21 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
             ParimatchTags.AddDynamicTags(homeTeam, awayTeam);
 
-            // Verifica se o jogo já existe no banco
             var existingGame = _dbContext.GamesInfo
                 .FirstOrDefault(g =>
                     g.HomeTeamId == homeTeamDb &&
                     g.AwayTeamId == awayTeamDb &&
                     g.GameDate == gameDateTime &&
-                    g.Site.SiteId == site.SiteId); // A comparação é feita usando o SiteId
+                    g.Site.SiteId == site.SiteId);
 
             if (existingGame != null)
             {
-                // Se o jogo já existe no banco, preenche o gamesInfo com os dados existentes
                 gamesInfo = existingGame;
                 gamesInfo.Status = 1;
                 gamesInfo.LastUpdated = DateTime.Now;
             }
             else
             {
-                // Se o jogo não existir no banco, cria um novo GamesInfo
                 gamesInfo = new GamesInfo
                 {
                     HomeTeamId = homeTeamDb,
@@ -104,13 +91,14 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                     Status = 1,
                     LastUpdated = DateTime.Now
                 };
-
-                // Adiciona o novo jogo ao banco
                 _dbContext.GamesInfo.Add(gamesInfo);
             }
 
+
             // Processa todas as abas disponíveis
             ProcessTabsAndMarketViews();
+
+            _webScrapingService.Dispose();
 
             return new List<TagInfo>(); // Substitua com a lógica para retornar as informações processadas
         }
@@ -126,14 +114,18 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         private void ExtractGameInfo()
         {
-            System.Threading.Thread.Sleep(new Random().Next(500, 1500));
+            // Espera aleatória para simular comportamento humano
+            System.Threading.Thread.Sleep(new Random().Next(551, 1524));
 
-            var spanElements = _driver.FindElements(By.CssSelector("div[data-testid='event-view-header-soccer-center-container'] span"));
+            // Captura o nome do jogo
+            var spanElements = _webScrapingService.WaitForElements("div[data-testid='event-view-header-soccer-center-container'] span", 5000).ToList();
             gameName = spanElements.Count >= 2 ? spanElements[1].Text.Trim() : "Nome não encontrado";
 
-            var eventPresentationView = _driver.FindElement(By.CssSelector("div[data-id='card-scoreboard']"));
+            // Localiza o contêiner de apresentação do evento
+            var eventPresentationView = _webScrapingService.WaitForElement("div[data-id='card-scoreboard']", 5000);
 
-            var teamElements = eventPresentationView.FindElements(By.XPath(".//span[@data-id='event-card-competitor-name']"));
+            // Captura os times
+            var teamElements = _webScrapingService.FindElementsWithin(eventPresentationView, ".//span[@data-id='event-card-competitor-name']", 5000).ToList();
             if (teamElements.Count >= 2)
             {
                 homeTeam = teamElements[0].Text.Trim();
@@ -144,12 +136,17 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 throw new Exception("Não foi possível encontrar os dois times.");
             }
 
-            gameDayText = eventPresentationView.FindElement(By.XPath(".//span[@data-testid='prematch-start-date']")).Text.Trim();
-            gameHourText = eventPresentationView.FindElement(By.XPath(".//span[@data-testid='prematch-start-time']")).Text.Trim();
+            // Captura a data e hora do jogo
+            gameDayText = _webScrapingService.FindElementWithin(eventPresentationView, ".//span[@data-testid='prematch-start-date']", 5000)?.Text.Trim();
+            gameHourText = _webScrapingService.FindElementWithin(eventPresentationView, ".//span[@data-testid='prematch-start-time']", 5000)?.Text.Trim();
+
+            if (string.IsNullOrEmpty(gameDayText) || string.IsNullOrEmpty(gameHourText))
+                throw new Exception("Não foi possível capturar a data e/ou hora do jogo.");
 
             gameDateTime = ParseGameDateTime(gameDayText, gameHourText);
             Console.WriteLine($"Data e Hora do Jogo: {gameDateTime}");
         }
+
 
         private DateTime ParseGameDateTime(string dayText, string hourText)
         {
@@ -199,24 +196,38 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         private void ProcessTabsAndMarketViews()
         {
-            WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
             var ignoredTabs = new HashSet<string> { "Bet Builder", "Múltiplas" };
 
             while (true)
             {
                 try
                 {
-                    
+                    Thread.Sleep(new Random().Next(621, 1126));
+
                     // Localiza o contêiner de abas
-                    var tabsContainer = wait.Until(driver => driver.FindElement(By.CssSelector("div[data-testid='marketTabs']")));
-                    var tabButtons = tabsContainer.FindElements(By.CssSelector("button[data-testid='marketTabs-button']")).ToList();
+                    var tabsContainer = _webScrapingService.WaitForElement("div[data-testid='marketTabs']", 10000);
+                    if (tabsContainer == null)
+                    {
+                        Console.WriteLine("Contêiner de abas não encontrado.");
+                        break;
+                    }
+
+                    // Captura os botões das abas
+                    var tabButtons = _webScrapingService.FindElementsWithin(tabsContainer, "button[data-testid='marketTabs-button']", 5000).ToList();
 
                     foreach (var tab in tabButtons)
                     {
                         try
                         {
                             // Captura o nome da aba
-                            var tabName = tab.FindElement(By.CssSelector("span[data-testid='marketTabs-typography']")).Text.Trim();
+                            var tabNameElement = _webScrapingService.FindElementWithin(tab, "span[data-testid='marketTabs-typography']", 2000);
+                            var tabName = tabNameElement?.Text.Trim();
+
+                            if (string.IsNullOrEmpty(tabName))
+                            {
+                                Console.WriteLine("Não foi possível capturar o nome da aba.");
+                                continue;
+                            }
 
                             if (ignoredTabs.Contains(tabName))
                             {
@@ -225,12 +236,8 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             }
 
                             Console.WriteLine("Forçando o scroll para o topo do layout...");
-
-                            // Rola a página até o topo absoluto usando window.scrollTo
-                            var actions = new Actions(_driver);
-                            actions.SendKeys(Keys.Home).Perform();  // Simula pressionar a tecla "Home"
-                            System.Threading.Thread.Sleep(new Random().Next(500, 1200));  // Pausa para garantir que a rolagem tenha ocorrido
-
+                            _webScrapingService.GetWebDriver().FindElement(By.TagName("body")).SendKeys(Keys.Home); // Simula pressionar a tecla "Home"
+                            Thread.Sleep(new Random().Next(621, 1126)); // Pausa para garantir que a rolagem tenha ocorrido
                             Console.WriteLine("Scroll até o topo da página concluído.");
 
                             Console.WriteLine($"Processando aba: {tabName}");
@@ -238,7 +245,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             // Tenta clicar no botão da aba, com repetição em caso de erro
                             bool clicked = false;
                             int retries = 0;
-                            while (!clicked && retries < 5) // Tenta até 5 vezes
+                            while (!clicked && retries < 5)
                             {
                                 try
                                 {
@@ -249,7 +256,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 {
                                     retries++;
                                     Console.WriteLine($"Clique interceptado na aba '{tabName}', tentando novamente ({retries}/5).");
-                                    System.Threading.Thread.Sleep(new Random().Next(500, 1300)); // Espera antes de tentar novamente
+                                    Thread.Sleep(new Random().Next(500, 1300)); // Espera antes de tentar novamente
                                 }
                                 catch (Exception ex)
                                 {
@@ -265,20 +272,26 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             }
 
                             // Aguarda que os itens da aba sejam carregados
-                            wait.Until(driver => driver.FindElements(By.CssSelector("div[data-id='market-item']")).Any());
+                            var marketItems = _webScrapingService.WaitForElements("div[data-id='market-item']", 5000);
+                            if (!marketItems.Any())
+                            {
+                                Console.WriteLine($"Nenhum item de mercado encontrado na aba '{tabName}'.");
+                                continue;
+                            }
 
                             // Processa os mercados visíveis na aba
                             ProcessMarketViews();
                         }
                         catch (StaleElementReferenceException)
                         {
-                            Console.WriteLine($"Elemento desatualizado na aba '{tab.Text}'. Recarregando...");
+                            Console.WriteLine($"Elemento desatualizado na aba. Recarregando...");
                             break; // Sai do loop para relocalizar as abas
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Erro inesperado ao processar aba '{tab.Text}': {ex.Message}");
+                            Console.WriteLine($"Erro inesperado ao processar aba: {ex.Message}");
                         }
+                        _webScrapingService.GetWebDriver().FindElement(By.TagName("body")).SendKeys(Keys.Home); // Simula pressionar a tecla "Home"
                     }
 
                     break; // Sai do loop principal após processar todas as abas
@@ -294,88 +307,90 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                     break;
                 }
             }
-            Console.WriteLine("Todas as abas processadas com sucesso");
 
+            Console.WriteLine("Todas as abas processadas com sucesso");
         }
 
 
 
         private void ProcessMarketViews()
         {
-
-            //Aguarda um tempo para carregar todos os mercados
-            System.Threading.Thread.Sleep(new Random().Next(2800, 4850));
+            // Aguarda um tempo para carregar todos os mercados
+            Thread.Sleep(new Random().Next(2800, 4850));
 
             // Encontra todos os contêineres de aposta
-            var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));
+            var eventMarketViews = _webScrapingService.WaitForElements("div[data-id='market-item']", 5000);
 
             // Lista de tags cadastradas que queremos buscar
-            var tagNames = ParimatchTags.TagNames;            
+            var tagNames = ParimatchTags.TagNames;
 
-            // Lista para armazenar as apostas
-            List<BetInfo> bets = new List<BetInfo>();
             List<TagInfo> tagInfos = new List<TagInfo>();
-                       
 
             foreach (var eventMarketView in eventMarketViews)
             {
                 try
                 {
                     // Verifica se o evento contém uma tag válida
-                    var tagElement = eventMarketView.FindElement(By.XPath(".//div[@role='button']//span[@data-testid='modulor-typography']"));
-                    string tagName = tagElement.Text.Trim();
+                    var tagElement = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']//span[@data-testid='modulor-typography']", 2000);
+                    string tagName = tagElement?.Text.Trim() ?? string.Empty;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
                     if (tagNames.Values.Contains(tagName))
                     {
-
                         // Recupera o ID da tag a partir do dicionário
-                        int tagId = ParimatchTags.TagNames.FirstOrDefault(x => x.Value == tagName).Key;
+                        int tagId = tagNames.FirstOrDefault(x => x.Value == tagName).Key;
 
-                        // Definindo o número máximo de tentativas
-                        int maxAttempts = 3;
-                        int attempt = 0;
+                        // Verifica se o elemento "market-wrapper" está presente, com tentativa de expansão
                         bool marketWrapperFound = false;
-
-                        // Verifica se o elemento "data-id='market-wrapper'" está presente
-                        while (attempt < maxAttempts && !marketWrapperFound)
+                        for (int attempt = 0; attempt < 3; attempt++)
                         {
                             try
                             {
-                                var marketWrapper = eventMarketView.FindElement(By.XPath(".//div[@data-id='market-wrapper']"));
-                                marketWrapperFound = true;  // O elemento foi encontrado, sai do loop
+                                var marketWrapper = _webScrapingService.TryFindElementWithin(eventMarketView, ".//div[@data-id='market-wrapper']", 2000);
+                                if (marketWrapper != null)
+                                {
+                                    marketWrapperFound = true;
+                                    break;
+                                }
+                                else 
+                                {
+                                    // Caso o elemento não seja encontrado, tenta clicar no botão
+                                    Console.WriteLine("Clicando para expandir a aba.");
+                                    var toggleButton = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']", 2000);
+                                    toggleButton?.Click();
+                                    Thread.Sleep(new Random().Next(921, 1522));
+                                }
                             }
-                            catch (NoSuchElementException)
+                            catch
                             {
                                 // Caso o elemento não seja encontrado, tenta clicar no botão
-                                var toggleButton = eventMarketView.FindElement(By.XPath(".//div[@role='button']"));
-                                toggleButton.Click();
-
-                                // Aguardar 3 segundos
-                                System.Threading.Thread.Sleep(new Random().Next(1521, 3122));
-
-                                attempt++;  // Incrementa a tentativa
+                                var toggleButton = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']", 2000);
+                                toggleButton?.Click();
+                                Thread.Sleep(new Random().Next(1521, 3122));
                             }
                         }
 
-                        // Se após 3 tentativas não encontrou o "market-wrapper", exibe uma mensagem
                         if (!marketWrapperFound)
                         {
-                            throw new Exception("O elemento 'market-wrapper' não foi encontrado após 3 tentativas.");
+                            Console.WriteLine("O elemento 'market-wrapper' não foi encontrado após 3 tentativas.");
+                            continue;
                         }
 
                         // Captura todas as divs dentro de eventMarketView
-                        var betElements = eventMarketView.FindElements(By.XPath(".//div"));
+                        var betElements = _webScrapingService.FindElementsWithin(eventMarketView, ".//div", 2000);
 
+                        //Lista para armazenar as apostas
+                        var currentBets = new List<BetInfo>();
+
+                        // Processa e adiciona novas apostas
                         foreach (var betElement in betElements)
                         {
                             try
                             {
-                                // Captura o valor da aposta (exemplo: "5.5")
-                                var betAmountElement = betElement.FindElement(By.XPath(".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]"));
-                                string betAmountText = betAmountElement.Text.Trim();
+                                // Captura o valor da aposta
+                                var betAmountElement = _webScrapingService.FindElementWithin(betElement, ".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]", 2000);
+                                string betAmountText = betAmountElement?.Text.Trim() ?? string.Empty;
 
-                                // Valida o valor da aposta
                                 if (!decimal.TryParse(betAmountText.Replace(".", ","), out decimal betAmount))
                                 {
                                     Console.WriteLine("Valor da aposta inválido. Pulando este elemento.");
@@ -383,65 +398,60 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 }
 
                                 // Captura os multiplicadores
-                                var multiplierElements = betElement.FindElements(By.XPath(".//span[contains(@style, '--text: var(--text-outcome);')]"));
+                                var multiplierElements = _webScrapingService.FindElementsWithin(betElement, ".//span[contains(@style, '--text: var(--text-outcome);')]", 2000);
                                 if (multiplierElements.Count < 2)
                                 {
                                     Console.WriteLine("Menos de dois multiplicadores encontrados. Pulando esta aposta.");
-                                    continue; // Ignora esta iteração e vai para o próximo elemento
+                                    continue;
                                 }
 
                                 // Obtém os valores dos multiplicadores
-                                string moreMultiplierText = multiplierElements[0].Text.Trim();
-                                string lessMultiplierText = multiplierElements[1].Text.Trim();
-
-                                if (!decimal.TryParse(moreMultiplierText.Replace(".", ","), out decimal moreMultiplier) ||
-                                    !decimal.TryParse(lessMultiplierText.Replace(".", ","), out decimal lessMultiplier))
+                                if (!decimal.TryParse(multiplierElements.ElementAtOrDefault(0)?.Text.Trim().Replace(".", ","), out decimal moreMultiplier) ||
+                                    !decimal.TryParse(multiplierElements.ElementAtOrDefault(1)?.Text.Trim().Replace(".", ","), out decimal lessMultiplier))
                                 {
                                     Console.WriteLine("Multiplicadores inválidos. Pulando esta aposta.");
                                     continue;
                                 }
 
+                                // Substituir o nome do time na tag por "Casa" ou "Visitante", respeitando a estrutura do texto
+                                string adjustedTagName = tagName;
 
-                                // Substituir o nome do time na tag por "Casa" ou "Visitante"
-                                var adjustedTagName = tagName
-                                    .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
-                                    .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+                                if (tagName.Contains(homeTeam, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    adjustedTagName = adjustedTagName.Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase);
+                                }
 
-                                // Cria a aposta "Mais de"
-                                var betMore = new BetInfo
+                                if (tagName.Contains(awayTeam, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    adjustedTagName = adjustedTagName.Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
+                                }
+
+                                // Cria apostas "Mais de" e "Menos de"
+                                currentBets.Add(new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
                                     TagName = adjustedTagName,
-                                    OverUnder = "Mais de", // "Mais de" para o lado "Mais"
+                                    OverUnder = "Mais de",
                                     BetAmount = betAmount,
                                     Multiplier = moreMultiplier,
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
                                     Site = site,
                                     TagId = tagId
-                                };
+                                });
 
-                                // Cria a aposta "Menos de"
-                                var betLess = new BetInfo
+                                currentBets.Add(new BetInfo
                                 {
                                     GamesInfo = gamesInfo,
                                     TagName = adjustedTagName,
-                                    OverUnder = "Menos de", // "Menos de" para o lado "Menos"
+                                    OverUnder = "Menos de",
                                     BetAmount = betAmount,
                                     Multiplier = lessMultiplier,
                                     GameDate = gamesInfo.GameDate,
                                     CaptureDate = DateTime.Now,
                                     Site = site,
                                     TagId = tagId
-                                };
-
-                                // Adiciona as apostas à lista
-                                bets.Add(betMore);
-                                bets.Add(betLess);
-                            }
-                            catch (NoSuchElementException ex)
-                            {
-                                Console.WriteLine($"Elemento ausente: {ex.Message}. Pulando esta aposta.");
+                                });
                             }
                             catch (Exception ex)
                             {
@@ -449,60 +459,50 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             }
                         }
 
-
-                        if (bets.Count > 0)
+                        if (currentBets.Count > 0)
                         {
-                            tagInfos.Add(new TagInfo(gamesInfo, bets));                            
 
-                            // Verifica e atualiza as apostas
-                            foreach (var bet in bets)
+
+                            // **1. Busca apostas existentes no banco com todos os critérios**
+                            foreach (var bet in currentBets)
                             {
-                                // Substituir o nome do time na tag por "Casa" ou "Visitante"
-                                var adjustedTagName = bet.TagName
-                                    .Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase)
-                                    .Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
-
-                                // Procura a aposta correspondente
-                                var existingBet = _betInfoRepository.Find(b =>
+                                var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
                                     b.GamesInfo.GameId == gamesInfo.GameId &&
-                                    b.TagName == adjustedTagName &&
+                                    b.TagName == bet.TagName &&
                                     b.OverUnder == bet.OverUnder &&
                                     b.BetAmount == bet.BetAmount &&
                                     b.TagId == bet.TagId &&
-                                    b.Site.SiteId == bet.Site.SiteId).FirstOrDefault();
+                                    b.Site.SiteId == bet.Site.SiteId);
 
-                                if (existingBet == null)
+                                if (existingBet != null)
                                 {
-                                    // Adiciona nova aposta
-                                    bet.GamesInfo = gamesInfo;
-                                    _betInfoRepository.Add(bet);
-                                }
-                                else
-                                {
-                                    // Atualiza a aposta existente
-                                    existingBet.Multiplier = bet.Multiplier;
-                                    existingBet.CaptureDate = DateTime.Now;
-                                    _betInfoRepository.SaveOrUpdate(existingBet);
+                                    // **Deletar apostas duplicadas que já estão no banco**
+                                    Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");
+                                    _dbContext.BetInfo.Remove(existingBet);
                                 }
                             }
 
-                            // Salva todas as alterações
-                            _dbContext.SaveChanges();
+                            // **2. Adicionar as novas apostas**
+                            _dbContext.BetInfo.AddRange(currentBets);
+
+                            // **3. Salvar as alterações no banco de dados**
+                            if (_dbContext.ChangeTracker.HasChanges())
+                            {
+                                _dbContext.SaveChanges();
+                                Console.WriteLine("Alterações salvas com sucesso.");
+                            }
                         }
+
+
 
                     }
                 }
-                catch (NoSuchElementException)
+                catch (Exception ex)
                 {
-                    // Se o elemento não for encontrado, apenas ignora
-                    continue;
-                }
-                catch (WebDriverTimeoutException)
-                {
-                    // Se o elemento não aparecer dentro do tempo limite, ignora
-                    continue;
+                    Console.WriteLine($"Erro ao processar mercado: {ex.Message}");
                 }
             }
         }
+
     }
 }
