@@ -127,39 +127,47 @@ namespace BetSniffer.Api.Controllers
 
                 DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1);
 
-                var games = _dbContext.GamesInfo
-                    .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
-                    .Join(_dbContext.GamesInfo,
-                        g1 => new { g1.HomeTeamId, g1.AwayTeamId },
-                        g2 => new { g2.HomeTeamId, g2.AwayTeamId },
-                        (g1, g2) => new { g1, g2 })
-                    .Where(x => x.g1.SiteId != x.g2.SiteId)
-                    .Where(x => !string.IsNullOrEmpty(x.g1.URL) && !string.IsNullOrEmpty(x.g2.URL))
-                    .Select(x => new {
-                        URL1 = x.g1.URL,
-                        URL2 = x.g2.URL
-                    })
-                    .Distinct()
-                    .ToList();
+                var games = _dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
+                                                .AsEnumerable() // Transfere para avaliação no cliente
+                                                .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                                                .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1) // Filtra jogos com mais de um SiteId
+                                                .Select(group => new
+                                                {
+                                                    GameDate = group.Key.GameDate,
+                                                    HomeTeam = group.Key.HomeTeamId,
+                                                    AwayTeam = group.Key.AwayTeamId,
+                                                    URLs = group
+                                                        .Where(g => !string.IsNullOrEmpty(g.URL)) // Filtra URLs não nulas
+                                                        .Select(g => g.URL)
+                                                        .Distinct()
+                                                        .ToList()
+                                                })
+                                                .Where(g => g.URLs.Count > 0) // Apenas jogos com URLs válidas
+                                                .ToList();
 
-                if (games.Count == 0)
-                {
-                    return Ok(new { message = "Nenhum jogo encontrado para o intervalo de datas informado." });
-                }
+
+
 
                 var urlsToScrape = games
-                    .SelectMany(g => new[] { g.URL1, g.URL2 })
+                    .SelectMany(g => g.URLs)
                     .Distinct()
                     .ToList();
 
-                if (urlsToScrape.Count == 0)
+                if (!urlsToScrape.Any())
                 {
                     return Ok(new { message = "Nenhum jogo com URL para scraping foi encontrado." });
                 }
 
+                // Inicia o scraping das URLs
                 var result = ScrapeTagsBatch(urlsToScrape);
 
-                return Ok(new { message = "Jogos para o intervalo de datas informado foram atualizados com sucesso." });
+                return Ok(new
+                {
+                    message = "Jogos para o intervalo de datas informado foram atualizados com sucesso.",
+                    gamesProcessed = games.Count,
+                    urlsScraped = urlsToScrape.Count
+                });
+
             }
             catch (Exception ex)
             {

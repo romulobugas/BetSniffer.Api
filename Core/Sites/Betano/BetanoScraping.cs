@@ -303,12 +303,17 @@ namespace BetSniffer.Api.Core.Sites.Betano
         {
             var allowedTabs = new HashSet<string> { "Todos" }; // Apenas abas permitidas
 
+
+            //Pequena pausa para buscar os containers
+            System.Threading.Thread.Sleep(new Random().Next(625, 1684));
+            // Localiza o contêiner de abas
+            var tabsContainer = page.WaitForSelectorAsync("div[data-qa='pre-event-details-market-tabs']", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
+            
+
             while (true)
             {
                 try
                 {
-                    // Localiza o contêiner de abas
-                    var tabsContainer = page.WaitForSelectorAsync("div[data-qa='pre-event-details-market-tabs']", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
                     if (tabsContainer == null)
                     {
                         Console.WriteLine("Contêiner de abas não encontrado.");
@@ -332,11 +337,11 @@ namespace BetSniffer.Api.Core.Sites.Betano
                             }
 
                             // Processa apenas as abas permitidas
-                            if (!allowedTabs.Contains(tabName))
-                            {
-                                Console.WriteLine($"Ignorando a aba: {tabName}");
-                                continue;
-                            }
+                            //if (!allowedTabs.Contains(tabName))
+                            //{
+                            //    Console.WriteLine($"Ignorando a aba: {tabName}");
+                            //    continue;
+                            //}
 
                             Console.WriteLine("Forçando o scroll para o topo do layout...");
                             page.EvaluateExpressionAsync("window.scrollTo(0, 0)").GetAwaiter().GetResult(); // Rola para o topo

@@ -51,7 +51,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
             _webScrapingService.NavigateTo(url);
 
-            System.Threading.Thread.Sleep(new Random().Next(5873, 6405));
+            System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
 
             // Aguarda o carregamento inicial da página
             _webScrapingService.WaitForElement("[data-id='event-markets']", 10000);
