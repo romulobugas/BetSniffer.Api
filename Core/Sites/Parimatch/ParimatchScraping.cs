@@ -198,14 +198,19 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
         {
             var ignoredTabs = new HashSet<string> { "Bet Builder", "Múltiplas" };
 
+
+            //Pequena pausa para localizar o container
+            Thread.Sleep(new Random().Next(621, 1126));
+            // Localiza o contêiner de abas
+            var tabsContainer = _webScrapingService.WaitForElement("div[data-testid='marketTabs']", 10000);
+
             while (true)
             {
                 try
                 {
-                    Thread.Sleep(new Random().Next(621, 1126));
+                    Thread.Sleep(new Random().Next(621, 926));
 
-                    // Localiza o contêiner de abas
-                    var tabsContainer = _webScrapingService.WaitForElement("div[data-testid='marketTabs']", 10000);
+                   
                     if (tabsContainer == null)
                     {
                         Console.WriteLine("Contêiner de abas não encontrado.");

@@ -343,10 +343,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                             //    continue;
                             //}
 
-                            Console.WriteLine("Forçando o scroll para o topo do layout...");
-                            page.EvaluateExpressionAsync("window.scrollTo(0, 0)").GetAwaiter().GetResult(); // Rola para o topo
-                            System.Threading.Thread.Sleep(new Random().Next(225, 684)); // Pausa para garantir que a rolagem tenha ocorrido
-                            Console.WriteLine("Scroll até o topo da página concluído.");
+                            
 
                             Console.WriteLine($"Processando aba: {tabName}");
 
@@ -357,6 +354,12 @@ namespace BetSniffer.Api.Core.Sites.Betano
                             {
                                 try
                                 {
+                                    Console.WriteLine("Pressionando a tecla 'Home' para rolar até o topo...");
+                                    page.Keyboard.PressAsync("Home").GetAwaiter().GetResult(); // Pressiona a tecla 'Home'
+                                    System.Threading.Thread.Sleep(new Random().Next(225, 684)); // Pausa para garantir que a rolagem tenha ocorrido
+                                    Console.WriteLine("Rolagem até o topo da página concluída.");
+
+
                                     tab.ClickAsync().GetAwaiter().GetResult();
                                     clicked = true; // Se clicou com sucesso, sai do loop
                                 }
@@ -364,7 +367,28 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 {
                                     retries++;
                                     Console.WriteLine($"Clique interceptado na aba '{tabName}', tentando novamente ({retries}/5).");
-                                    System.Threading.Thread.Sleep(new Random().Next(421, 892)); // Espera antes de tentar novamente
+
+                                    try
+                                    {
+                                        // Tenta clicar no botão "next" para deslizar até que a aba esteja acessível
+                                        var nextButton = page.QuerySelectorAsync("div#preEventTabs-next.swiper-button-next").GetAwaiter().GetResult();
+                                        if (nextButton != null)
+                                        {
+                                            nextButton.ClickAsync().GetAwaiter().GetResult();
+                                            Console.WriteLine("Botão de próximo clicado com sucesso.");
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("Botão de próximo não encontrado.");
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"Erro ao tentar clicar no botão de próximo: {ex.Message}");
+                                    }
+
+                                    // Espera antes de tentar novamente
+                                    System.Threading.Thread.Sleep(new Random().Next(421, 892));
                                 }
                                 catch (Exception ex)
                                 {
@@ -376,8 +400,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
                             if (!clicked)
                             {
                                 Console.WriteLine($"Falha ao clicar na aba '{tabName}' após 5 tentativas.");
-                                continue; // Pule para a próxima aba
                             }
+
 
                             // Aguarda que os itens da aba sejam carregados
                             var marketsLoaded = page.WaitForSelectorAsync("div.markets", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();

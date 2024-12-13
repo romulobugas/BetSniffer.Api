@@ -34,7 +34,7 @@ namespace BetSniffer.Api.Core.Services
                     "--ignore-certificate-errors",
                     "--start-maximized", // Abre o navegador em tela cheia
                     "--disable-infobars", // Remove a barra de informações do navegador
-                    "--force-device-scale-factor=0.6" // Define o zoom para 50%
+                    "--force-device-scale-factor=1.5" // Define o zoom para 80%
                 }
             }).GetAwaiter().GetResult();
 
@@ -54,10 +54,10 @@ namespace BetSniffer.Api.Core.Services
             {
                 Width = dimensions["width"], // Usa a largura máxima da tela
                 Height = dimensions["height"], // Usa a altura máxima da tela
-                DeviceScaleFactor = 1
+                DeviceScaleFactor = 1.5
             }).GetAwaiter().GetResult();
 
-            _page.EvaluateExpressionAsync("document.body.style.zoom = '0.6';").GetAwaiter().GetResult();
+            _page.EvaluateExpressionAsync("document.body.style.zoom = '1.5';").GetAwaiter().GetResult();
 
             // Injeta scripts de mascaramento desde o início
             InjectAntiAutomationScripts();
