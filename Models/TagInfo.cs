@@ -1,9 +1,7 @@
 ﻿namespace BetSniffer.Api.Models
 {
     public class TagInfo
-    {
-        private List<BetInfo> bets;
-
+    {        
         // Propriedades necessárias
         public GamesInfo GameInfo { get; internal set; }
         public List<BetInfo> BetInfo { get; internal set; }  // Alterado de BetInfo para List<BetInfo>

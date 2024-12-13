@@ -31,24 +31,24 @@ namespace BetSniffer.Api.Models
 
     public class BetInfo
     {
-        public int BetId { get; set; }
+        public virtual int BetId { get; set; }
 
         [ForeignKey("GamesInfo")] // Chave estrangeira para GamesInfo
-        public int? GameId { get; set; } // Referência para GamesInfo
+        public virtual int? GameId { get; set; } // Referência para GamesInfo
 
-        public string TagName { get; set; }
+        public virtual string TagName { get; set; }
 
-        public string OverUnder { get; set; }
-
-        [Column(TypeName = "decimal(10, 2)")] // Define o tipo no banco
-        public decimal BetAmount { get; set; }
+        public virtual string OverUnder { get; set; }
 
         [Column(TypeName = "decimal(10, 2)")] // Define o tipo no banco
-        public decimal Multiplier { get; set; }
+        public virtual decimal BetAmount { get; set; }
 
-        public DateTime CaptureDate { get; set; }
+        [Column(TypeName = "decimal(10, 2)")] // Define o tipo no banco
+        public virtual decimal Multiplier { get; set; }
 
-        public DateTime GameDate { get; set; }
+        public virtual DateTime CaptureDate { get; set; }
+
+        public virtual DateTime GameDate { get; set; }
 
         // Propriedade de navegação para GamesInfo
         [JsonIgnore]
@@ -56,11 +56,11 @@ namespace BetSniffer.Api.Models
 
         // Chave estrangeira para Site
         [ForeignKey("Site")] // Relacionamento com a tabela Site
-        public int SiteId { get; set; }  // Chave estrangeira
+        public virtual int SiteId { get; set; }  // Chave estrangeira
 
         // Propriedade de navegação para Site
-        public Site Site { get; set; }
-        public int? TagId { get; set; }
+        public virtual Site Site { get; set; }
+        public virtual int? TagId { get; set; }
 
 
     }
