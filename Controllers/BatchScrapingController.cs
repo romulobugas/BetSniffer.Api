@@ -68,6 +68,7 @@ namespace BetSniffer.Api.Controllers
                 catch (Exception ex)
                 {
                     errors.Add($"Erro ao processar URL '{url}': {ex.Message}");
+                    
                 }
             }
 

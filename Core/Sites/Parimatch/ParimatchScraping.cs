@@ -165,18 +165,35 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
 
         private DateTime ParseCustomDate(string dayText)
         {
-            var match = Regex.Match(dayText, @"(\d+)\s+de\s+(\w+)", RegexOptions.IgnoreCase);
-            if (!match.Success)
-                throw new Exception($"Formato de data inválido: {dayText}");
+            // Primeiro tenta o formato "21 jan., 2025"
+            var matchNewFormat = Regex.Match(dayText, @"(\d+)\s+(\w+)\.,?\s*(\d{4})?", RegexOptions.IgnoreCase);
+            if (matchNewFormat.Success)
+            {
+                var day = int.Parse(matchNewFormat.Groups[1].Value);
+                var month = MonthNameToNumber(matchNewFormat.Groups[2].Value.ToLower());
+                var year = !string.IsNullOrEmpty(matchNewFormat.Groups[3].Value)
+                    ? int.Parse(matchNewFormat.Groups[3].Value)
+                    : DateTime.Today.Year;
 
-            var day = int.Parse(match.Groups[1].Value);
-            var month = MonthNameToNumber(match.Groups[2].Value.ToLower());
-            var year = DateTime.Today.Year;
+                return new DateTime(year, month, day);
+            }
 
-            if (month < DateTime.Today.Month)
-                year++;
+            // Depois tenta o formato "21 de janeiro"
+            var matchOldFormat = Regex.Match(dayText, @"(\d+)\s+de\s+(\w+)", RegexOptions.IgnoreCase);
+            if (matchOldFormat.Success)
+            {
+                var day = int.Parse(matchOldFormat.Groups[1].Value);
+                var month = MonthNameToNumber(matchOldFormat.Groups[2].Value.ToLower());
+                var year = DateTime.Today.Year;
 
-            return new DateTime(year, month, day);
+                // Caso o mês seja anterior ao atual, ajusta para o próximo ano
+                if (month < DateTime.Today.Month)
+                    year++;
+
+                return new DateTime(year, month, day);
+            }
+
+            throw new Exception($"Formato de data inválido: {dayText}");
         }
 
         private int MonthNameToNumber(string monthName)
@@ -185,7 +202,10 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             {
                 { "janeiro", 1 }, { "fevereiro", 2 }, { "março", 3 }, { "abril", 4 },
                 { "maio", 5 }, { "junho", 6 }, { "julho", 7 }, { "agosto", 8 },
-                { "setembro", 9 }, { "outubro", 10 }, { "novembro", 11 }, { "dezembro", 12 }
+                { "setembro", 9 }, { "outubro", 10 }, { "novembro", 11 }, { "dezembro", 12 },
+                { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 },
+                { "mai", 5 }, { "jun", 6 }, { "jul", 7 }, { "ago", 8 },
+                { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 }
             };
 
             if (!months.ContainsKey(monthName))

@@ -336,14 +336,14 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 continue;
                             }
 
-                            // Processa apenas as abas permitidas
-                            //if (!allowedTabs.Contains(tabName))
-                            //{
-                            //    Console.WriteLine($"Ignorando a aba: {tabName}");
-                            //    continue;
-                            //}
+                            //Processa apenas as abas permitidas
+                            if (!allowedTabs.Contains(tabName))
+                            {
+                                Console.WriteLine($"Ignorando a aba: {tabName}");
+                                continue;
+                            }
 
-                            
+
 
                             Console.WriteLine($"Processando aba: {tabName}");
 

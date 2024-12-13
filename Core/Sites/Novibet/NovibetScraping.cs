@@ -134,6 +134,12 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     {
                         // Considera o dia corrente e adiciona a hora
                         gameDateTime = DateTime.Today.Date.Add(TimeSpan.Parse(gameDateText));
+
+                        // Ajusta para o próximo dia se o horário já passou hoje
+                        if (gameDateTime <= DateTime.Now)
+                        {
+                            gameDateTime = gameDateTime.AddDays(1);
+                        }
                     }
                     else if (Regex.IsMatch(gameDateText, @"^\d{1,2} de [a-z]{3} \d{2}:\d{2}$")) // Exemplo: "10 de dez 14:45"
                     {
@@ -155,8 +161,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             throw new Exception($"Mês inválido: {monthText}");
                         }
 
-                        // Montar o objeto DateTime
+                        // Montar o objeto DateTime no ano atual
                         gameDateTime = new DateTime(DateTime.Today.Year, month, day).Add(TimeSpan.Parse(time));
+
+                        // Se a data estiver no passado, ajusta para o próximo ano
+                        if (gameDateTime <= DateTime.Now)
+                        {
+                            gameDateTime = gameDateTime.AddYears(1);
+                        }
                     }
                     else // Dia da semana e hora (ex: "qua 19:00")
                     {
@@ -178,7 +190,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                         }
 
                         // Ajusta para o próximo dia da semana correspondente, se necessário
-                        if (targetDayIndex < currentDayIndex)
+                        if (targetDayIndex <= currentDayIndex)
                         {
                             targetDayIndex += 7; // Ajusta para a próxima semana
                         }
@@ -210,7 +222,6 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
                 // Exemplo de uso
                 Console.WriteLine("Data e Hora do Jogo: " + gameDateTime);
-
 
             }
 

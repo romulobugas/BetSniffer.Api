@@ -33,31 +33,34 @@ namespace BetSniffer.Api.Core.Services
                     "--disable-gpu",
                     "--ignore-certificate-errors",
                     "--start-maximized", // Abre o navegador em tela cheia
-                    "--disable-infobars", // Remove a barra de informações do navegador
-                    "--force-device-scale-factor=1.5" // Define o zoom para 80%
+                    "--disable-infobars" // Remove a barra de informações do navegador
                 }
             }).GetAwaiter().GetResult();
 
+            // Abre uma nova página
             _page = _browser.NewPageAsync().GetAwaiter().GetResult();
 
-            var dimensions = _page.EvaluateFunctionAsync<Dictionary<string, int>>(@"
+            // Obtém as dimensões completas da tela (tela disponível)
+            var screenDimensions = _page.EvaluateFunctionAsync<Dictionary<string, int>>(@"
                 () => {
                     return {
-                        width: window.screen.availWidth,
-                        height: window.screen.availHeight
+                        width: window.screen.width,
+                        height: window.screen.height
                     };
                 }
-            ").GetAwaiter().GetResult(); ;
+            ").GetAwaiter().GetResult();
 
-            // Ajusta o viewport para preencher a janela
+            // Ajusta o viewport para usar a resolução máxima
             _page.SetViewportAsync(new ViewPortOptions
             {
-                Width = dimensions["width"], // Usa a largura máxima da tela
-                Height = dimensions["height"], // Usa a altura máxima da tela
-                DeviceScaleFactor = 1.5
+                Width = screenDimensions["width"], // Largura máxima da tela
+                Height = screenDimensions["height"], // Altura máxima da tela
+                DeviceScaleFactor = 1 // Nenhuma escala aplicada
             }).GetAwaiter().GetResult();
 
-            _page.EvaluateExpressionAsync("document.body.style.zoom = '1.5';").GetAwaiter().GetResult();
+            Console.WriteLine($"Viewport ajustado para: {screenDimensions["width"]}x{screenDimensions["height"]}");
+
+
 
             // Injeta scripts de mascaramento desde o início
             InjectAntiAutomationScripts();
