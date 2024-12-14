@@ -54,7 +54,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
 
             // Aguarda o carregamento inicial da página
-            _webScrapingService.WaitForElement("[data-id='event-markets']", 10000);
+            _webScrapingService.WaitForElement("[data-id='event-markets']");
 
             // Coleta informações do jogo
             ExtractGameInfo();
@@ -118,14 +118,14 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             System.Threading.Thread.Sleep(new Random().Next(551, 1524));
 
             // Captura o nome do jogo
-            var spanElements = _webScrapingService.WaitForElements("div[data-testid='event-view-header-soccer-center-container'] span", 5000).ToList();
+            var spanElements = _webScrapingService.WaitForElements("div[data-testid='event-view-header-soccer-center-container'] span").ToList();
             gameName = spanElements.Count >= 2 ? spanElements[1].Text.Trim() : "Nome não encontrado";
 
             // Localiza o contêiner de apresentação do evento
-            var eventPresentationView = _webScrapingService.WaitForElement("div[data-id='card-scoreboard']", 5000);
+            var eventPresentationView = _webScrapingService.WaitForElement("div[data-id='card-scoreboard']");
 
             // Captura os times
-            var teamElements = _webScrapingService.FindElementsWithin(eventPresentationView, ".//span[@data-id='event-card-competitor-name']", 5000).ToList();
+            var teamElements = _webScrapingService.FindElementsWithin(eventPresentationView, ".//span[@data-id='event-card-competitor-name']").ToList();
             if (teamElements.Count >= 2)
             {
                 homeTeam = teamElements[0].Text.Trim();
@@ -222,7 +222,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             //Pequena pausa para localizar o container
             Thread.Sleep(new Random().Next(621, 1126));
             // Localiza o contêiner de abas
-            var tabsContainer = _webScrapingService.WaitForElement("div[data-testid='marketTabs']", 10000);
+            var tabsContainer = _webScrapingService.WaitForElement("div[data-testid='marketTabs']");
 
             while (true)
             {
@@ -245,7 +245,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                         try
                         {
                             // Captura o nome da aba
-                            var tabNameElement = _webScrapingService.FindElementWithin(tab, "span[data-testid='marketTabs-typography']", 2000);
+                            var tabNameElement = _webScrapingService.FindElementWithin(tab, "span[data-testid='marketTabs-typography']");
                             var tabName = tabNameElement?.Text.Trim();
 
                             if (string.IsNullOrEmpty(tabName))
@@ -281,7 +281,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 {
                                     retries++;
                                     Console.WriteLine($"Clique interceptado na aba '{tabName}', tentando novamente ({retries}/5).");
-                                    Thread.Sleep(new Random().Next(500, 1300)); // Espera antes de tentar novamente
+                                    Thread.Sleep(new Random().Next(531, 1254)); // Espera antes de tentar novamente
                                 }
                                 catch (Exception ex)
                                 {
@@ -297,7 +297,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             }
 
                             // Aguarda que os itens da aba sejam carregados
-                            var marketItems = _webScrapingService.WaitForElements("div[data-id='market-item']", 5000);
+                            var marketItems = _webScrapingService.WaitForElements("div[data-id='market-item']");
                             if (!marketItems.Any())
                             {
                                 Console.WriteLine($"Nenhum item de mercado encontrado na aba '{tabName}'.");
@@ -344,7 +344,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             Thread.Sleep(new Random().Next(2800, 4850));
 
             // Encontra todos os contêineres de aposta
-            var eventMarketViews = _webScrapingService.WaitForElements("div[data-id='market-item']", 5000);
+            var eventMarketViews = _webScrapingService.WaitForElements("div[data-id='market-item']");
 
             // Lista de tags cadastradas que queremos buscar
             var tagNames = ParimatchTags.TagNames;
@@ -356,7 +356,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 try
                 {
                     // Verifica se o evento contém uma tag válida
-                    var tagElement = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']//span[@data-testid='modulor-typography']", 2000);
+                    var tagElement = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']//span[@data-testid='modulor-typography']");
                     string tagName = tagElement?.Text.Trim() ?? string.Empty;
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
@@ -371,7 +371,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                         {
                             try
                             {
-                                var marketWrapper = _webScrapingService.TryFindElementWithin(eventMarketView, ".//div[@data-id='market-wrapper']", 2000);
+                                var marketWrapper = _webScrapingService.TryFindElementWithin(eventMarketView, ".//div[@data-id='market-wrapper']");
                                 if (marketWrapper != null)
                                 {
                                     marketWrapperFound = true;
@@ -381,17 +381,17 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 {
                                     // Caso o elemento não seja encontrado, tenta clicar no botão
                                     Console.WriteLine("Clicando para expandir a aba.");
-                                    var toggleButton = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']", 2000);
+                                    var toggleButton = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']");
                                     toggleButton?.Click();
-                                    Thread.Sleep(new Random().Next(921, 1522));
+                                    Thread.Sleep(new Random().Next(621, 1122));
                                 }
                             }
                             catch
                             {
                                 // Caso o elemento não seja encontrado, tenta clicar no botão
-                                var toggleButton = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']", 2000);
+                                var toggleButton = _webScrapingService.FindElementWithin(eventMarketView, ".//div[@role='button']");
                                 toggleButton?.Click();
-                                Thread.Sleep(new Random().Next(1521, 3122));
+                                Thread.Sleep(new Random().Next(521, 998));
                             }
                         }
 
@@ -402,7 +402,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                         }
 
                         // Captura todas as divs dentro de eventMarketView
-                        var betElements = _webScrapingService.FindElementsWithin(eventMarketView, ".//div", 2000);
+                        var betElements = _webScrapingService.FindElementsWithin(eventMarketView, ".//div");
 
                         //Lista para armazenar as apostas
                         var currentBets = new List<BetInfo>();
@@ -413,7 +413,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                             try
                             {
                                 // Captura o valor da aposta
-                                var betAmountElement = _webScrapingService.FindElementWithin(betElement, ".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]", 2000);
+                                var betAmountElement = _webScrapingService.FindElementWithin(betElement, ".//span[@data-id='modulor-typography' and not(ancestor::span[@data-id='outcome'])]");
                                 string betAmountText = betAmountElement?.Text.Trim() ?? string.Empty;
 
                                 if (!decimal.TryParse(betAmountText.Replace(".", ","), out decimal betAmount))
@@ -423,7 +423,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                                 }
 
                                 // Captura os multiplicadores
-                                var multiplierElements = _webScrapingService.FindElementsWithin(betElement, ".//span[contains(@style, '--text: var(--text-outcome);')]", 2000);
+                                var multiplierElements = _webScrapingService.FindElementsWithin(betElement, ".//span[contains(@style, '--text: var(--text-outcome);')]");
                                 if (multiplierElements.Count < 2)
                                 {
                                     Console.WriteLine("Menos de dois multiplicadores encontrados. Pulando esta aposta.");
