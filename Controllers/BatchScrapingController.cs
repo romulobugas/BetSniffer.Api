@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using BetSniffer.Api.Configuration;
 using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -67,7 +68,7 @@ namespace BetSniffer.Api.Controllers
                 }
 
                 // Cria uma thread para cada link
-                Task.Run(async () =>
+                var task = Task.Run(async () =>
                 {
                     await semaphore.WaitAsync(); // Aguarda a liberação de uma vaga no limite de threads
 
@@ -109,9 +110,14 @@ namespace BetSniffer.Api.Controllers
                     finally
                     {
                         _runningTasks.TryRemove(url, out _);
+                        Console.WriteLine($"Tarefa removida para URL: {url}");
                         semaphore.Release(); // Libera uma vaga no limite de threads
+
                     }
                 });
+
+                _runningTasks.TryAdd(url, task); // Adiciona a tarefa ao dicionário
+                Console.WriteLine($"Tarefa adicionada para URL: {url}");
             }
 
             return Ok(new
@@ -151,13 +157,14 @@ namespace BetSniffer.Api.Controllers
         [HttpGet("monitor")]
         public IActionResult MonitorScraping()
         {
-            var activeThreads = _scrapingThreads.Where(t => t.IsAlive).ToList();
+            var activeTasks = _runningTasks.Where(t => !t.Value.IsCompleted).Select(t => t.Key).ToList();
             return Ok(new
             {
-                activeThreadsCount = activeThreads.Count,
-                activeThreads = activeThreads.Select(t => t.ManagedThreadId).ToList()
+                activeTasksCount = activeTasks.Count,
+                activeTasks // Retorna as URLs em processamento
             });
         }
+
 
         [HttpPut("batch-update-same-games")]
         public IActionResult UpdateSameGames([FromQuery] string startDate, [FromQuery] string endDate)
