@@ -51,7 +51,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
             _gameService = new GameService(_dbContext);
         }
 
-        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
+        public List<TagInfo> ScrapeTags(string url, string siteName)
         {
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));

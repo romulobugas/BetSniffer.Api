@@ -1,14 +1,17 @@
-﻿using BetSniffer.Api.Core.Sites.Novibet;
-using BetSniffer.Api.Core.Sites.Parimatch;
+﻿using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Services;
-using Microsoft.AspNetCore.Mvc;
-using BetSniffer.Api.Core.Interfaces;
+using BetSniffer.Api.Core.Sites.Betano;
+using BetSniffer.Api.Core.Sites.Novibet;
+using BetSniffer.Api.Core.Sites.Parimatch;
+using BetSniffer.Api.Core.Sites;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Models;
-using System.Diagnostics;
-using BetSniffer.Api.Core.Sites.Bet365;
-using BetSniffer.Api.Core.Sites.Betano;
-using BetSniffer.Api.Core.Sites;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
+using System.Threading;
+using BetSniffer.Api.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -16,21 +19,24 @@ namespace BetSniffer.Api.Controllers
     [ApiController]
     public class BatchScrapingController : ControllerBase
     {
-        private readonly ApplicationDbContext _dbContext;
-        private readonly TeamService _teamService;
-        private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
-        private readonly IRepositoryService<BetInfo> _betInfoRepository;
+        #region Globais
 
-        public BatchScrapingController(
-            ApplicationDbContext dbContext,
-            TeamService teamService,
-            IRepositoryService<GamesInfo> gamesInfoRepository,
-            IRepositoryService<BetInfo> betInfoRepository)
+        private readonly IServiceScopeFactory _serviceScopeFactory;
+
+        private static readonly ConcurrentBag<Thread> _scrapingThreads = new();
+
+        private static readonly ConcurrentDictionary<string, Task> _runningTasks = new();
+
+        private readonly ScrapingSettings _scrapingSettings;
+
+
+        #endregion
+
+        public BatchScrapingController(IServiceScopeFactory serviceScopeFactory, IOptions<ScrapingSettings> scrapingSettings)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-            _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
-            _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
-            _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
+            _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+
+            _scrapingSettings = scrapingSettings.Value ?? throw new ArgumentNullException(nameof(scrapingSettings));
         }
 
         [HttpPost("scrape")]
@@ -41,45 +47,82 @@ namespace BetSniffer.Api.Controllers
                 return BadRequest(new { message = "A lista de URLs não pode estar vazia." });
             }
 
-            var results = new List<object>();
-            var errors = new List<string>();
+            // Remove duplicados na mesma requisição
+            urls = urls.Distinct().ToList();
+
+            // Limite de threads definido no appsettings
+            int maxThreads = _scrapingSettings.MaxConcurrentThreads;
+            SemaphoreSlim semaphore = new SemaphoreSlim(maxThreads);
+
+            var results = new ConcurrentBag<object>();
+            var errors = new ConcurrentBag<string>();
 
             foreach (var url in urls)
             {
-                try
-                {
-                    string siteName = ExtractSiteName(url);
 
-                    if (!SupportedSites.IsSiteSupported(siteName))
+                if (_runningTasks.ContainsKey(url))
+                {
+                    errors.Add($"URL já está em processamento: {url}");
+                    continue;
+                }
+
+                // Cria uma thread para cada link
+                Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync(); // Aguarda a liberação de uma vaga no limite de threads
+
+                    try
                     {
-                        errors.Add($"Site não suportado: {siteName}");
-                        continue;
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        var teamService = scope.ServiceProvider.GetRequiredService<TeamService>();
+                        var gamesInfoRepo = scope.ServiceProvider.GetRequiredService<IRepositoryService<GamesInfo>>();
+                        var betInfoRepo = scope.ServiceProvider.GetRequiredService<IRepositoryService<BetInfo>>();
+
+                        try
+                        {
+                            string siteName = ExtractSiteName(url);
+
+                            if (!SupportedSites.IsSiteSupported(siteName))
+                            {
+                                errors.Add($"Site não suportado: {siteName}");
+                                return;
+                            }
+
+                            // Obtem o serviço de scraping
+                            var scrapingService = GetScrapingService(siteName, dbContext, teamService, gamesInfoRepo, betInfoRepo);
+
+                            // Executa o scraping de forma síncrona
+                            scrapingService.ScrapeTags(url, siteName);
+
+                            results.Add(new { Url = url, SiteName = siteName, Result = "Sucesso" });
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"Erro ao processar URL '{url}': {ex.Message}");
+                        }
                     }
-
-                    // Obtem o serviço de scraping
-                    var scrapingService = GetScrapingService(siteName);
-
-                    // Executa o scraping
-                    scrapingService.ScrapeTagsAsync(url, siteName);
-
-                    // Adiciona o resultado à lista de sucessos
-                    results.Add(new { Url = url, SiteName = siteName, Result = "Sucesso" });
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"Erro ao processar URL '{url}': {ex.Message}");
-                    
-                }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Erro geral no processamento de URL '{url}': {ex.Message}");
+                    }
+                    finally
+                    {
+                        _runningTasks.TryRemove(url, out _);
+                        semaphore.Release(); // Libera uma vaga no limite de threads
+                    }
+                });
             }
 
-            var jsonResponse = new
+            return Ok(new
             {
-                Results = results,
-                Errors = errors
-            };
-
-            return Ok(jsonResponse);
+                message = "Scraping iniciado. Verifique os logs para acompanhar o progresso.",
+                results,
+                errors
+            });
         }
+
+
 
         private string ExtractSiteName(string url)
         {
@@ -89,15 +132,31 @@ namespace BetSniffer.Api.Controllers
             return parts.Length >= 3 ? parts[1] : parts[0];
         }
 
-        private IScrapingService GetScrapingService(string siteName)
+        private IScrapingService GetScrapingService(
+            string siteName,
+            ApplicationDbContext dbContext,
+            TeamService teamService,
+            IRepositoryService<GamesInfo> gamesInfoRepository,
+            IRepositoryService<BetInfo> betInfoRepository)
         {
             return siteName.ToLower() switch
             {
-                "novibet" => new NovibetScraping(_dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
-                "parimatch" => new ParimatchScraping(_dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
-                "betano" => new BetanoScraping(_dbContext, _teamService, _gamesInfoRepository, _betInfoRepository),
+                "novibet" => new NovibetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "parimatch" => new ParimatchScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "betano" => new BetanoScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
+        }
+
+        [HttpGet("monitor")]
+        public IActionResult MonitorScraping()
+        {
+            var activeThreads = _scrapingThreads.Where(t => t.IsAlive).ToList();
+            return Ok(new
+            {
+                activeThreadsCount = activeThreads.Count,
+                activeThreads = activeThreads.Select(t => t.ManagedThreadId).ToList()
+            });
         }
 
         [HttpPut("batch-update-same-games")]
@@ -105,75 +164,68 @@ namespace BetSniffer.Api.Controllers
         {
             try
             {
-                DateTime startGameDate;
-                DateTime endGameDate;
-
-                if (!DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out startGameDate))
+                if (!DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime startGameDate))
                 {
                     return BadRequest(new { message = "Data inicial inválida. O formato correto é dd/MM/yyyy." });
                 }
 
-                if (!DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out endGameDate))
+                if (!DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime endGameDate))
                 {
                     return BadRequest(new { message = "Data final inválida. O formato correto é dd/MM/yyyy." });
                 }
 
                 DateTime startOfDay = startGameDate.Date;
+                DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1);
 
                 if (startGameDate.Date == DateTime.Today)
                 {
-                    startOfDay = DateTime.Today.AddHours(DateTime.Now.Hour).AddMinutes(DateTime.Now.Minute).AddSeconds(DateTime.Now.Second);
-                    startOfDay = startOfDay.AddHours(2).AddMinutes(30);
+                    startOfDay = DateTime.Today.AddHours(DateTime.Now.Hour)
+                                               .AddMinutes(DateTime.Now.Minute)
+                                               .AddSeconds(DateTime.Now.Second)
+                                               .AddHours(2).AddMinutes(30);
                 }
 
-                DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1);
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                var games = _dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
-                                                .AsEnumerable() // Transfere para avaliação no cliente
-                                                .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                                                .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1) // Filtra jogos com mais de um SiteId
-                                                .Select(group => new
-                                                {
-                                                    GameDate = group.Key.GameDate,
-                                                    HomeTeam = group.Key.HomeTeamId,
-                                                    AwayTeam = group.Key.AwayTeamId,
-                                                    URLs = group
-                                                        .Where(g => !string.IsNullOrEmpty(g.URL)) // Filtra URLs não nulas
-                                                        .Select(g => g.URL)
-                                                        .Distinct()
-                                                        .ToList()
-                                                })
-                                                .Where(g => g.URLs.Count > 0) // Apenas jogos com URLs válidas
-                                                .ToList();
+                var games = dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
+                                               .AsEnumerable()
+                                               .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                                               .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
+                                               .Select(group => new
+                                               {
+                                                   GameDate = group.Key.GameDate,
+                                                   HomeTeam = group.Key.HomeTeamId,
+                                                   AwayTeam = group.Key.AwayTeamId,
+                                                   URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
+                                                               .Select(g => g.URL)
+                                                               .Distinct()
+                                                               .ToList()
+                                               })
+                                               .Where(g => g.URLs.Count > 0)
+                                               .ToList();
 
-
-
-
-                var urlsToScrape = games
-                    .SelectMany(g => g.URLs)
-                    .Distinct()
-                    .ToList();
+                var urlsToScrape = games.SelectMany(g => g.URLs).Distinct().ToList();
 
                 if (!urlsToScrape.Any())
                 {
                     return Ok(new { message = "Nenhum jogo com URL para scraping foi encontrado." });
                 }
 
-                // Inicia o scraping das URLs
-                var result = ScrapeTagsBatch(urlsToScrape);
+                // Reutiliza o método ScrapeTagsBatch para enviar as URLs
+                var scrapingResult = ScrapeTagsBatch(urlsToScrape) as OkObjectResult;
 
                 return Ok(new
                 {
-                    message = "Jogos para o intervalo de datas informado foram atualizados com sucesso.",
-                    gamesProcessed = games.Count,
-                    urlsScraped = urlsToScrape.Count
+                    message = $"Jogos para o intervalo de datas informado foram enviados para scraping. Jogos: {urlsToScrape.Count}",
+                    scrapingResult?.Value
                 });
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = $"Erro ao atualizar os jogos: {ex.Message}" });
             }
         }
+
     }
 }

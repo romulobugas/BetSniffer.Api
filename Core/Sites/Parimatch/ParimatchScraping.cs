@@ -39,7 +39,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             _webScrapingService.Initialize(); // Configura o WebDriver
         }
 
-        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
+        public List<TagInfo> ScrapeTags(string url, string siteName)
         {
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));

@@ -46,8 +46,10 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
-        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
+        public List<TagInfo> ScrapeTags(string url, string siteName)
         {
+            Console.WriteLine($"Iniciando scraping para {siteName} com URL: {url}");
+
             // Validação básica
             if (string.IsNullOrEmpty(url)) throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
             if (string.IsNullOrEmpty(siteName)) throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
@@ -416,6 +418,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             }
 
             _webScrapingService.Dispose();
+
+            Console.WriteLine($"Scraping concluído para {siteName} com URL: {url}");
 
             return allTagInfos;
 
