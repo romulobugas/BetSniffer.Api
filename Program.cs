@@ -12,6 +12,7 @@ using BetSniffer.Api.Models;
 using Microsoft.Extensions.DependencyInjection;
 using BetSniffer.Api.Controllers;
 using BetSniffer.Api.Core.Sites.Betano;
+using BetSniffer.Api.Configuration;
 
 namespace BetSniffer.Api
 {
@@ -55,6 +56,13 @@ namespace BetSniffer.Api
                 options.UseSqlServer(
                     builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;"
                 ));
+
+            // Adiciona ScrapingSettings como uma configuração injetável
+            builder.Services.Configure<ScrapingSettings>(builder.Configuration.GetSection("ScrapingSettings"));
+
+
+            // Registra a fábrica para uso em serviços ou controladores
+            builder.Services.AddScoped<ApplicationDbContextFactory>();
 
             // Registro de repositórios genéricos
             builder.Services.AddScoped(typeof(IRepositoryService<>), typeof(RepositoryService<>));

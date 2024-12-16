@@ -31,6 +31,7 @@ namespace BetSniffer.Api.Core.Services
             options.AddUserProfilePreference("profile.default_content_setting_values.automatic_downloads", 1); // Permitir downloads automáticos
             options.AddExcludedArgument("enable-automation"); // Remove o controle de automação visível
             options.AddAdditionalOption("useAutomationExtension", false); // Desabilita a extensão de automação
+            //options.AddArgument("--headless"); // Desabilita a interface visual
 
 
             // Criação do driver

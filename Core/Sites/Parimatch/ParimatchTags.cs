@@ -14,6 +14,7 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             { 5, "Faltas. Total" },
             { 6, "Total" },
             { 7, "Impedimentos. Total" },
+            { 22, "Defesas. Total" },
         
             // Adicione outras tags fixas com IDs aqui
         };
@@ -54,7 +55,9 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
                 { 18, $"Faltas. {homeTeam} total" },
                 { 19, $"Faltas. {awayTeam} total" },
                 { 20, $"{homeTeam} total" },
-                { 21, $"{awayTeam} total" }
+                { 21, $"{awayTeam} total" },
+                { 23, $"Defesas. {homeTeam} total" },
+                { 24, $"Defesas. {awayTeam} total" }
             };
 
             // Adicionar ao dicionário principal evitando duplicações

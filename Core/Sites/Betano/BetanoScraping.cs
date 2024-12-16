@@ -51,7 +51,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
             _gameService = new GameService(_dbContext);
         }
 
-        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
+        public List<TagInfo> ScrapeTags(string url, string siteName)
         {
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
@@ -573,19 +573,19 @@ namespace BetSniffer.Api.Core.Sites.Betano
                         // **1. Busca apostas existentes no banco com todos os critérios**
                         foreach (var bet in currentBets)
                         {
-                            var existingBet = _dbContext.BetInfo.FirstOrDefault(b =>
+                            var existingBet = _dbContext.BetInfo.Where(b =>
                                 b.GamesInfo.GameId == gamesInfo.GameId &&
                                 b.TagName == bet.TagName &&
                                 b.OverUnder == bet.OverUnder &&
-                                b.BetAmount == bet.BetAmount &&
+                                //b.BetAmount == bet.BetAmount &&
                                 b.TagId == bet.TagId &&
-                                b.Site.SiteId == bet.Site.SiteId);
+                                b.Site.SiteId == bet.Site.SiteId).ToList();
 
                             if (existingBet != null)
                             {
                                 // **Deletar apostas duplicadas que já estão no banco**
                                 Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");
-                                _dbContext.BetInfo.Remove(existingBet);
+                                _dbContext.BetInfo.RemoveRange(existingBet);
                             }
                         }
 

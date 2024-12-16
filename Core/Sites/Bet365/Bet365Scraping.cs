@@ -49,7 +49,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
         }
 
-        public List<TagInfo> ScrapeTagsAsync(string url, string siteName)
+        public List<TagInfo> ScrapeTags(string url, string siteName)
         {
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));

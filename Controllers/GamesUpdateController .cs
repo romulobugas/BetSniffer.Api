@@ -51,40 +51,40 @@ namespace BetSniffer.Api.Controllers
             }
         }
 
-        // Função para atualizar jogos com o mesmo GameDate, HomeTeam e AwayTeam, mas com SiteId diferentes
-        [HttpPut("update-same-games")]
-        public IActionResult UpdateSameGame()
-        {
-            try
-            {
-                // Obtém a data atual em UTC
-                DateTime now = DateTime.UtcNow;
+        //// Função para atualizar jogos com o mesmo GameDate, HomeTeam e AwayTeam, mas com SiteId diferentes
+        //[HttpPut("update-same-games")]
+        //public IActionResult UpdateSameGame()
+        //{
+        //    try
+        //    {
+        //        // Obtém a data atual em UTC
+        //        DateTime now = DateTime.UtcNow;
 
-                // Define o startDate como a data atual + 2:30h
-                DateTime startDate = now.AddHours(2).AddMinutes(30);
+        //        // Define o startDate como a data atual + 2:30h
+        //        DateTime startDate = now.AddHours(2).AddMinutes(30);
 
-                // Define o endDate como o final do dia de hoje (23:59:59)
-                DateTime endDate = now.Date.AddDays(1).AddSeconds(-1); // final do dia atual
+        //        // Define o endDate como o final do dia de hoje (23:59:59)
+        //        DateTime endDate = now.Date.AddDays(1).AddSeconds(-1); // final do dia atual
 
-                // Chama o método UpdateSameGames do BatchScrapingController passando startDate e endDate
-                var result = _batchScrapingController.UpdateSameGames(startDate.ToString("dd/MM/yyyy HH:mm"), endDate.ToString("dd/MM/yyyy HH:mm"));
+        //        // Chama o método UpdateSameGames do BatchScrapingController passando startDate e endDate
+        //        //var result = _batchScrapingController.UpdateSameGames(startDate.ToString("dd/MM/yyyy HH:mm"), endDate.ToString("dd/MM/yyyy HH:mm"));
 
-                // Verifica se o resultado não for Ok (caso algum erro ocorra dentro de UpdateSameGames)
-                if (result is ObjectResult objectResult && objectResult.StatusCode == 200)
-                {
-                    return Ok(new { message = "Jogos atualizados com sucesso!" });
-                }
-                else
-                {
-                    // Caso o resultado seja erro
-                    return StatusCode(500, new { message = "Erro ao atualizar jogos com o mesmo GameDate, HomeTeam e AwayTeam." });
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = $"Erro ao atualizar jogos com o mesmo GameDate, HomeTeam e AwayTeam: {ex.Message}" });
-            }
-        }
+        //        // Verifica se o resultado não for Ok (caso algum erro ocorra dentro de UpdateSameGames)
+        //        if (result is ObjectResult objectResult && objectResult.StatusCode == 200)
+        //        {
+        //            return Ok(new { message = "Jogos atualizados com sucesso!" });
+        //        }
+        //        else
+        //        {
+        //            // Caso o resultado seja erro
+        //            return StatusCode(500, new { message = "Erro ao atualizar jogos com o mesmo GameDate, HomeTeam e AwayTeam." });
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { message = $"Erro ao atualizar jogos com o mesmo GameDate, HomeTeam e AwayTeam: {ex.Message}" });
+        //    }
+        //}
 
     }
 }
