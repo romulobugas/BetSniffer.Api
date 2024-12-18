@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
+using BetSniffer.Api.Core.Sites.Betano;
 
 namespace BetSniffer.Api.Core.Sites.Betfast
 {
@@ -113,6 +114,11 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 else
                 {
                     Console.WriteLine("Erro: Iframe do jogo não encontrado.");
+                }
+
+                if (string.IsNullOrEmpty(_teamService.NormalizeText(homeTeam)) || string.IsNullOrEmpty(_teamService.NormalizeText(awayTeam))) 
+                {
+                    continue;
                 }
 
                 // Inicializa informações do jogo
@@ -306,6 +312,18 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                         throw new Exception("Formato inesperado ao capturar os nomes dos times.");
                     }
                 }
+
+
+                // Validação: interrompe o processamento se os nomes dos times estiverem vazios
+                if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam))
+                {
+                    Console.WriteLine("Nomes dos times inválidos. Pulando para o próximo jogo.");
+                    homeTeam = null; // Zera para evitar propagação errada
+                    awayTeam = null; // Zera para evitar propagação errada
+                    return;
+                }
+
+                Console.WriteLine($"Time Casa: {homeTeam}, Time Visitante: {awayTeam}");
 
                 // Captura a data e hora do jogo no terceiro <p>
                 var dateTimeElement = matchInfoElement.QuerySelectorAsync("p:nth-child(3)").GetAwaiter().GetResult();
@@ -590,7 +608,19 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                     }
 
                     // Recupera o ID da tag associada
-                    int tagId = tagNames.FirstOrDefault(x => x.Value.Contains(marketTitle)).Key;
+                    string normalizedTagName = _teamService.NormalizeText(marketTitle);
+
+                    var matchingTag = BetfastTags.TagNames
+                        .FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
+
+                    if (matchingTag.Key == 0)
+                    {
+                        Console.WriteLine($"Tag não encontrada: {marketTitle}");
+                        continue;
+                    }
+
+                    int tagId = matchingTag.Key;
+
 
                     // Define o seletor das opções de aposta
                     const string betOptionsSelector = "div.market-odds > div.odd-rect-wide";

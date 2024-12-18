@@ -64,18 +64,19 @@ namespace BetSniffer.Api.Core.Sites.Betano
             // Adicionar ao dicionário principal evitando duplicações
             foreach (var tag in dynamicTags)
             {
-                if (!TagNames.ContainsKey(tag.Key))
+                if (!TagNames.TryGetValue(tag.Key, out var existingTags))
                 {
-                    TagNames[tag.Key] = tag.Value;
+                    // Adiciona a chave e a lista completa de tags
+                    TagNames[tag.Key] = new List<string>(tag.Value);
                 }
                 else
                 {
-                    // Adiciona as tags novas sem duplicar
+                    // Adiciona somente as tags que não existem ainda
                     foreach (var tagName in tag.Value)
                     {
-                        if (!TagNames[tag.Key].Contains(tagName))
+                        if (!existingTags.Contains(tagName))
                         {
-                            TagNames[tag.Key].Add(tagName);
+                            existingTags.Add(tagName);
                         }
                     }
                 }

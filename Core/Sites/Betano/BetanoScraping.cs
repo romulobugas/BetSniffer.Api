@@ -470,8 +470,19 @@ namespace BetSniffer.Api.Core.Sites.Betano
                     // Verifica se a tag encontrada contém o nome da tag desejada
                     if (BetanoTags.TagNames.Values.Any(tagList => tagList.Contains(tagName)))
                     {
-                        // Recupera o ID da tag a partir do dicionário
-                        int tagId = BetanoTags.TagNames.FirstOrDefault(x => x.Value.Contains(tagName)).Key;
+                        string normalizedTagName = _teamService.NormalizeText(tagName);
+
+                        var matchingTag = BetanoTags.TagNames
+                            .FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
+
+                        if (matchingTag.Key == 0)
+                        {
+                            Console.WriteLine($"Tag não encontrada: {tagName}");
+                            continue;
+                        }
+
+                        int tagId = matchingTag.Key;
+
 
                         bool marketWrapperFound = false;
                         int retries = 0;
