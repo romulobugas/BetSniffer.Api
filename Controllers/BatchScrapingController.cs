@@ -13,6 +13,7 @@ using System.Threading;
 using BetSniffer.Api.Configuration;
 using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
+using BetSniffer.Api.Core.Sites.Betfast;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -150,6 +151,7 @@ namespace BetSniffer.Api.Controllers
                 "novibet" => new NovibetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "parimatch" => new ParimatchScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betano" => new BetanoScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "betfast" => new BetfastScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }

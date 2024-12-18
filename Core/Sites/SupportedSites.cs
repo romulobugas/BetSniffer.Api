@@ -5,7 +5,7 @@
         public static readonly HashSet<string> Sites = new()
         {
             "novibet",
-            "bet365",
+            "betfast",
             "betano",
             "parimatch"
             // Adicione outros sites conforme necessário

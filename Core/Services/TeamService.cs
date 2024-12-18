@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Text;
 
 namespace BetSniffer.Api.Core.Services
 {
@@ -16,26 +18,46 @@ namespace BetSniffer.Api.Core.Services
             _context = context;
         }
 
+        // Método auxiliar para normalizar o texto
+        public string NormalizeText(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            var normalized = input
+                .Replace('\u00A0', ' ') // Substitui "espaço não separável" por espaço comum
+                .Replace('\u200B', ' ') // Remove "zero-width space"
+                .Replace('\u200C', ' ') // Remove "zero-width non-joiner"
+                .Replace('\u200D', ' ') // Remove "zero-width joiner"
+                .Normalize(NormalizationForm.FormC) // Normaliza a composição unicode
+                .Trim();
+
+            return Regex.Replace(normalized, @"\s+", " "); // Substitui múltiplos espaços por um único
+        }
+
         public int EnsureTeamExists(string teamName)
         {
-            // Busca literal pelos aliases no banco de dados
+            // Normaliza o nome do time recebido
+            var normalizedTeamName = NormalizeText(teamName);
+
+            // Busca os aliases no banco de dados e os normaliza
             var aliases = _context.Teams
                 .Select(t => new
                 {
                     t.TeamId,
                     Aliases = t.Aliases
                 })
-                .AsEnumerable() // Processar o restante em memória
+                .AsEnumerable() // Processar em memória a normalização
                 .SelectMany(t => t.Aliases.Split(';')
                     .Select(alias => new
                     {
                         t.TeamId,
-                        Alias = alias.Trim()
+                        Alias = NormalizeText(alias.Trim())
                     }))
                 .ToList();
 
-            // Comparação literal (case-insensitive) em memória
-            var matchingAlias = aliases.FirstOrDefault(a => a.Alias.Equals(teamName, StringComparison.OrdinalIgnoreCase));
+            // Comparação normalizada (case-insensitive)
+            var matchingAlias = aliases.FirstOrDefault(a => a.Alias.Equals(normalizedTeamName, StringComparison.OrdinalIgnoreCase));
 
             if (matchingAlias != null)
             {
@@ -43,11 +65,11 @@ namespace BetSniffer.Api.Core.Services
                 return matchingAlias.TeamId;
             }
 
-            // Caso não exista, cria um novo time
+            // Caso não exista, cria um novo time com o nome normalizado
             var newTeam = new Team
             {
-                NormalizedName = teamName, // Não normalizamos para manter o nome original
-                Aliases = teamName // Inicia o alias com o próprio nome do time
+                NormalizedName = normalizedTeamName,
+                Aliases = normalizedTeamName // Inicia os aliases com o nome normalizado
             };
 
             _context.Teams.Add(newTeam);
