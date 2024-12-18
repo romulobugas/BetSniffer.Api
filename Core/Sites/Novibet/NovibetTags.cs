@@ -21,6 +21,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             { 6, "Total de Gols 🚀"},
             { 20, "Casa Total de Gols"},
             { 21, "Visitante Total de Gols" },
+            { 25, "Total de Laterais" },
+            { 28, "Total de Desarmes" },
+            { 31, "Total de Tiros de Meta" },
 
             // Adicione outras tags fixas aqui conforme necessário
         };
@@ -55,7 +58,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 { 14, $"{homeTeam} - Total de Chutes 🚀"},
                 { 15, $"{awayTeam} - Total de Chutes 🚀"},
                 { 16, $"{homeTeam} - Total de Impedimentos"},
-                { 17,  $"{awayTeam} - Total de Impedimentos" },
+                { 17, $"{awayTeam} - Total de Impedimentos" },
+                { 26, $"{homeTeam} - Total de Laterais" },
+                { 27, $"{awayTeam} - Total de Laterais" },
+                { 29, $"{homeTeam} - Total de Desarmes" },
+                { 30, $"{awayTeam} - Total de Desarmes" },
+                { 32, $"{homeTeam} - Total de Tiros de Meta" },
+                { 33, $"{awayTeam} - Total de Tiros de Meta" },
+
             };
 
             // Adicionar ao dicionário principal evitando duplicações

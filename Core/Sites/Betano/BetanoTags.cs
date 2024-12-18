@@ -14,6 +14,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
         { 4, new List<string> { "Chutes a gol", "Chutes a gol (alternativas)" } },
         { 7, new List<string> { "Total de Impedimentos", "Total de Impedimentos (alternativas)" } },
         { 5, new List<string> { "Total de Faltas", "Total de Faltas (alternativas)" } },
+        { 25, new List<string> { "Total de laterais", "Total de laterais (alternativas)" } },
+        { 28, new List<string> { "Total de Desarmes", "Total de Desarmes (alternativas)" } },
     };
 
         // Dicionário de nomes de elementos fixos que você quer rastrear
@@ -53,6 +55,10 @@ namespace BetSniffer.Api.Core.Sites.Betano
             { 11, new List<string> { $"{awayTeam} Total de Cartões Acima/Abaixo", $"{awayTeam} Total de Cartões Acima/Abaixo (alternativas)" } },
             { 20, new List<string> { $"{homeTeam} - Total de Gols Mais/Menos", $"{homeTeam} - Total de Gols Mais/Menos (alternativas)" } },
             { 21, new List<string> { $"{awayTeam} - Total de Gols Mais/Menos", $"{awayTeam} - Total de Gols Mais/Menos (alternativas)" } },
+            { 26, new List<string> { $"{homeTeam} Total de laterais", $"{homeTeam} Total de laterais (alternativas)" } },
+            { 27, new List<string> { $"{awayTeam} Total de laterais", $"{awayTeam} Total de laterais (alternativas)" } },
+            { 29, new List<string> { $"{homeTeam} Total de Desarmes", $"{homeTeam} Total de Desarmes (alternativas)" } },
+            { 30, new List<string> { $"{awayTeam} Total de Desarmes", $"{awayTeam} Total de Desarmes (alternativas)" } },
         };
 
             // Adicionar ao dicionário principal evitando duplicações
