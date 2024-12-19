@@ -38,8 +38,9 @@ namespace BetSniffer.Api.Core.Services
                 }
             }).GetAwaiter().GetResult();
 
-            // Abre uma nova página
-            _page = _browser.NewPageAsync().GetAwaiter().GetResult();
+            // Obtém a primeira aba existente
+            var pages = _browser.PagesAsync().GetAwaiter().GetResult();
+            _page = pages.FirstOrDefault() ?? _browser.NewPageAsync().GetAwaiter().GetResult(); // Usa a aba existente ou cria uma nova
 
             // Obtém as dimensões completas da tela (tela disponível)
             var screenDimensions = _page.EvaluateFunctionAsync<Dictionary<string, int>>(@"

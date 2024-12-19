@@ -1,20 +1,29 @@
 ﻿using OpenQA.Selenium;
 
-namespace BetSniffer.Api.Core.Sites.Parimatch
+namespace BetSniffer.Api.Core.Sites.Vbet
 
 {
-    public static class ParimatchTags
+    public static class VbetTags
     {
         public static readonly Dictionary<int, string> TagNames = new()
         {
-            { 1, "Escanteios. Total" },
-            { 2, "Cartões amarelos. Total" },
-            { 3, "Todos os chutes. Total" },
-            { 4, "Chutes no gol. Total" },
-            { 5, "Faltas. Total" },
-            { 6, "Total" },
-            { 7, "Impedimentos. Total" },
-            { 22, "Defesas. Total" },
+            { 1, "Escanteios: Total" },
+            { 2, "Cartões Amarelos: Total" },
+            { 3, "Chutes: Total" },
+            { 4, "Chute ao Gol: Total" },
+            { 5, "Faltas: Total" },
+            { 6, "Total de gols" },
+            { 7, "Impedimentos: Total" },
+            { 22, "Defesas de goleiro: Total" },
+            { 12, "Chute ao Gol: Total da equipa 1" },
+            { 13, "Chute ao Gol: Total da equipa 2" },
+            { 20, "Total de Gols do Time da casa" },
+            { 21, "Total de Gols do Time visitante" },
+            { 23, "Defesas de goleiro: Total da Equipe 1" },
+            { 24, "Defesas de goleiro: Total da Equipe 2" },
+            { 25, "Lateral : Total" },
+            { 26, "Lateral : Equipe 1 Total" },
+            { 27, "Lateral : Equipe 2 Total" },
         
             // Adicione outras tags fixas com IDs aqui
         };
@@ -42,22 +51,16 @@ namespace BetSniffer.Api.Core.Sites.Parimatch
             // Dicionário de padrões de tags dinâmicas com IDs fixos
             var dynamicTags = new Dictionary<int, string>
             {
-                { 8, $"Escanteios. {homeTeam} total" },
-                { 9, $"Escanteios. {awayTeam} total" },
-                { 10, $"Cartões amarelos. {homeTeam} total" },
-                { 11, $"Cartões amarelos. {awayTeam} total" },
-                { 12, $"Chutes no gol. {homeTeam} total" },
-                { 13, $"Chutes no gol. {awayTeam} total" },
-                { 14, $"Todos os chutes. {homeTeam} total" },
-                { 15, $"Todos os chutes. {awayTeam} total" },
-                { 16, $"Impedimentos. {homeTeam} total" },
-                { 17, $"Impedimentos. {awayTeam} total" },
-                { 18, $"Faltas. {homeTeam} total" },
-                { 19, $"Faltas. {awayTeam} total" },
-                { 20, $"{homeTeam} total" },
-                { 21, $"{awayTeam} total" },
-                { 23, $"Defesas. {homeTeam} total" },
-                { 24, $"Defesas. {awayTeam} total" }
+                { 8, $"Escanteios: {homeTeam} (Total)" },
+                { 9, $"Escanteios: {awayTeam} (Total)" },
+                { 10, $"Cartões Amarelos: {homeTeam} (Total)" },
+                { 11, $"Cartões Amarelos: {awayTeam} (Total)" },                
+                { 14, $"Todos os chutes: {homeTeam} (Total)" },
+                { 15, $"Todos os chutes: {awayTeam} (Total)" },
+                { 16, $"Impedimento: {homeTeam} (Total)" },
+                { 17, $"Impedimento: {awayTeam} (Total)" },
+                { 18, $"Faltas: {homeTeam} (Total)" },
+                { 19, $"Faltas: {awayTeam} (Total)" }
             };
 
             // Adicionar ao dicionário principal evitando duplicações

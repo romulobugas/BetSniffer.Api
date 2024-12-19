@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Sites.Novibet;
-using BetSniffer.Api.Core.Sites.Parimatch;
+using BetSniffer.Api.Core.Sites.Vbet;
 using BetSniffer.Api.Core.Sites.Bet365; // Importado Bet365
 using BetSniffer.Api.Core.Interfaces;
 using OpenQA.Selenium.Chrome;
@@ -70,7 +70,7 @@ namespace BetSniffer.Api
 
             // Registro de serviços específicos
             builder.Services.AddScoped<NovibetScraping>();
-            builder.Services.AddScoped<ParimatchScraping>();
+            builder.Services.AddScoped<VbetScraping>();
             builder.Services.AddScoped<BetanoScraping>();
             builder.Services.AddScoped<BetfastScraping>();
             builder.Services.AddScoped<Bet365Scraping>(); // Registro explícito de Bet365Scraping
