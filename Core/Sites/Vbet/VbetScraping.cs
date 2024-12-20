@@ -52,7 +52,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
 
             _webScrapingService.NavigateTo(url);
 
-            System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
+            System.Threading.Thread.Sleep(new Random().Next(7873, 9405));
 
             // Aguarda o carregamento inicial da página
             _webScrapingService.WaitForElement("div.game-details-section");

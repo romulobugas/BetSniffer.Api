@@ -1,53 +1,54 @@
 ﻿using OpenQA.Selenium;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace BetSniffer.Api.Core.Sites.Betfast
 {
     public static class BetfastTags
     {
-        // Dicionário de tags fixas que você quer rastrear
-        public static readonly Dictionary<int, List<string>> TagNames = new()
-    {
-        { 6, new List<string> { "Total de Gols" } },
-        { 20, new List<string> { "Total de Gols do Time de Casa" } },
-        { 21, new List<string> { "Total de Gols do time de Fora" } },
-        { 1, new List<string> { "Total de escanteios" } },
-        { 8, new List<string> { "Total de escanteios time da casa" } },
-        { 9, new List<string> { "Total de escanteios time de fora" } },
-        { 2, new List<string> { "Total de cartões" } },
-        { 3, new List<string> { "Total de chutes" } },
-        { 4, new List<string> { "Chutes a gol total" } },
-        { 7, new List<string> { "Total de impedimentos" } },
-        { 5, new List<string> { "Total de faltas" } },
-        { 22, new List<string> { "Total de defesas do goleiro" } },
-        { 10, new List<string> { "Time de casa total de cartões" } },
-        { 11, new List<string> { "Time de fora total de cartões" } },
-        { 12, new List<string> { "Time de casa chutes a gol" } },
-        { 13, new List<string> { "Time de fora chutes a gol" } },
-        { 14, new List<string> { "Time de casa total de Chutes" } },
-        { 15, new List<string> { "Time de fora total de Chutes" } },
-        { 18, new List<string> { "Time da casa Total de faltas" } },
-        { 19, new List<string> { "Time de fora Total de faltas" } },
-        { 23, new List<string> { "Time de casa total de defesas do goleiro" } },
-        { 24, new List<string> { "Time de fora total de defesas do goleiro" } },
-        { 25, new List<string> { "Total de cobranças de lateral" } },
-        { 26, new List<string> { "Time de casa cobranças de lateral" } },
-        { 27, new List<string> { "Time de fora cobranças de lateral" } },
-        { 28, new List<string> { "Total de desarmes" } },
-        { 29, new List<string> { "Total de desarmes do time de casa" } },
-        { 30, new List<string> { "Total de desarmes do time de fora" } },
-        { 31, new List<string> { "Total de tiros de meta" } },
-        { 32, new List<string> { "Time de casa total de tiro de meta" } },
-        { 33, new List<string> { "Time de fora total de tiro de meta" } },
+        // Tags fixas base usadas como template
+        private static readonly Dictionary<int, List<string>> BaseTagNames = new()
+        {
+            { 6, new List<string> { "Total de Gols" } },
+            { 20, new List<string> { "Total de Gols do Time de Casa" } },
+            { 21, new List<string> { "Total de Gols do time de Fora" } },
+            { 1, new List<string> { "Total de escanteios" } },
+            { 8, new List<string> { "Total de escanteios time da casa" } },
+            { 9, new List<string> { "Total de escanteios time de fora" } },
+            { 2, new List<string> { "Total de cartões" } },
+            { 3, new List<string> { "Total de chutes" } },
+            { 4, new List<string> { "Chutes a gol total" } },
+            { 7, new List<string> { "Total de impedimentos" } },
+            { 5, new List<string> { "Total de faltas" } },
+            { 22, new List<string> { "Total de defesas do goleiro" } },
+            { 10, new List<string> { "Time de casa total de cartões" } },
+            { 11, new List<string> { "Time de fora total de cartões" } },
+            { 12, new List<string> { "Time de casa chutes a gol" } },
+            { 13, new List<string> { "Time de fora chutes a gol" } },
+            { 14, new List<string> { "Time de casa total de Chutes" } },
+            { 15, new List<string> { "Time de fora total de Chutes" } },
+            { 18, new List<string> { "Time da casa Total de faltas" } },
+            { 19, new List<string> { "Time de fora Total de faltas" } },
+            { 23, new List<string> { "Time de casa total de defesas do goleiro" } },
+            { 24, new List<string> { "Time de fora total de defesas do goleiro" } },
+            { 25, new List<string> { "Total de cobranças de lateral" } },
+            { 26, new List<string> { "Time de casa cobranças de lateral" } },
+            { 27, new List<string> { "Time de fora cobranças de lateral" } },
+            { 28, new List<string> { "Total de desarmes" } },
+            { 29, new List<string> { "Total de desarmes do time de casa" } },
+            { 30, new List<string> { "Total de desarmes do time de fora" } },
+            { 31, new List<string> { "Total de tiros de meta" } },
+            { 32, new List<string> { "Time de casa total de tiro de meta" } },
+            { 33, new List<string> { "Time de fora total de tiro de meta" } },
+        };
 
-    };
+        // Isolamento por contexto de thread
+        private static readonly ThreadLocal<Dictionary<int, List<string>>> ThreadTagNames =
+            new(() => BaseTagNames.ToDictionary(entry => entry.Key, entry => new List<string>(entry.Value)));
 
-        // Dicionário de nomes de elementos fixos que você quer rastrear
-        public static readonly List<string> ElementNames = new()
-    {
-        ".registerOrLogin_closeButton",
-        "app-event-marketview",
-        // Adicione outros elementos fixos aqui conforme necessário
-    };
+        // Propriedade para acessar as tags isoladas da thread
+        public static Dictionary<int, List<string>> TagNames => ThreadTagNames.Value;
 
         // Método para capturar o código dinâmico do elemento
         public static string CaptureElementCode(IWebElement element)
@@ -63,30 +64,26 @@ namespace BetSniffer.Api.Core.Sites.Betfast
         {
             // Lista de padrões de tags dinâmicas
             var dynamicTags = new Dictionary<int, List<string>>
-        {
-            //{ 8, new List<string> { $"{homeTeam} Escanteios Mais/Menos", $"{homeTeam} Escanteios Mais/Menos (alternativas)" } },
-            //{ 9, new List<string> { $"{awayTeam} Escanteios Mais/Menos", $"{awayTeam} Escanteios Mais/Menos (alternativas)" } },
-            //{ 14, new List<string> { $"{homeTeam} Total de chutes", $"{homeTeam} Total de chutes (alternativas)" } },
-            //{ 15, new List<string> { $"{awayTeam} Total de chutes", $"{awayTeam} Total de chutes (alternativas)" } },
-            //{ 12, new List<string> { $"{homeTeam} Chutes a gol", $"{homeTeam} Chutes a gol (alternativas)" } },
-            //{ 13, new List<string> { $"{awayTeam} Chutes a gol", $"{awayTeam} Chutes a gol (alternativas)" } },
-            //{ 16, new List<string> { $"{homeTeam} Total de Impedimentos", $"{homeTeam} Total de Impedimentos (alternativas)" } },
-            //{ 17, new List<string> { $"{awayTeam} Total de Impedimentos", $"{awayTeam} Total de Impedimentos (alternativas)" } },
-            //{ 18, new List<string> { $"{homeTeam} Total de Faltas", $"{homeTeam} Total de Faltas (alternativas)" } },
-            //{ 19, new List<string> { $"{awayTeam} Total de Faltas", $"{awayTeam} Total de Faltas (alternativas)" } },
-            //{ 10, new List<string> { $"{homeTeam} Total de Cartões Acima/Abaixo", $"{homeTeam} Total de Cartões Acima/Abaixo (alternativas)" } },
-            //{ 11, new List<string> { $"{awayTeam} Total de Cartões Acima/Abaixo", $"{awayTeam} Total de Cartões Acima/Abaixo (alternativas)" } },
-            //{ 20, new List<string> { $"{homeTeam} - Total de Gols Mais/Menos", $"{homeTeam} - Total de Gols Mais/Menos (alternativas)" } },
-            //{ 21, new List<string> { $"{awayTeam} - Total de Gols Mais/Menos", $"{awayTeam} - Total de Gols Mais/Menos (alternativas)" } },
-        };
+            {
+                //{ 8, new List<string> { $"{homeTeam} Total de escanteios", $"{homeTeam} Total de escanteios (alternativas)" } },
+                //{ 9, new List<string> { $"{awayTeam} Total de escanteios", $"{awayTeam} Total de escanteios (alternativas)" } },
+                //{ 14, new List<string> { $"{homeTeam} Total de chutes", $"{homeTeam} Total de chutes (alternativas)" } },
+                //{ 15, new List<string> { $"{awayTeam} Total de chutes", $"{awayTeam} Total de chutes (alternativas)" } },
+                //{ 12, new List<string> { $"{homeTeam} Chutes a gol", $"{homeTeam} Chutes a gol (alternativas)" } },
+                //{ 13, new List<string> { $"{awayTeam} Chutes a gol", $"{awayTeam} Chutes a gol (alternativas)" } },
+                //{ 20, new List<string> { $"{homeTeam} Total de Gols", $"{homeTeam} Total de Gols (alternativas)" } },
+                //{ 21, new List<string> { $"{awayTeam} Total de Gols", $"{awayTeam} Total de Gols (alternativas)" } },
+            };
 
-            // Adicionar ao dicionário principal evitando duplicações
+            // Adicionar ao dicionário isolado de tags da thread
+            var threadTags = ThreadTagNames.Value;
+
             foreach (var tag in dynamicTags)
             {
-                if (!TagNames.TryGetValue(tag.Key, out var existingTags))
+                if (!threadTags.TryGetValue(tag.Key, out var existingTags))
                 {
                     // Adiciona a chave e a lista completa de tags
-                    TagNames[tag.Key] = new List<string>(tag.Value);
+                    threadTags[tag.Key] = new List<string>(tag.Value);
                 }
                 else
                 {

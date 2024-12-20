@@ -1,12 +1,12 @@
 ﻿using OpenQA.Selenium;
-using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Collections.Concurrent;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
     public static class NovibetTags
     {
-        // Dicionário de tags fixas que você quer rastrear
-        public static readonly Dictionary<int, string> TagNames = new()
+        // Dicionário base de tags fixas
+        private static readonly Dictionary<int, string> BaseTagNames = new()
         {
             { 1, "Total de Escanteios 🚀" },
             { 2, "Total de Cartões Amarelos"},
@@ -24,31 +24,23 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             { 25, "Total de Laterais" },
             { 28, "Total de Desarmes" },
             { 31, "Total de Tiros de Meta" },
-
-            // Adicione outras tags fixas aqui conforme necessário
         };
 
-        // Dicionário de nomes de elementos fixos que você quer rastrear
-        public static readonly List<string> ElementNames = new()
-        {
-            ".registerOrLogin_closeButton",
-            "app-event-marketview",
-            // Adicione outros elementos fixos aqui conforme necessário
-        };
+        // Isolamento por thread usando ThreadLocal
+        private static readonly ThreadLocal<ConcurrentDictionary<int, string>> ThreadLocalTagNames =
+            new(() => new ConcurrentDictionary<int, string>(BaseTagNames));
 
-        // Método para capturar o código dinâmico do elemento
-        public static string CaptureElementCode(IWebElement element)
-        {
-            // Captura o código dinâmico a partir do atributo 'class' ou qualquer outra lógica necessária
-            string classAttribute = element.GetAttribute("class");
-            string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
-            return elementCode;
-        }
+        // Propriedade para acessar as tags isoladas por contexto
+        public static ConcurrentDictionary<int, string> TagNames => ThreadLocalTagNames.Value;
 
         // Método para adicionar tags dinâmicas com nomes de times
         public static void AddDynamicTags(string homeTeam, string awayTeam)
         {
-            // Lista de padrões de tags dinâmicas
+            if (string.IsNullOrWhiteSpace(homeTeam) || string.IsNullOrWhiteSpace(awayTeam))
+            {
+                throw new ArgumentException("Os nomes dos times não podem ser nulos ou vazios.");
+            }
+
             var dynamicTags = new Dictionary<int, string>
             {
                 { 18, $"{homeTeam} - Total de Faltas"},
@@ -65,17 +57,18 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 { 30, $"{awayTeam} - Total de Desarmes" },
                 { 32, $"{homeTeam} - Total de Tiros de Meta" },
                 { 33, $"{awayTeam} - Total de Tiros de Meta" },
-
             };
 
-            // Adicionar ao dicionário principal evitando duplicações
             foreach (var tag in dynamicTags)
             {
-                if (!TagNames.ContainsKey(tag.Key))
-                {
-                    TagNames.Add(tag.Key, tag.Value);
-                }
+                TagNames.AddOrUpdate(tag.Key, tag.Value, (key, existingValue) => tag.Value);
             }
+        }
+
+        // Método para resetar o contexto das tags (opcional, usado em finalizações ou depurações)
+        public static void ResetTags()
+        {
+            ThreadLocalTagNames.Value = new ConcurrentDictionary<int, string>(BaseTagNames);
         }
     }
 }

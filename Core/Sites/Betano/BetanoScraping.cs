@@ -448,7 +448,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
             var eventMarketViews = page.QuerySelectorAllAsync("div.markets div[data-marketid]").GetAwaiter().GetResult();
 
             // Lista de tags cadastradas que queremos buscar
-            var tagNames = BetanoTags.TagNames;
+            var tagNames = BetanoTags.GetThreadTagNames();
 
             // Lista para armazenar as apostas
             List<BetInfo> bets = new List<BetInfo>();
@@ -468,11 +468,11 @@ namespace BetSniffer.Api.Core.Sites.Betano
                     string tagName = tagElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
-                    if (BetanoTags.TagNames.Values.Any(tagList => tagList.Contains(tagName)))
+                    if (BetanoTags.GetThreadTagNames().Values.Any(tagList => tagList.Contains(tagName)))
                     {
                         string normalizedTagName = _teamService.NormalizeText(tagName);
 
-                        var matchingTag = BetanoTags.TagNames
+                        var matchingTag = BetanoTags.GetThreadTagNames()
                             .FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
 
                         if (matchingTag.Key == 0)
