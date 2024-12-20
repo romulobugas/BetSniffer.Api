@@ -2,6 +2,7 @@
 using BetSniffer.Api.Models;
 using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium;
+using PuppeteerSharp;
 
 namespace BetSniffer.Api.Core.Services
 {
@@ -137,7 +138,7 @@ namespace BetSniffer.Api.Core.Services
 
 
 
-        public void ClosePopup(IWebDriver driver, string popupSelector, int timeoutSeconds = 10)
+        public void ClosePopup(IWebDriver driver, string popupSelector, int timeoutSeconds = 10000)
         {
             try
             {
@@ -160,6 +161,59 @@ namespace BetSniffer.Api.Core.Services
                 Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
             }
         }
+
+        public void ClosePopup(IPage page, string popupSelector, int timeoutMilliseconds = 10000)
+        {
+            try
+            {
+                // Aguarda até o botão de fechar o pop-up aparecer
+                var closeButton = page.WaitForSelectorAsync(popupSelector, new WaitForSelectorOptions
+                {
+                    Timeout = timeoutMilliseconds,
+                    Visible = true // Garante que o elemento está visível
+                }).GetAwaiter().GetResult();
+
+                if (closeButton != null)
+                {
+                    Console.WriteLine("Botão de fechar pop-up encontrado.");
+
+                    // Verifica explicitamente se o elemento está no viewport
+                    page.EvaluateFunctionAsync("element => { const rect = element.getBoundingClientRect(); return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth); }", closeButton).GetAwaiter().GetResult();
+
+                    try
+                    {
+                        // Tenta clicar no botão diretamente
+                        closeButton.ClickAsync().GetAwaiter().GetResult();
+                        Console.WriteLine("Pop-up fechado com sucesso.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Erro ao clicar diretamente no botão: {ex.Message}");
+                        Console.WriteLine("Tentando clicar usando JavaScript...");
+
+                        // Clique via JavaScript como fallback
+                        page.EvaluateFunctionAsync("element => element.click()", closeButton).GetAwaiter().GetResult();
+                        Console.WriteLine("Pop-up fechado com sucesso (método alternativo).");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Botão de fechar pop-up não encontrado.");
+                }
+            }
+            catch (PuppeteerSharp.WaitTaskTimeoutException)
+            {
+                Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro inesperado ao tentar fechar o pop-up: {ex.Message}");
+            }
+        }
+
+
+
+
 
 
 

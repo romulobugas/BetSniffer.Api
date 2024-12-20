@@ -72,6 +72,10 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 throw new Exception("Iframe inicial não foi encontrado.");
             }
 
+            string popupSelector = ".overlay.new-message.visible .popup span.close";
+
+            _gameService.ClosePopup(page,popupSelector);
+
             // Captura a lista de jogos dentro do iframe
             var gameListSelector = "ul.match-list > li";
             var gameItems = iframe.QuerySelectorAllAsync(gameListSelector).GetAwaiter().GetResult();
@@ -261,34 +265,44 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 if (matchInfoElement == null)
                     throw new Exception("O elemento pai da estrutura 'match-info' não foi encontrado.");
 
-                // Captura o nome da liga e país no primeiro <p> e os elementos <span> internos
+                // Captura o primeiro <p> que contém as informações
                 var leagueElement = matchInfoElement.QuerySelectorAsync("p:first-child").GetAwaiter().GetResult();
 
                 if (leagueElement != null)
                 {
+                    // Captura todos os spans dentro do <p>
                     var spans = leagueElement.QuerySelectorAllAsync("span").GetAwaiter().GetResult();
 
-                    if (spans.Length >= 2)
+                    if (spans.Length > 1) // Certifique-se de que há pelo menos dois spans
                     {
-                        // Remove o prefixo "JSHandle:" caso exista nos valores capturados
-                        var countryRaw = spans[0].GetPropertyAsync("textContent").GetAwaiter().GetResult().ToString().Trim();
-                        var leagueRaw = spans[1].GetPropertyAsync("textContent").GetAwaiter().GetResult().ToString().Trim();
+                        // Captura o texto dos spans necessários e remove vírgulas no final
+                        var leagueParts = spans
+                            .Skip(1) // Ignorar o primeiro <span> (geralmente o ícone ou flag)
+                            .Select(span => span.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult())
+                            .Where(part => !string.IsNullOrWhiteSpace(part))
+                            .Select(part => part.TrimEnd(',')) // Remove vírgulas no final de cada parte
+                            .ToList();
 
-                        string country = countryRaw.Replace("JSHandle:", "").Trim();
-                        string league = leagueRaw.Replace("JSHandle:", "").Trim();
+                        // Junta os textos capturados em uma única string
+                        string currentLeagueName = string.Join(" ", leagueParts);
 
                         leagueName = "";
 
-                        leagueName = $"{country} {league}".Trim(); // Concatenação segura
+                        leagueName = currentLeagueName;
+
                         Console.WriteLine($"Liga: {leagueName}");
                     }
                     else
                     {
-                        throw new Exception("Não foi possível capturar as informações de país e liga.");
+                        throw new Exception("Não foi possível capturar as informações de liga.");
                     }
-
-
                 }
+                else
+                {
+                    throw new Exception("O elemento <p> com informações de liga não foi encontrado.");
+                }
+
+
 
                 // Captura o nome dos times no segundo <p>
                 var teamsElement = matchInfoElement.QuerySelectorAsync("p:nth-child(2)").GetAwaiter().GetResult();
@@ -362,7 +376,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             try
             {
                 // Remove o dia da semana para facilitar o parsing
-                string pattern = @"^\w+-feira, ";
+                string pattern = @"^\w+, ";
                 var cleanedDate = Regex.Replace(dateTimeText, pattern, "");
 
                 // Define o formato esperado para o texto de data e hora
@@ -400,6 +414,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
 
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
         }
+
 
 
 
