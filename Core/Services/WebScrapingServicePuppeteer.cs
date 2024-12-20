@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using PuppeteerSharp;
+using System.Linq;
 
 namespace BetSniffer.Api.Core.Services
 {
@@ -37,8 +38,9 @@ namespace BetSniffer.Api.Core.Services
                 }
             }).GetAwaiter().GetResult();
 
-            // Abre uma nova página
-            _page = _browser.NewPageAsync().GetAwaiter().GetResult();
+            // Obtém a primeira aba existente
+            var pages = _browser.PagesAsync().GetAwaiter().GetResult();
+            _page = pages.FirstOrDefault() ?? _browser.NewPageAsync().GetAwaiter().GetResult(); // Usa a aba existente ou cria uma nova
 
             // Obtém as dimensões completas da tela (tela disponível)
             var screenDimensions = _page.EvaluateFunctionAsync<Dictionary<string, int>>(@"
@@ -120,6 +122,169 @@ namespace BetSniffer.Api.Core.Services
                 throw;
             }
         }
+
+        public IFrame GetFrameBySelector(string selector, int timeoutMilliseconds = 10000)
+        {
+            try
+            {
+                var frameElement = WaitForElement(selector, timeoutMilliseconds);
+                return frameElement.ContentFrameAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao acessar o frame pelo seletor '{selector}': {ex.Message}");
+                throw;
+            }
+        }
+
+        public T ExecuteJavaScript<T>(string script, params object[] args)
+        {
+            try
+            {
+                return _page.EvaluateFunctionAsync<T>(script, args).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao executar JavaScript: {ex.Message}");
+                throw;
+            }
+        }
+
+        public void ScrollToElement(IFrame frame, IElementHandle element)
+        {
+            if (frame == null)
+                throw new ArgumentNullException(nameof(frame));
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+
+            // Usa o contexto correto do frame para executar o scroll
+            frame.EvaluateFunctionAsync(@"el => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }", element).GetAwaiter().GetResult();
+        }
+
+        public void ScrollToElement(IPage page, IElementHandle element)
+        {
+            if (page == null)
+                throw new ArgumentNullException(nameof(page));
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+
+            // Usa o contexto correto da página para executar o scroll
+            page.EvaluateFunctionAsync(@"el => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }", element).GetAwaiter().GetResult();
+        }
+
+
+
+        public void ClickWithJavaScript(IFrame frame, IElementHandle element)
+        {
+            if (frame == null)
+                throw new ArgumentNullException(nameof(frame));
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+
+            try
+            {
+                // Usa o contexto correto do frame para executar o clique
+                frame.EvaluateFunctionAsync("element => element.click()", element).GetAwaiter().GetResult();
+                Console.WriteLine("Clique realizado via JavaScript no contexto do iframe.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao clicar via JavaScript no iframe: {ex.Message}");
+                throw;
+            }
+        }
+
+        public void ClickWithJavaScript(IPage page, IElementHandle element)
+        {
+            if (page == null)
+                throw new ArgumentNullException(nameof(page));
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+
+            try
+            {
+                // Usa o contexto correto da página para executar o clique
+                page.EvaluateFunctionAsync("element => element.click()", element).GetAwaiter().GetResult();
+                Console.WriteLine("Clique realizado via JavaScript no contexto da página.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao clicar via JavaScript na página: {ex.Message}");
+                throw;
+            }
+        }
+
+
+        public List<IFrame> GetAllFrames()
+        {
+            return _page.Frames.ToList();
+        }
+
+        public string GetFrameContent(IFrame frame)
+        {
+            return frame.GetContentAsync().GetAwaiter().GetResult();
+        }
+
+        public IFrame NavigateAndReturnFrame(string url, string frameSelector)
+        {
+            NavigateTo(url);
+            return GetFrameBySelector(frameSelector);
+        }
+
+        public IFrame ClickAndWaitForNewFrame(IFrame frame, IElementHandle element, string newFrameSelector, int timeout = 20000)
+        {
+            if (frame == null)
+                throw new ArgumentNullException(nameof(frame));
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+
+            // Realiza o clique no contexto do frame
+            ClickWithJavaScript(frame, element);
+
+            System.Threading.Thread.Sleep(1000); // Aguarda um pouco antes de verificar os frames
+
+            // Retorna o novo frame pelo seletor
+            return GetFrameBySelector(newFrameSelector, timeout);
+        }
+
+        public IFrame ClickAndWaitForNewFrame(IPage page, IElementHandle element, string newFrameSelector, int timeout = 20000)
+        {
+            if (page == null)
+                throw new ArgumentNullException(nameof(page));
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+
+            // Realiza o clique no contexto da página
+            ClickWithJavaScript(page, element);
+
+            System.Threading.Thread.Sleep(1000); // Aguarda um pouco antes de verificar os frames
+
+            // Retorna o novo frame pelo seletor
+            return GetFrameBySelector(newFrameSelector, timeout);
+        }
+
+        public void GoBack()
+        {
+            try
+            {
+                Console.WriteLine("Voltando no histórico da página principal...");
+                _page.GoBackAsync().GetAwaiter().GetResult();
+                System.Threading.Thread.Sleep(2000); // Pausa para garantir o carregamento
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao voltar à página anterior: {ex.Message}");
+                throw;
+            }
+        }
+
+
+
+
 
         public void Dispose()
         {
