@@ -27,6 +27,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         private readonly GameService _gameService;
         private readonly WebScrapingServiceSelenium _webScrapingService;
 
+        private readonly ILogService _logService;
+
         #endregion
 
         public NovibetScraping(
@@ -43,6 +45,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             _gameService = new GameService(_dbContext);
             _webScrapingService = new WebScrapingServiceSelenium(); // Inicializa o serviço de scraping
             _webScrapingService.Initialize(); // Configura o WebDriver
+
+            // Inicializa o serviço de log diretamente
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            _logService = new LogService(configuration);
         }
 
         // Método para fazer o scraping e retornar as tags e apostas encontradas
@@ -546,7 +556,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                     b.TagId == bet.TagId &&
                                     b.Site.SiteId == bet.Site.SiteId).ToList();
 
-                                if (existingBet != null)
+                                if (existingBet.Count != 0)
                                 {
                                     // **Deletar apostas duplicadas que já estão no banco**
                                     Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");

@@ -36,6 +36,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
         private WebScrapingServicePuppeteer _webScrapingService;
 
+        private readonly ILogService _logService;
+
         #endregion
 
         public BetanoScraping(
@@ -49,6 +51,14 @@ namespace BetSniffer.Api.Core.Sites.Betano
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
             _gameService = new GameService(_dbContext);
+
+            // Inicializa o serviço de log diretamente
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            _logService = new LogService(configuration);
         }
 
         public List<TagInfo> ScrapeTags(string url, string siteName)
@@ -592,7 +602,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 b.TagId == bet.TagId &&
                                 b.Site.SiteId == bet.Site.SiteId).ToList();
 
-                            if (existingBet != null)
+                            if (existingBet.Count != 0)
                             {
                                 // **Deletar apostas duplicadas que já estão no banco**
                                 Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");
@@ -615,6 +625,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Erro ao processar o mercado: {ex.Message}");
+                    _logService.LogError("Erro ao processar opção de aposta: ", ex);
                 }
             }
         }
