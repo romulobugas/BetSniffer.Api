@@ -92,8 +92,8 @@ namespace BetSniffer.Api
                 return siteName.ToLower() switch
                 {
                     //"novibet" => new NovibetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                    //"parimatch" => new Parimatchcraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                    "bet365" => new Bet365Scraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    //"vbet" => new VbetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                    //"bet365" => new Bet365Scraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
                     _ => throw new ArgumentException($"Serviço de scraping para o site {siteName} não encontrado.")
                 };
             });

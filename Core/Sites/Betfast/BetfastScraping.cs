@@ -5,6 +5,7 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Betano;
+using Microsoft.OpenApi.Services;
 
 namespace BetSniffer.Api.Core.Sites.Betfast
 {
@@ -28,6 +29,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
         private WebScrapingServicePuppeteer _webScrapingService;
+        private readonly ILogService _logService;
 
         #endregion
 
@@ -35,13 +37,22 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             ApplicationDbContext dbContext,
             TeamService teamService,
             IRepositoryService<GamesInfo> gamesInfoRepository,
-            IRepositoryService<BetInfo> betInfoRepository)
+            IRepositoryService<BetInfo> betInfoRepository
+            )
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
             _gameService = new GameService(_dbContext);
+
+            // Inicializa o serviço de log diretamente
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            _logService = new LogService(configuration);
         }
 
         public List<TagInfo> ScrapeTags(string url, string siteName)
@@ -141,7 +152,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                     g.Site.SiteId == site.SiteId);
 
                 if (existingGame != null)
-                {
+                {                    
                     gamesInfo = existingGame;
                     gamesInfo.Status = 1;
                     gamesInfo.LastUpdated = DateTime.Now;
@@ -364,6 +375,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao processar informações do jogo: {ex.Message}");
+                _logService.LogError("Erro ao processar informações do jogo: ", ex);
             }
         }
 
@@ -376,29 +388,27 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             try
             {
                 // Remove o dia da semana para facilitar o parsing
-                string pattern = @"^\w+, ";
-                var cleanedDate = Regex.Replace(dateTimeText, pattern, "");
+                string pattern = @"^[a-zA-ZÀ-ÿ\-]+, ";
+                var cleanedDate = Regex.Replace(dateTimeText, pattern, "").Trim();
 
                 // Define o formato esperado para o texto de data e hora
-                const string format = "d MMMM HH:mm yyyy"; // Formato ajustado sem o dia da semana
+                const string format = "d MMMM HH:mm yyyy"; // Formato sem o dia da semana
 
                 // Adiciona o ano atual à string de data
                 var currentYear = DateTime.Now.Year;
                 var fullDateTimeText = $"{cleanedDate} {currentYear}";
 
-                // Tenta parsear a string usando o formato esperado e a cultura pt-BR
-                if (DateTime.TryParseExact(fullDateTimeText, format,
-                        System.Globalization.CultureInfo.GetCultureInfo("pt-BR"),
-                        System.Globalization.DateTimeStyles.None, out var parsedDateTime))
+                // Força a cultura "pt-BR" para parsing correto do mês por extenso
+                var culture = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+                // Tenta parsear a string usando o formato esperado
+                if (DateTime.TryParseExact(fullDateTimeText, format, culture, System.Globalization.DateTimeStyles.None, out var parsedDateTime))
                 {
                     // Se a data está no passado, ajusta para o próximo ano
                     if (parsedDateTime < DateTime.Now)
                     {
                         fullDateTimeText = $"{cleanedDate} {currentYear + 1}";
-
-                        if (DateTime.TryParseExact(fullDateTimeText, format,
-                                System.Globalization.CultureInfo.GetCultureInfo("pt-BR"),
-                                System.Globalization.DateTimeStyles.None, out var nextYearParsed))
+                        if (DateTime.TryParseExact(fullDateTimeText, format, culture, System.Globalization.DateTimeStyles.None, out var nextYearParsed))
                         {
                             return nextYearParsed;
                         }
@@ -414,6 +424,8 @@ namespace BetSniffer.Api.Core.Sites.Betfast
 
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
         }
+
+
 
 
 
@@ -603,7 +615,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
 
             // Lista de tags cadastradas que queremos buscar
             var tagNames = BetfastTags.TagNames;
-            List<BetInfo> currentBets = new List<BetInfo>();
+            
 
             foreach (var marketContainer in marketContainers)
             {
@@ -683,9 +695,13 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                     }
 
                     Console.WriteLine($"Opções de aposta encontradas: {finalBetOptions.Length}");
+                    
+                    List<BetInfo> currentBets = new List<BetInfo>();
 
                     foreach (var betOption in finalBetOptions)
                     {
+                        
+
                         try
                         {
                             // Captura o nome da aposta (Ex: "Acima (2.5)" ou "Abaixo (2.5)")
@@ -760,7 +776,15 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                         catch (Exception ex)
                         {
                             Console.WriteLine($"Erro ao processar opção de aposta: {ex.Message}");
-                        }
+                            _logService.LogError("Erro ao processar opção de aposta: ", ex);
+                        }                        
+
+                    }
+
+                    // Salva as apostas no banco de dados
+                    if (currentBets.Any())
+                    {
+                        SaveBets(currentBets);
                     }
                 }
                 catch (Exception ex)
@@ -769,11 +793,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 }
             }
 
-            // Salva as apostas no banco de dados
-            if (currentBets.Any())
-            {
-                SaveBets(currentBets);
-            }
+            
         }
 
         private void SaveBets(List<BetInfo> bets)
@@ -795,7 +815,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                                     b.TagId == betKey.TagId &&
                                     b.Site.SiteId == betKey.Site.SiteId).ToList();
 
-                if (existingBets != null)
+                if (existingBets.Count > 0)
                 {
                     // **Deletar apostas duplicadas que já estão no banco**
                     Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");

@@ -27,6 +27,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
+        private readonly ILogService _logService;
 
         #endregion
 
@@ -38,6 +39,14 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
             _webScrapingService = new WebScrapingServiceSelenium(); // Inicializa o serviço de scraping
             _webScrapingService.Initialize(); // Configura o WebDriver
+
+            // Inicializa o serviço de log diretamente
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            _logService = new LogService(configuration);
         }
 
         public List<TagInfo> ScrapeTags(string url, string siteName)
@@ -520,6 +529,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao processar mercado: {ex.Message}");
+                _logService.LogError("Erro ao processar opção de aposta: ", ex);
             }
         }
 
