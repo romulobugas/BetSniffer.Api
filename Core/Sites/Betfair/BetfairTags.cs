@@ -16,7 +16,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             { 1, new List<string> { "Total de escanteios" } },
             { 8, new List<string> { "Total de escanteios time da casa" } },
             { 9, new List<string> { "Total de escanteios time de fora" } },
-            { 2, new List<string> { "Total de cartões" } },
+            { 2, new List<string> { "Mais/Menos Cartões" } },
             { 3, new List<string> { "Total de chutes" } },
             { 4, new List<string> { "Chutes a gol total" } },
             { 7, new List<string> { "Total de impedimentos" } },

@@ -116,6 +116,12 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             _dbContext.SaveChanges();
 
+
+            ProcessTabsAndMarketViews(page);
+
+
+
+
             Console.WriteLine("Processo de raspagem concluído.");
             _webScrapingService.Dispose();
 
@@ -296,9 +302,6 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             }
         }
 
-
-
-
         private DateTime ParseGameDateTime(string dateTimeText)
         {
             if (string.IsNullOrWhiteSpace(dateTimeText))
@@ -344,15 +347,6 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
         }
 
-
-
-
-
-
-
-
-
-
         private DateTime ParseCustomDate(string dayText)
         {
             var match = Regex.Match(dayText, @"(\d+)\s+de\s+(\w+)", RegexOptions.IgnoreCase);
@@ -384,14 +378,12 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             return months[monthName];
         }
 
-        private void ProcessTabsAndMarketViews(IFrame iframe)
+        private void ProcessTabsAndMarketViews(IPage page)
         {
-            var ignoredTabs = new HashSet<string> { "Criar Aposta" }; // Abas ignoradas
+            var ignoredTabs = new HashSet<string> { "Criar Aposta", "Popular", "Jogador", "Todos os mercados" }; // Abas ignoradas
             var processedTabs = new HashSet<string>(); // Rastreia abas já processadas
-            var marketCategoriesSelector = "div.categories-wrapper div.market-categories > ul > li";
-            var rightArrowSelector = "div.mi-right-arrow";
-
-            System.Threading.Thread.Sleep(new Random().Next(625, 1684)); // Pequena pausa inicial
+            var marketCategoriesSelector = "div[role='tablist'] button"; // Ajuste o seletor para capturar abas relevantes
+            var rightArrowSelector = "div.swiper-button-next"; // Exemplo de seta para navegação
 
             try
             {
@@ -402,10 +394,16 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     try
                     {
                         // Captura as abas visíveis
-                        var tabs = iframe.QuerySelectorAllAsync(marketCategoriesSelector).GetAwaiter().GetResult();
+                        var tabs = page.QuerySelectorAllAsync(marketCategoriesSelector).GetAwaiter().GetResult();
 
-                        bool allTabsProcessed = true; // Assume que todas as abas estão processadas
-                        bool retryRightArrow = false; // Tenta clicar no botão da direita se necessário
+                        if (tabs == null || !tabs.Any())
+                        {
+                            Console.WriteLine("Nenhuma aba encontrada.");
+                            break;
+                        }
+
+                        bool allTabsProcessed = true;
+                        bool retryRightArrow = false;
 
                         foreach (var tab in tabs)
                         {
@@ -454,7 +452,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 if (!clicked)
                                 {
                                     Console.WriteLine($"Não foi possível clicar na aba '{tabName}' após 3 tentativas.");
-                                    allTabsProcessed = false; // Não processou todas as abas
+                                    allTabsProcessed = false;
                                     continue;
                                 }
 
@@ -462,15 +460,98 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 processedTabs.Add(tabName);
 
                                 // Aguarda mercados carregarem
-                                var marketsLoaded = iframe.WaitForSelectorAsync("div.markets", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
+                                var marketsLoaded = page.WaitForSelectorAsync("div[role='tabpanel']", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
                                 if (marketsLoaded == null)
                                 {
                                     Console.WriteLine("Nenhum mercado foi carregado para a aba selecionada.");
                                     continue;
                                 }
 
-                                // Processa os mercados visíveis
-                                ProcessMarketViews(iframe);
+                                // Lista todos os tabpanels
+                                var allTabPanels = page.QuerySelectorAllAsync("div[role='tabpanel']").GetAwaiter().GetResult();
+                                if (allTabPanels == null || !allTabPanels.Any())
+                                {
+                                    Console.WriteLine("Nenhum tabpanel encontrado.");
+                                    return;
+                                }
+
+                                // Depuração: listar todos os tabpanels encontrados
+                                foreach (var panel in allTabPanels)
+                                {
+                                    var sectionCountDebug = panel.QuerySelectorAllAsync("section").GetAwaiter().GetResult().Length;
+                                    Console.WriteLine($"TabPanel encontrado - Sections: {sectionCountDebug}");
+                                }
+
+                                // Filtra o tabpanel correto baseado no número de sections
+                                var correctTabPanel = allTabPanels.FirstOrDefault(panel =>
+                                {
+                                    try
+                                    {
+                                        // Verifica se há 'section' filhos dentro do painel
+                                        var sections = panel.QuerySelectorAllAsync("section").GetAwaiter().GetResult();
+
+                                        // Critério: 'section' deve estar ausente (ou 0 no total)
+                                        return sections == null || sections.Length == 0;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"Erro ao verificar tabpanel: {ex.Message}");
+                                        return false;
+                                    }
+                                });
+
+                                if (correctTabPanel == null)
+                                {
+                                    Console.WriteLine("Nenhum tabpanel correspondente foi encontrado.");
+                                    return;
+                                }
+
+                                Console.WriteLine("Tabpanel correspondente encontrado.");
+
+                                // Processa o tabpanel correto
+                                var marketContainers = correctTabPanel.QuerySelectorAllAsync("div[data-urn]").GetAwaiter().GetResult();
+
+                                if (marketContainers != null && marketContainers.Any())
+                                {
+                                    foreach (var market in marketContainers)
+                                    {
+                                        try
+                                        {
+                                            // Verifica se o botão de "Ver mais" está presente e clica
+                                            var viewMoreButton = market.QuerySelectorAsync("button:contains('Mostrar mais')").GetAwaiter().GetResult();
+                                            if (viewMoreButton != null)
+                                            {
+                                                viewMoreButton.ClickAsync().GetAwaiter().GetResult();
+                                                System.Threading.Thread.Sleep(new Random().Next(400, 800));
+                                            }
+
+                                            // Verifica se o mercado está fechado e clica para abrir, se necessário
+                                            var collapseState = market.QuerySelectorAsync("span[class*='collapse-chevron-closed']").GetAwaiter().GetResult();
+                                            if (collapseState != null)
+                                            {
+                                                var toggleButton = market.QuerySelectorAsync("button[aria-expanded='false']").GetAwaiter().GetResult();
+                                                if (toggleButton != null)
+                                                {
+                                                    toggleButton.ClickAsync().GetAwaiter().GetResult();
+                                                    System.Threading.Thread.Sleep(new Random().Next(400, 800));
+                                                }
+                                            }
+
+                                            // Passa o mercado para o ProcessMarketViews
+                                            Console.WriteLine("Chamando ProcessMarketViews para o mercado identificado.");
+                                            //ProcessMarketViews(page, market);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine($"Erro ao processar mercado: {ex.Message}");
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Nenhum mercado principal encontrado.");
+                                }
+
                             }
                             catch (Exception ex)
                             {
@@ -488,7 +569,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         else if (retryRightArrow)
                         {
                             // Tenta clicar no botão da direita
-                            var nextButton = iframe.QuerySelectorAsync(rightArrowSelector).GetAwaiter().GetResult();
+                            var nextButton = page.QuerySelectorAsync(rightArrowSelector).GetAwaiter().GetResult();
                             if (nextButton != null)
                             {
                                 Console.WriteLine("Tentando clicar na seta para a direita...");
@@ -505,7 +586,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Erro ao processar abas: {ex.Message}");
-                        finished = true; // Finaliza o processamento em caso de erro crítico
+                        finished = true;
                     }
                 }
 
@@ -516,6 +597,12 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 Console.WriteLine($"Erro ao localizar o contêiner de abas: {ex.Message}");
             }
         }
+
+
+
+
+
+
 
         private void ProcessMarketViews(IFrame iframe)
         {
