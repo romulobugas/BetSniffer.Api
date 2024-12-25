@@ -7,7 +7,8 @@
             "novibet",
             "betfast",
             "betano",
-            "vbet"
+            "vbet",
+            "betfair"
             // Adicione outros sites conforme necessário
         };
 
