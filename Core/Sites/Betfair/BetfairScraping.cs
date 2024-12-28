@@ -317,54 +317,55 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             try
             {
-                // Normaliza o texto: remove vírgulas e pontos desnecessários
-                var cleanedDateTimeText = dateTimeText.Replace(",", " ").Trim();
-
                 // Cultura brasileira para meses em português
                 var culture = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
                 var currentYear = DateTime.Now.Year;
 
                 // Verifica se o formato contém "Hoje" ou "Amanhã"
-                if (cleanedDateTimeText.StartsWith("Hoje", StringComparison.OrdinalIgnoreCase))
+                if (dateTimeText.StartsWith("Hoje", StringComparison.OrdinalIgnoreCase))
                 {
-                    var timePart = cleanedDateTimeText.Replace("Hoje", "").Trim();
+                    var timePart = dateTimeText.Replace("Hoje", "").Replace(",","").Trim();
+
                     if (DateTime.TryParseExact(timePart, "HH:mm", culture, System.Globalization.DateTimeStyles.None, out var parsedTime))
                     {
                         return DateTime.Today.AddHours(parsedTime.Hour).AddMinutes(parsedTime.Minute);
                     }
                 }
-                else if (cleanedDateTimeText.StartsWith("Amanhã", StringComparison.OrdinalIgnoreCase))
+                else if (dateTimeText.StartsWith("Amanhã", StringComparison.OrdinalIgnoreCase))
                 {
-                    var timePart = cleanedDateTimeText.Replace("Amanhã", "").Trim();
+                    var timePart = dateTimeText.Replace("Amanhã", "").Replace(",", "").Trim();
                     if (DateTime.TryParseExact(timePart, "HH:mm", culture, System.Globalization.DateTimeStyles.None, out var parsedTime))
                     {
                         return DateTime.Today.AddDays(1).AddHours(parsedTime.Hour).AddMinutes(parsedTime.Minute);
                     }
                 }
 
-                // Para formatos como "17 de Mai 17:15"
-                cleanedDateTimeText = System.Text.RegularExpressions.Regex.Replace(cleanedDateTimeText, @"(\d{1,2} de \w{3})(\d{2}:\d{2})", "$1 $2");
-
-                // Define o formato esperado
-                const string format = "d 'de' MMM HH:mm yyyy";
-
-                // Adiciona o ano atual
-                var fullDateTimeText = $"{cleanedDateTimeText} {currentYear}";
-
-                // Tenta fazer o parsing
-                if (DateTime.TryParseExact(fullDateTimeText, format, culture, System.Globalization.DateTimeStyles.None, out var parsedDateTime))
+                // Para formatos como "28 de dez.,17:30" ou "17 de Mai 17:15"
+                var monthMappings = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
                 {
-                    // Ajusta para o próximo ano se a data estiver no passado
-                    if (parsedDateTime < DateTime.Now)
-                    {
-                        fullDateTimeText = $"{cleanedDateTimeText} {currentYear + 1}";
-                        if (DateTime.TryParseExact(fullDateTimeText, format, culture, System.Globalization.DateTimeStyles.None, out var nextYearParsed))
-                        {
-                            return nextYearParsed;
-                        }
-                    }
+                    { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 }, { "mai", 5 }, { "jun", 6 },
+                    { "jul", 7 }, { "ago", 8 }, { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 }
+                };
 
-                    return parsedDateTime;
+                // Divide a string e extrai dia, mês e hora
+                var parts = dateTimeText.Split(new[] { ' ', ',', '.' }, StringSplitOptions.RemoveEmptyEntries);
+
+                if (parts.Length >= 3 && int.TryParse(parts[0], out var day) && monthMappings.TryGetValue(parts[2], out var month))
+                {
+                    var timePart = parts[^1]; // Última parte deve ser o horário (HH:mm)
+
+                    if (DateTime.TryParseExact(timePart, "HH:mm", culture, System.Globalization.DateTimeStyles.None, out var parsedTime))
+                    {
+                        var parsedDate = new DateTime(currentYear, month, day, parsedTime.Hour, parsedTime.Minute, 0);
+
+                        // Ajusta para o próximo ano se a data estiver no passado
+                        if (parsedDate < DateTime.Now)
+                        {
+                            parsedDate = parsedDate.AddYears(1);
+                        }
+
+                        return parsedDate;
+                    }
                 }
             }
             catch (Exception ex)
@@ -374,6 +375,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
         }
+
 
 
         private DateTime ParseCustomDate(string dayText)
@@ -618,7 +620,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                     {
                                                         Console.WriteLine($"Clicando no submercado: {buttonText}");
                                                         subMarketButton.ClickAsync().GetAwaiter().GetResult();
-                                                        System.Threading.Thread.Sleep(new Random().Next(400, 800));
+                                                        System.Threading.Thread.Sleep(new Random().Next(51, 820));
                                                         Console.WriteLine($"Submercado '{buttonText}' clicado.");
 
                                                         // Verifica se o botão de "Mostrar mais" está presente e clica
