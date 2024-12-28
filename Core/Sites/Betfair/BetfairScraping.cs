@@ -289,6 +289,13 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                     homeTeam = homeTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                     awayTeam = awayTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                    if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam)) 
+                    {
+                        _logService.Log($"Um dos times está vazio - Times: {homeTeam} vs {awayTeam} em {gameDateTime}");
+                        throw new Exception($"Um dos times está vazio - Times: {homeTeam} vs {awayTeam} em {gameDateTime}");
+                    }
+
                     Console.WriteLine($"Times: {homeTeam} vs {awayTeam}");
                 }
                 else
@@ -409,7 +416,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             try
             {
-                bool finished = false;                
+                bool finished = false;
 
                 while (!finished)
                 {
@@ -557,12 +564,34 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 // Processa mercados principais dentro do tabpanel correto
                                 var marketContainers = correctTabPanel.QuerySelectorAllAsync("div[data-urn]").GetAwaiter().GetResult();
 
+                                // Lista de tags cadastradas que queremos buscar
+                                var tagNames = BetfairTags.TagNames;
+
                                 if (marketContainers != null && marketContainers.Any())
                                 {
                                     foreach (var market in marketContainers)
                                     {
                                         try
                                         {
+                                            // Captura o título do mercado (nome do mercado)
+                                            var marketTitleElement = market.QuerySelectorAsync("div > div > div > button[aria-expanded='true']").GetAwaiter().GetResult(); // Ajuste o seletor conforme necessário
+                                            var marketTitle = marketTitleElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                                            if (string.IsNullOrEmpty(marketTitle))
+                                            {
+                                                Console.WriteLine("Título do mercado não encontrado.");
+                                                continue; // Ignora o mercado atual
+                                            }
+
+                                            // Normaliza o título do mercado
+                                            string normalizedMarketTitle = _teamService.NormalizeText(marketTitle);
+
+                                            // Verifica se o título está na lista de tags permitidas
+                                            if (!tagNames.Values.Any(tagList => tagList.Any(tag => _teamService.NormalizeText(tag) == normalizedMarketTitle)))
+                                            {
+                                                Console.WriteLine($"Mercado ignorado: {marketTitle}");
+                                                continue;
+                                            }
 
                                             // Verifica se o mercado está fechado e clica para abrir, se necessário
                                             var collapseState = market.QuerySelectorAsync("span[class*='collapse-chevron-closed']").GetAwaiter().GetResult();
@@ -576,57 +605,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                 }
                                             }
 
-
-                                            // Verifica se o botão de "Mostrar mais" está presente e clica
-                                            var buttons = market.QuerySelectorAllAsync("button").GetAwaiter().GetResult();
-                                            if (buttons != null && buttons.Any())
-                                            {
-                                                foreach (var button in buttons)
-                                                {
-                                                    try
-                                                    {
-                                                        var buttonText = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                                                        if (buttonText == "Mostrar mais")
-                                                        {
-                                                            button.ClickAsync().GetAwaiter().GetResult();
-                                                            System.Threading.Thread.Sleep(new Random().Next(845, 1627));
-                                                            Console.WriteLine("Botão 'Mostrar mais' clicado com sucesso.");
-                                                            break;
-                                                        }
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        Console.WriteLine($"Erro ao verificar botão: {ex.Message}");
-                                                    }
-                                                }
-                                            }
-                                            else
-                                            {
-                                                Console.WriteLine("Nenhum botão encontrado no mercado.");
-                                            }                                            
-
-                                            // Captura o título do mercado (nome do mercado)
-                                            var marketTitleElement = market.QuerySelectorAsync("div > div > div > button[aria-expanded='true']").GetAwaiter().GetResult(); // Ajuste o seletor conforme necessário
-                                            var marketTitle = marketTitleElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                                            if (string.IsNullOrEmpty(marketTitle))
-                                            {
-                                                Console.WriteLine("Título do mercado não encontrado.");
-                                                return; // Ignora o mercado atual
-                                            }
-
-                                            // Normaliza o título do mercado
-                                            string normalizedMarketTitle = marketTitle.ToLowerInvariant();
-
-                                            // Verifica se o título do mercado está na lista de tags relevantes
-                                            bool isRelevantMarket = BetfairTags.TagNames.Values
-                                                .Any(tagList => tagList.Any(tag => tag.ToLowerInvariant() == normalizedMarketTitle));
-
-                                            if (!isRelevantMarket)
-                                            {
-                                                Console.WriteLine($"Mercado ignorado: {marketTitle}");
-                                                return; // Ignora mercados não relevantes
-                                            }
+                                            
 
                                             // Verifica se existem submercados como "Casa", "Fora", etc.
                                             var subMarketButtons = market.QuerySelectorAllAsync("button").GetAwaiter().GetResult();
@@ -642,16 +621,52 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                         System.Threading.Thread.Sleep(new Random().Next(400, 800));
                                                         Console.WriteLine($"Submercado '{buttonText}' clicado.");
 
+                                                        // Verifica se o botão de "Mostrar mais" está presente e clica
+                                                        var buttons = market.QuerySelectorAllAsync("button").GetAwaiter().GetResult();
+                                                        if (buttons != null && buttons.Any())
+                                                        {
+                                                            foreach (var button in buttons)
+                                                            {
+                                                                try
+                                                                {
+                                                                    var buttonTextExpanded = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                                                    if (buttonTextExpanded == "Mostrar mais")
+                                                                    {
+                                                                        button.ClickAsync().GetAwaiter().GetResult();
+                                                                        System.Threading.Thread.Sleep(new Random().Next(845, 1627));
+                                                                        Console.WriteLine("Botão 'Mostrar mais' clicado com sucesso.");
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                catch (Exception ex)
+                                                                {
+                                                                    Console.WriteLine($"Erro ao verificar botão: {ex.Message}");
+                                                                }
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            Console.WriteLine("Nenhum botão encontrado no mercado.");
+                                                        }
+
+                                                        if(buttonText != "Casa" && buttonText != "Fora")
+                                                        {
+                                                            buttonText = "";
+                                                        }
+                                                        
+
+
+
                                                         // Processa o mercado após o clique
-                                                        ProcessMarketViews(market);
+                                                        ProcessMarketViews(market, buttonText);
                                                     }
                                                 }
                                             }
-                                            else 
+                                            else
                                             {
                                                 // Processa o mercado geral
                                                 Console.WriteLine("Processando mercado geral.");
-                                                ProcessMarketViews(market);
+                                                ProcessMarketViews(market, "");
                                             }
                                         }
                                         catch (Exception ex)
@@ -710,14 +725,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             }
         }
 
-
-
-
-
-
-
-
-        private void ProcessMarketViews(IElementHandle market)
+        private void ProcessMarketViews(IElementHandle market, string buttonText)
         {
             try
             {
@@ -734,18 +742,28 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                 var marketTitle = titleElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
 
-                // Recupera o ID da tag associada
-                string normalizedTagName = _teamService.NormalizeText(marketTitle);
-                var matchingTag = BetfairTags.TagNames.FirstOrDefault(tag =>
-                    tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
+                // Recupera a lista de tags
+                var tagNames = BetfairTags.TagNames;
+
+                marketTitle = marketTitle + " " + buttonText;
+
+                marketTitle = _teamService.NormalizeText(marketTitle);
+
+                // Filtra as tags que combinam com o título do mercado e o botão (Casa/Fora) ou mercado geral
+                var matchingTag = tagNames.FirstOrDefault(tag =>
+                    tag.Value.Any(tagValue =>
+                        _teamService.NormalizeText(tagValue) == marketTitle));
 
                 if (matchingTag.Key == 0)
                 {
-                    Console.WriteLine($"Tag não encontrada: {marketTitle}");
+                    Console.WriteLine($"Tag não encontrada: {marketTitle} {(string.IsNullOrEmpty(buttonText) ? "" : $"({buttonText})")}");
                     return;
                 }
 
                 int tagId = matchingTag.Key;
+
+                // Processamento adicional do mercado com o `tagId` encontrado
+                Console.WriteLine($"Processando mercado: {marketTitle} {(string.IsNullOrEmpty(buttonText) ? "" : $"({buttonText})")} com Tag ID: {tagId}");
 
                 // Captura todas as linhas de apostas baseadas na estrutura correta
                 var betRows = market.QuerySelectorAllAsync("div > div > div") // Captura os possíveis contêineres de linhas
@@ -801,17 +819,19 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                             continue;
                         }
 
-                        // Extrai o valor numérico do nome da aposta (ex: "0,5 gols" -> "0.5")
-                        var match = Regex.Match(betName, @"\d+,\d+");
+                        // Extrai o valor numérico do nome da aposta (ex: "1.5 Cartões", "0,5 gols", "4,5 escanteios")
+                        var match = Regex.Match(betName, @"\d+[.,]?\d*");
                         if (!match.Success)
                         {
                             Console.WriteLine($"Formato de nome de aposta inesperado: {betName}");
                             continue;
                         }
 
+                        // Converte o valor numérico para o formato com ponto como separador decimal
                         var numericBetName = match.Value.Replace(",", ".");
 
-                        Console.WriteLine($"Nome da aposta processado: {numericBetName}");
+                        Console.WriteLine($"Valor numérico extraído: {numericBetName}");
+
 
                         // Captura os botões de odds ("Mais de" e "Menos de") na linha
                         var oddButtons = betRow.QuerySelectorAllAsync("button").GetAwaiter().GetResult();

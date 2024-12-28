@@ -11,8 +11,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
         private static readonly Dictionary<int, List<string>> BaseTagNames = new()
         {
             { 6, new List<string> { "Mais/menos gols" } },
-            { 20, new List<string> { "Gols por equipe", "Casa" } },
-            { 21, new List<string> { "Gols por equipe", "Fora" } },
+            { 20, new List<string> { "Gols por equipe Casa", "Gols por equipe" } },
+            { 21, new List<string> { "Gols por equipe Fora", "Gols por equipe" } },
             { 1, new List<string> { "Total de escanteios" } },
             { 8, new List<string> { "Total de escanteios time da casa" } },
             { 9, new List<string> { "Total de escanteios time de fora" } },
