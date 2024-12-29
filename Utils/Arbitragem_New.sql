@@ -84,10 +84,12 @@ JOIN
 JOIN 
     Teams t2 ON g1.AwayTeamId = t2.TeamId
 WHERE 
-    (b1.OverUnder <> b2.OverUnder)
+    ((b1.OverUnder <> b2.OverUnder AND b1.BetAmount = b2.BetAmount)
+    or (b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de' AND b1.BetAmount <= b2.BetAmount)
+    or (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de' AND b1.BetAmount >= b2.BetAmount))
     AND g1.GameDate >= GETDATE()
     AND b1.TagId = b2.TagId
-    AND b1.BetAmount = b2.BetAmount
+    
     and (ROUND(
         (((ROUND((500 * b2.Multiplier) / (b1.Multiplier + b2.Multiplier), 2) * b1.Multiplier + 
            ROUND((500 * b1.Multiplier) / (b1.Multiplier + b2.Multiplier), 2) * b2.Multiplier) / 2) - 500) / 500 * 100,
