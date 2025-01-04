@@ -466,7 +466,10 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 {
                                     try
                                     {
-                                        tab.ClickAsync().GetAwaiter().GetResult();
+                                        tab.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
+                                        tab.FocusAsync().GetAwaiter().GetResult(); // Garante o foco no elemento ou aba
+                                        page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
+
                                         System.Threading.Thread.Sleep(new Random().Next(421, 684)); // Pequena pausa
                                         clicked = true;
                                         Console.WriteLine($"Aba '{tabName}' clicada com sucesso.");
