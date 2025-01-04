@@ -6,6 +6,7 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi.Services;
+using PuppeteerSharp;
 
 namespace BetSniffer.Api.Core.Sites.Vbet
 {
@@ -66,6 +67,10 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             // Aguarda o carregamento inicial da página
             _webScrapingService.WaitForElement("div.game-details-section");
 
+            var _driver = _webScrapingService.GetWebDriver();
+
+            CloseAgeVerificationPopup(_driver);
+
             // Coleta informações do jogo
             ExtractGameInfo();
 
@@ -104,6 +109,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                 _dbContext.GamesInfo.Add(gamesInfo);
             }
 
+            _dbContext.SaveChanges();
 
             // Processa todas as abas disponíveis
             ProcessTabsAndMarketViews();
@@ -121,6 +127,46 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             Console.WriteLine($"Novo site adicionado: {siteName}");
             return site;
         }
+
+        public void CloseAgeVerificationPopup(IWebDriver _driver)
+        {
+            try
+            {
+                // Localiza todos os elementos com a classe "popup-holder-bc"
+                var popupHolders = _driver.FindElements(By.ClassName("popup-holder-bc"));
+
+                // Filtra apenas os popups visíveis
+                var visiblePopup = popupHolders.FirstOrDefault(popup =>
+                    popup.Displayed && !popup.GetAttribute("class").Contains("hidden"));
+
+                if (visiblePopup == null)
+                {
+                    Console.WriteLine("Nenhum popup visível encontrado.");
+                    return; // Sai da função se nenhum popup visível for encontrado
+                }
+
+                // Agora procura o botão "Sou maior de 18 anos" dentro do popup visível
+                var confirmButton = _webScrapingService.FindElementWithin(visiblePopup, ".//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'sou maior de 18 anos')]");
+
+                if (confirmButton == null)
+                {
+                    Console.WriteLine("Botão 'Sou maior de 18 anos' não encontrado no popup visível.");
+                    return; // Sai da função se o botão não for encontrado
+                }
+
+                // Clica no botão "Sou maior de 18 anos"
+                confirmButton.Click();
+                Console.WriteLine("Botão 'Sou maior de 18 anos' clicado com sucesso.");
+                Thread.Sleep(new Random().Next(1521, 1802)); // Pausa após clicar no botão
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao tentar fechar o pop-up de verificação de idade: {ex.Message}");
+            }
+        }
+
+
 
         private void ExtractGameInfo()
         {
