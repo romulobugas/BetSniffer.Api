@@ -622,7 +622,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                     if (buttonText == "Casa" || buttonText == "Fora" || buttonText == "Tempo regulamentar" || buttonText == "Ambos os times" || buttonText == "Total")
                                                     {
                                                         Console.WriteLine($"Clicando no submercado: {buttonText}");
-                                                        subMarketButton.ClickAsync().GetAwaiter().GetResult();
+                                                        subMarketButton.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
+                                                        subMarketButton.FocusAsync().GetAwaiter().GetResult(); // Garante o foco no elemento ou aba
                                                         System.Threading.Thread.Sleep(new Random().Next(51, 820));
                                                         Console.WriteLine($"Submercado '{buttonText}' clicado.");
 
@@ -637,7 +638,10 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                                     var buttonTextExpanded = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                                                                     if (buttonTextExpanded == "Mostrar mais")
                                                                     {
-                                                                        button.ClickAsync().GetAwaiter().GetResult();
+                                                                        System.Threading.Thread.Sleep(new Random().Next(845, 1627));
+                                                                        button.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
+                                                                        button.FocusAsync().GetAwaiter().GetResult(); // Garante o foco no elemento ou aba
+                                                                        page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
                                                                         System.Threading.Thread.Sleep(new Random().Next(845, 1627));
                                                                         Console.WriteLine("Botão 'Mostrar mais' clicado com sucesso.");
                                                                         break;
