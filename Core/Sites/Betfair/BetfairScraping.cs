@@ -782,7 +782,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         var oddButtons = row.QuerySelectorAllAsync("button").GetAwaiter().GetResult();
 
                         // Filtra somente linhas que possuem exatamente dois botões (odds)
-                        return betNameElement != null && oddButtons?.Length == 2;
+                        return betNameElement != null && (oddButtons?.Length == 2 || oddButtons?.Length == 1);
                     })
                     .GroupBy(row =>
                     {
