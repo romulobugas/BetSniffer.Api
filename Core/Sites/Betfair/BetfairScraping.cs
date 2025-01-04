@@ -619,7 +619,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                 foreach (var subMarketButton in subMarketButtons)
                                                 {
                                                     var buttonText = subMarketButton.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                                                    if (buttonText == "Casa" || buttonText == "Fora" || buttonText == "Tempo regulamentar" || buttonText == "Ambos os times")
+                                                    if (buttonText == "Casa" || buttonText == "Fora" || buttonText == "Tempo regulamentar" || buttonText == "Ambos os times" || buttonText == "Total")
                                                     {
                                                         Console.WriteLine($"Clicando no submercado: {buttonText}");
                                                         subMarketButton.ClickAsync().GetAwaiter().GetResult();
@@ -838,59 +838,106 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         Console.WriteLine($"Valor numérico extraído: {numericBetName}");
 
 
-                        // Captura os botões de odds ("Mais de" e "Menos de") na linha
-                        var oddButtons = betRow.QuerySelectorAllAsync("button").GetAwaiter().GetResult();
-
-                        // Captura os valores dos multiplicadores
-                        var moreThanMultiplierText = oddButtons[0].QuerySelectorAsync("span").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                        var lessThanMultiplierText = oddButtons[1].QuerySelectorAsync("span").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                        if (decimal.TryParse(moreThanMultiplierText?.Replace(".", ","), out var moreThanMultiplier))
-                        {
-
-                            // Adiciona a aposta "Mais de"
-                            currentBets.Add(new BetInfo
+                        // Captura os botões de odds na linha
+                        var oddButtons = betRow.QuerySelectorAllAsync("button").GetAwaiter().GetResult()
+                            .Where(button =>
                             {
-                                GamesInfo = gamesInfo,
-                                TagName = marketTitle,
-                                OverUnder = "Mais de",
-                                BetAmount = decimal.Parse(numericBetName, CultureInfo.InvariantCulture),
-                                Multiplier = moreThanMultiplier,
-                                GameDate = gamesInfo.GameDate,
-                                CaptureDate = DateTime.Now,
-                                Site = gamesInfo.Site,
-                                TagId = tagId
-                            });                            
-                        }
-                        else 
-                        {
-                            Console.WriteLine($"Multiplicador 'Mais de' inválido para a aposta '{betName}': {moreThanMultiplierText}");
-                        }                       
+                                // Verifica se o botão contém uma `span` com o valor de odds
+                                var spanElement = button.QuerySelectorAsync("span").GetAwaiter().GetResult();
+                                if (spanElement == null) return false;
 
-                        if (decimal.TryParse(lessThanMultiplierText?.Replace(".", ","), out var lessThanMultiplier))
+                                var oddsText = spanElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                return !string.IsNullOrEmpty(oddsText);
+                            })
+                            .ToArray();
+
+                        if (oddButtons.Length == 0)
                         {
-                            // Adiciona a aposta "Menos de"
-                            currentBets.Add(new BetInfo
-                            {
-                                GamesInfo = gamesInfo,
-                                TagName = marketTitle,
-                                OverUnder = "Menos de",
-                                BetAmount = decimal.Parse(numericBetName, CultureInfo.InvariantCulture),
-                                Multiplier = lessThanMultiplier,
-                                GameDate = gamesInfo.GameDate,
-                                CaptureDate = DateTime.Now,
-                                Site = gamesInfo.Site,
-                                TagId = tagId
-                            });
+                            Console.WriteLine($"Nenhum botão de odds válido encontrado para a aposta '{betName}'.");
+                            continue;
                         }
-                        else 
+
+                        if (oddButtons.Length == 2)
                         {
-                            Console.WriteLine($"Multiplicador 'Menos de' inválido para a aposta '{betName}': {lessThanMultiplierText}");
+                            // Captura os valores dos multiplicadores
+                            var moreThanMultiplierText = oddButtons[0].QuerySelectorAsync("span").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                            var lessThanMultiplierText = oddButtons[1].QuerySelectorAsync("span").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                            if (decimal.TryParse(moreThanMultiplierText?.Replace(".", ","), out var moreThanMultiplier))
+                            {
+
+                                // Adiciona a aposta "Mais de"
+                                currentBets.Add(new BetInfo
+                                {
+                                    GamesInfo = gamesInfo,
+                                    TagName = marketTitle,
+                                    OverUnder = "Mais de",
+                                    BetAmount = decimal.Parse(numericBetName, CultureInfo.InvariantCulture),
+                                    Multiplier = moreThanMultiplier,
+                                    GameDate = gamesInfo.GameDate,
+                                    CaptureDate = DateTime.Now,
+                                    Site = gamesInfo.Site,
+                                    TagId = tagId
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Multiplicador 'Mais de' inválido para a aposta '{betName}': {moreThanMultiplierText}");
+                            }
+
+                            if (decimal.TryParse(lessThanMultiplierText?.Replace(".", ","), out var lessThanMultiplier))
+                            {
+                                // Adiciona a aposta "Menos de"
+                                currentBets.Add(new BetInfo
+                                {
+                                    GamesInfo = gamesInfo,
+                                    TagName = marketTitle,
+                                    OverUnder = "Menos de",
+                                    BetAmount = decimal.Parse(numericBetName, CultureInfo.InvariantCulture),
+                                    Multiplier = lessThanMultiplier,
+                                    GameDate = gamesInfo.GameDate,
+                                    CaptureDate = DateTime.Now,
+                                    Site = gamesInfo.Site,
+                                    TagId = tagId
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Multiplicador 'Menos de' inválido para a aposta '{betName}': {lessThanMultiplierText}");
+                            }
+
+                            Console.WriteLine($"Aposta processada: {betName} - Mais de: {moreThanMultiplier}, Menos de: {lessThanMultiplier}");
+                        }
+                        else if (oddButtons.Length == 1)
+                        {
+                            var multiplierText = oddButtons[0].QuerySelectorAsync("span").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                            if (decimal.TryParse(multiplierText?.Replace(".", ","), out var multiplier) && decimal.Parse(numericBetName, CultureInfo.InvariantCulture) != 0)
+                            {
+                                currentBets.Add(new BetInfo
+                                {
+                                    GamesInfo = gamesInfo,
+                                    TagName = marketTitle,
+                                    OverUnder = "Mais de", // Assume "Mais de" para casos de botão único
+                                    BetAmount = decimal.Parse(numericBetName, CultureInfo.InvariantCulture),
+                                    Multiplier = multiplier,
+                                    GameDate = gamesInfo.GameDate,
+                                    CaptureDate = DateTime.Now,
+                                    Site = gamesInfo.Site,
+                                    TagId = tagId
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Multiplicador inválido para a aposta '{betName}': {multiplierText}");
+                            }
                         }
 
                         
 
-                        Console.WriteLine($"Aposta processada: {betName} - Mais de: {moreThanMultiplier}, Menos de: {lessThanMultiplier}");
+                        
+
+                        
                     }
                     catch (Exception ex)
                     {
