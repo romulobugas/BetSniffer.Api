@@ -208,7 +208,7 @@ namespace BetSniffer.Api.Controllers
                     startOfDay = DateTime.Today.AddHours(DateTime.Now.Hour)
                                                .AddMinutes(DateTime.Now.Minute)
                                                .AddSeconds(DateTime.Now.Second)
-                                               .AddHours(2).AddMinutes(30);
+                                               .AddHours(1).AddMinutes(15);
                 }
 
                 using var scope = _serviceScopeFactory.CreateScope();
