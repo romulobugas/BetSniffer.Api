@@ -500,6 +500,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 {
                                     page.Keyboard.PressAsync("PageDown").GetAwaiter().GetResult();
                                     System.Threading.Thread.Sleep(new Random().Next(398, 575)); // Pausa entre os comandos
+                                    page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
                                 }
 
                                 System.Threading.Thread.Sleep(new Random().Next(821, 1277)); // Aguarda o carregamento
@@ -509,6 +510,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 {
                                     page.Keyboard.PressAsync("PageUp").GetAwaiter().GetResult();
                                     System.Threading.Thread.Sleep(new Random().Next(357, 578)); // Pausa entre os comandos
+                                    page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
                                 }
 
                                 System.Threading.Thread.Sleep(new Random().Next(842, 1211)); // Aguarda a atualização
