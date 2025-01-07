@@ -17,6 +17,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Frontend\Components\Monitor.html" />
+    <None Remove="Frontend\Components\Scraping.html" />
+    <None Remove="Frontend\Scripts\main.js" />
+    <None Remove="Frontend\Scripts\monitor.js" />
+    <None Remove="Frontend\Scripts\scraping.js" />
+    <None Remove="Frontend\Scripts\TabControl.js" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">

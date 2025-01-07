@@ -3,37 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="./Styles.css">
-    <title>BetSniffer - Scraping Tools</title>
+    <link rel="stylesheet" href="../Assets/styles/Styles.css">
+    <title>BetSniffer - Ferramentas</title>
 </head>
 <body>
     <div class="container">
-        <h1>BetSniffer Tools</h1>
+        <h1>BetSniffer - Ferramentas</h1>
         <div class="tabs">
-            <button class="tab-button active" data-tab="tab-scraping">Atualizar jogos</button>
-            <button class="tab-button" data-tab="settings">Settings</button>
+            <button class="tab-button active" data-tab="scraping">Atualizar Jogos</button>
+            <button class="tab-button" data-tab="monitor">Monitor</button>
         </div>
         <div class="tab-content">
             <div id="scraping" class="tab-pane active">
-                <!-- Conteúdo da aba Scraping -->
-                <label for="startDate">Data Inicial:</label>
-                <input type="date" id="startDate" name="startDate">
-
-                <label for="endDate">Data Final:</label>
-                <input type="date" id="endDate" name="endDate">
-
-                <div id="siteCheckboxList">
-                    <!-- CheckboxList será gerado aqui -->
+                <!-- Conteúdo da aba de Atualizar Jogos -->
+                <div class="date-container">
+                    <div>
+                        <label for="startDate">Data Inicial:</label>
+                        <input type="date" id="startDate" name="startDate" />
+                    </div>
+                    <div>
+                        <label for="endDate">Data Final:</label>
+                        <input type="date" id="endDate" name="endDate" />
+                    </div>
                 </div>
                 <div id="siteCheckboxList"></div>
-
-                <button id="sendRequest">Enviar</button>
+                <button id="toggleAll">Marcar/Desmarcar Todos</button>
+                <button id="sendRequest">Atualizar Jogos</button>
             </div>
-            <div id="settings" class="tab-pane">
-                <!-- Conteúdo da aba Settings -->
+            <div id="monitor" class="tab-pane">
+                <h2>Monitoramento</h2>
+                <!-- Conteúdo da aba de Monitor -->
+                <p>Links em processamento: <span id="activeLinksCount">0</span></p>
+                <div id="monitorContent"></div>
             </div>
         </div>
     </div>
-    <script src="./Scripts.js"></script>
+
+    <script src="../Scripts/TabControl.js"></script>
+    <script src="../Scripts/scraping.js"></script>
+    <script src="../Scripts/monitor.js"></script>
 </body>
 </html>
