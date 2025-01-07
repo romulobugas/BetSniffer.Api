@@ -56,7 +56,13 @@
 
         // Validação: deve selecionar pelo menos 2 casas
         if (selectedSites.length < 2) {
-            alert("Você deve selecionar pelo menos 2 casas para iniciar o scraping.");
+            alert("Você deve selecionar pelo menos 2 casas para iniciar a raspagem.");
+            return;
+        }
+
+        // Validação: deve selecionar pelo menos 2 casas
+        if (startDate == "" || endDate == "") {
+            alert("Você deve escolher as datas para iniciar a raspagem.");
             return;
         }
 

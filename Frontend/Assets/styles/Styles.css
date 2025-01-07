@@ -88,9 +88,9 @@ input[type="date"] {
 }
 
 button#toggleAll {
-    margin: 15px 0;
     padding: 8px 15px;
     background-color: #ffa500;
+    margin: 20px auto; /* Centraliza horizontalmente e dá espaçamento */
     border: none;
     border-radius: 5px;
     color: #ffffff;
@@ -300,3 +300,31 @@ h2 {
     background: #1e1e2f;
     box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.6);
 }
+/* Ajuste para manter exatamente 3 colunas */
+#siteCheckboxList {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Exatamente 3 colunas */
+    gap: 20px; /* Espaçamento entre os elementos */
+    justify-content: center; /* Centraliza o grid horizontalmente */
+    justify-items: center; /* Centraliza os itens dentro de cada coluna */
+    margin-top: 20px;
+}
+
+/* Centralizar botão de marcar/desmarcar */
+#toggleAll {
+    display: block; /* Para garantir que ocupe uma linha inteira */
+    margin: 20px auto; /* Centraliza horizontalmente e dá espaçamento */
+    padding: 10px 20px; /* Melhor espaçamento interno */
+    background-color: #ffa500;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    #toggleAll:hover {
+        background-color: #ff8c00;
+    }
+
