@@ -3,27 +3,27 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
-namespace BetSniffer.Api.Core.Sites.Betfast
+namespace BetSniffer.Api.Core.Sites.Betfair
 {
-    public static class BetfastTags
+    public static class BetfairTags
     {
         // Tags fixas base usadas como template
         private static readonly Dictionary<int, List<string>> BaseTagNames = new()
         {
-            { 6, new List<string> { "Total de Gols" } },
-            { 20, new List<string> { "Total de Gols do Time de Casa" } },
-            { 21, new List<string> { "Total de Gols do time de Fora" } },
-            { 1, new List<string> { "Total de escanteios" } },
-            { 8, new List<string> { "Total de escanteios time da casa" } },
-            { 9, new List<string> { "Total de escanteios time de fora" } },
-            { 34, new List<string> { "Total de cartões" } },
+            { 6, new List<string> { "Mais/menos gols" } },
+            { 20, new List<string> { "Gols por equipe Casa", "Gols por equipe" } },
+            { 21, new List<string> { "Gols por equipe Fora", "Gols por equipe" } },
+            { 1, new List<string> { "Mais/menos escanteios", "Mais de escanteios" } },
+            { 8, new List<string> { "Mais/menos escanteios Casa", "Mais de escanteios Casa" } },
+            { 9, new List<string> { "Mais/menos escanteios Fora", "Mais de escanteios Fora" } },
+            { 34, new List<string> { "Mais/Menos Cartões", "Mais de Cartões" } },
             { 3, new List<string> { "Total de chutes" } },
             { 4, new List<string> { "Chutes a gol total" } },
             { 7, new List<string> { "Total de impedimentos" } },
             { 5, new List<string> { "Total de faltas" } },
             { 22, new List<string> { "Total de defesas do goleiro" } },
-            { 35, new List<string> { "Time de casa total de cartões" } },
-            { 36, new List<string> { "Time de fora total de cartões" } },
+            { 35, new List<string> { "Mais/Menos Cartões Casa", "Mais de Cartões Casa" } },
+            { 36, new List<string> { "Mais/Menos Cartões Fora", "Mais de Cartões Fora" } },
             { 12, new List<string> { "Time de casa chutes a gol" } },
             { 13, new List<string> { "Time de fora chutes a gol" } },
             { 14, new List<string> { "Time de casa total de Chutes" } },

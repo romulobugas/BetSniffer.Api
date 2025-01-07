@@ -14,6 +14,8 @@ using BetSniffer.Api.Configuration;
 using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
 using BetSniffer.Api.Core.Sites.Betfast;
+using BetSniffer.Api.Core.Sites.Betfair;
+using BetSniffer.Api.Core.Sites.Bet365;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -136,8 +138,22 @@ namespace BetSniffer.Api.Controllers
             var uri = new Uri(url);
             string host = uri.Host;
             string[] parts = host.Split('.');
-            return parts.Length >= 3 ? parts[1] : parts[0];
+
+            // Se houver mais de dois componentes e o último for um domínio de nível superior (.br, .com, etc.), pega o penúltimo
+            if (parts.Length >= 3)
+            {
+                // Se o domínio for algo como betfast.bet.br, retorna "betfast"
+                return parts[parts.Length - 3];
+            }
+            else if (parts.Length == 2)
+            {
+                // Para domínios como vbet.bet, retorna "vbet"
+                return parts[0];
+            }
+
+            return host;
         }
+
 
         private IScrapingService GetScrapingService(
             string siteName,
@@ -152,6 +168,7 @@ namespace BetSniffer.Api.Controllers
                 "vbet" => new VbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betano" => new BetanoScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betfast" => new BetfastScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "betfair" => new BetfairScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
@@ -191,7 +208,7 @@ namespace BetSniffer.Api.Controllers
                     startOfDay = DateTime.Today.AddHours(DateTime.Now.Hour)
                                                .AddMinutes(DateTime.Now.Minute)
                                                .AddSeconds(DateTime.Now.Second)
-                                               .AddHours(2).AddMinutes(30);
+                                               .AddHours(1).AddMinutes(15);
                 }
 
                 using var scope = _serviceScopeFactory.CreateScope();
