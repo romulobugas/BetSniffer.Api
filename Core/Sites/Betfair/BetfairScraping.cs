@@ -963,11 +963,6 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             }
         }
 
-
-
-
-
-
         private void SaveBets(List<BetInfo> bets)
         {
             if (bets == null || !bets.Any())

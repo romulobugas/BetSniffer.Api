@@ -76,27 +76,7 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<Bet365Scraping>(); // Registro explícito de Bet365Scraping
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<BatchScrapingController>();
-            builder.Services.AddScoped<GamesUpdateController>();
-
-
-            // Registro do roteamento dinâmico para IScrapingService
-            builder.Services.AddScoped<Func<string, IScrapingService>>(serviceProvider => siteName =>
-            {
-                var dbContext = serviceProvider.GetRequiredService<ApplicationDbContext>();
-                var teamService = serviceProvider.GetRequiredService<TeamService>();
-                var gamesInfoRepository = serviceProvider.GetRequiredService<IRepositoryService<GamesInfo>>();
-                var betInfoRepository = serviceProvider.GetRequiredService<IRepositoryService<BetInfo>>();
-                var driver = serviceProvider.GetRequiredService<IWebDriver>();
-
-                // Serviço dinâmico para diferentes sites de scraping
-                return siteName.ToLower() switch
-                {
-                    //"novibet" => new NovibetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                    //"vbet" => new VbetScraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                    //"bet365" => new Bet365Scraping(driver, dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                    _ => throw new ArgumentException($"Serviço de scraping para o site {siteName} não encontrado.")
-                };
-            });
+            builder.Services.AddScoped<GamesUpdateController>();            
 
             // Configuração de CORS (liberação total)
             builder.Services.AddCors(options =>
@@ -119,19 +99,30 @@ namespace BetSniffer.Api
             // Configuração de CORS
             app.UseCors("AllowAll");
 
-            // Configuração de Swagger
+            // Configuração para servir arquivos estáticos do front
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+                    Path.Combine(builder.Environment.ContentRootPath, "Frontend")),
+                RequestPath = "",
+                ServeUnknownFileTypes = true, // Permite servir qualquer tipo de arquivo estático
+                DefaultContentType = "text/html"
+            });
+
+            // Configuração do Swagger
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "BetSniffer API V1");
-                c.RoutePrefix = string.Empty; // Swagger na raiz
+                c.RoutePrefix = "swagger"; // Swagger acessível em /swagger
             });
 
-            // Abrir o navegador automaticamente em desenvolvimento
-            if (environment != "Production")
+            // Redirecionamento da raiz para o front
+            app.MapGet("/", async context =>
             {
-                OpenBrowser("https://localhost:5001");
-            }
+                context.Response.Redirect("/Pages/Index.html", permanent: false);
+                await Task.CompletedTask;
+            });
 
             // Redirecionamento para HTTPS
             app.UseHttpsRedirection();

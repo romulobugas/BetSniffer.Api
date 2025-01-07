@@ -5,12 +5,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Title>BetSniffer</Title>
-    <Version>1.6</Version>
+    <Version>1.7</Version>
     <ApplicationIcon>Utils\XeiraBet.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Include="Utils\XeiraBet.ico" />
+	<Content Include="Frontend\**\*">
+	 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +27,11 @@
     <PackageReference Include="Selenium.WebDriver" Version="4.27.0" />
     <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="131.0.6778.10800" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Frontend\Assets\images\" />
+    <Folder Include="Frontend\Assets\fonts\" />
   </ItemGroup>
 
 </Project>
