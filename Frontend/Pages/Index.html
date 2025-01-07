@@ -1,0 +1,39 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./Styles.css">
+    <title>BetSniffer - Scraping Tools</title>
+</head>
+<body>
+    <div class="container">
+        <h1>BetSniffer Tools</h1>
+        <div class="tabs">
+            <button class="tab-button active" data-tab="tab-scraping">Atualizar jogos</button>
+            <button class="tab-button" data-tab="settings">Settings</button>
+        </div>
+        <div class="tab-content">
+            <div id="scraping" class="tab-pane active">
+                <!-- Conteúdo da aba Scraping -->
+                <label for="startDate">Data Inicial:</label>
+                <input type="date" id="startDate" name="startDate">
+
+                <label for="endDate">Data Final:</label>
+                <input type="date" id="endDate" name="endDate">
+
+                <div id="siteCheckboxList">
+                    <!-- CheckboxList será gerado aqui -->
+                </div>
+                <div id="siteCheckboxList"></div>
+
+                <button id="sendRequest">Enviar</button>
+            </div>
+            <div id="settings" class="tab-pane">
+                <!-- Conteúdo da aba Settings -->
+            </div>
+        </div>
+    </div>
+    <script src="./Scripts.js"></script>
+</body>
+</html>

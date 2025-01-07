@@ -16,6 +16,8 @@ using System.Threading.Tasks;
 using BetSniffer.Api.Core.Sites.Betfast;
 using BetSniffer.Api.Core.Sites.Betfair;
 using BetSniffer.Api.Core.Sites.Bet365;
+using System.Linq;
+using System.Globalization;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -186,19 +188,22 @@ namespace BetSniffer.Api.Controllers
 
 
         [HttpPut("batch-update-same-games")]
-        public IActionResult UpdateSameGames([FromQuery] string startDate, [FromQuery] string endDate)
+        public IActionResult UpdateSameGames([FromQuery] string startDate, [FromQuery] string endDate, [FromQuery] string siteIds)
         {
             try
             {
-                if (!DateTime.TryParseExact(startDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime startGameDate))
+                string[] validFormats = { "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy" }; // Inclua formatos adicionais, se necessário.
+
+                if (!DateTime.TryParseExact(startDate, validFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime startGameDate))
                 {
                     return BadRequest(new { message = "Data inicial inválida. O formato correto é dd/MM/yyyy." });
                 }
 
-                if (!DateTime.TryParseExact(endDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime endGameDate))
+                if (!DateTime.TryParseExact(endDate, validFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime endGameDate))
                 {
                     return BadRequest(new { message = "Data final inválida. O formato correto é dd/MM/yyyy." });
                 }
+
 
                 DateTime startOfDay = startGameDate.Date;
                 DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1);
@@ -211,25 +216,46 @@ namespace BetSniffer.Api.Controllers
                                                .AddHours(1).AddMinutes(15);
                 }
 
+                // Parse siteIds as a list of integers
+                List<int> siteIdList = new List<int>();
+                if (!string.IsNullOrEmpty(siteIds))
+                {
+                    siteIdList = siteIds.Split(',')
+                                        .Select(id => int.TryParse(id, out int parsedId) ? parsedId : (int?)null)
+                                        .Where(id => id.HasValue)
+                                        .Select(id => id.Value)
+                                        .ToList();
+                }
+
                 using var scope = _serviceScopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                var games = dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
-                                               .AsEnumerable()
-                                               .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                                               .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
-                                               .Select(group => new
-                                               {
-                                                   GameDate = group.Key.GameDate,
-                                                   HomeTeam = group.Key.HomeTeamId,
-                                                   AwayTeam = group.Key.AwayTeamId,
-                                                   URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
-                                                               .Select(g => g.URL)
-                                                               .Distinct()
-                                                               .ToList()
-                                               })
-                                               .Where(g => g.URLs.Count > 0)
-                                               .ToList();
+                
+
+                // Filtra os jogos com base nos sites selecionados (se fornecidos)
+                var query = dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay);
+
+                if (siteIdList != null && siteIdList.Any())
+                {
+                    query = query.Where(g => siteIdList.Contains(g.SiteId.Value));
+                }
+
+                var games = query.AsEnumerable()
+                         .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                         .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
+                         .Select(group => new
+                         {
+                             GameDate = group.Key.GameDate,
+                             HomeTeam = group.Key.HomeTeamId,
+                             AwayTeam = group.Key.AwayTeamId,
+                             URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
+                                         .Select(g => g.URL)
+                                         .Distinct()
+                                         .ToList()
+                         })
+                         .Where(g => g.URLs.Count > 0)
+                         .OrderBy(g => g.GameDate) // Ordena os jogos pela data e hora mais próximos do horário atual
+                         .ToList();
 
                 var urlsToScrape = games.SelectMany(g => g.URLs).Distinct().ToList();
 
@@ -252,6 +278,36 @@ namespace BetSniffer.Api.Controllers
                 return StatusCode(500, new { message = $"Erro ao atualizar os jogos: {ex.Message}" });
             }
         }
+
+        [HttpGet("sites")]
+        public IActionResult GetSites()
+        {
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                var sites = dbContext.Site
+                    .Select(s => new
+                    {
+                        SiteId = s.SiteId,
+                        Name = s.Name
+                    })
+                    .ToList();
+
+                if (!sites.Any())
+                {
+                    return NotFound(new { message = "Nenhum site encontrado." });
+                }
+
+                return Ok(sites);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Erro ao buscar sites: {ex.Message}" });
+            }
+        }
+
 
     }
 }
