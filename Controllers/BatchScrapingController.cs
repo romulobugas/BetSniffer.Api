@@ -18,6 +18,7 @@ using BetSniffer.Api.Core.Sites.Betfair;
 using BetSniffer.Api.Core.Sites.Bet365;
 using System.Linq;
 using System.Globalization;
+using System.Reflection;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -186,6 +187,12 @@ namespace BetSniffer.Api.Controllers
             });
         }
 
+        [HttpGet("version")]
+        public IActionResult GetVersion()
+        {
+            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Desconhecida";
+            return Ok(new { version });
+        }
 
         [HttpPut("batch-update-same-games")]
         public IActionResult UpdateSameGames([FromQuery] string startDate, [FromQuery] string endDate, [FromQuery] string siteIds)
