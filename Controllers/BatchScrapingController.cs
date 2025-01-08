@@ -19,6 +19,7 @@ using BetSniffer.Api.Core.Sites.Bet365;
 using System.Linq;
 using System.Globalization;
 using System.Reflection;
+using BetSniffer.Api.Core.Sites.Superbet;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -172,6 +173,7 @@ namespace BetSniffer.Api.Controllers
                 "betano" => new BetanoScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betfast" => new BetfastScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betfair" => new BetfairScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "superbet" => new SuperbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
