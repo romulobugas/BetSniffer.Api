@@ -21,8 +21,9 @@
     <None Remove="Frontend\Components\Scraping.html" />
     <None Remove="Frontend\Scripts\main.js" />
     <None Remove="Frontend\Scripts\monitor.js" />
-    <None Remove="Frontend\Scripts\scraping.js" />
+    <None Remove="Frontend\Scripts\scraper.js" />
     <None Remove="Frontend\Scripts\TabControl.js" />
+    <None Remove="Frontend\Scripts\updateGames.js" />
   </ItemGroup>
 
   <ItemGroup>

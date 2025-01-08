@@ -10,12 +10,12 @@
     <div class="container">
         <h1>BetSniffer - Ferramentas</h1>
         <div class="tabs">
-            <button class="tab-button active" data-tab="scraping">Atualizar Jogos</button>
+            <button class="tab-button active" data-tab="updateGames">Atualizar Jogos</button>
             <button class="tab-button" data-tab="monitor">Monitor</button>
+            <button class="tab-button" data-tab="scraper">Raspagem</button>
         </div>
         <div class="tab-content">
-            <div id="scraping" class="tab-pane active">
-                <!-- Conteúdo da aba de Atualizar Jogos -->
+            <div id="updateGames" class="tab-pane active">
                 <div class="date-container">
                     <div>
                         <label for="startDate">Data Inicial:</label>
@@ -32,15 +32,27 @@
             </div>
             <div id="monitor" class="tab-pane">
                 <h2>Monitoramento</h2>
-                <!-- Conteúdo da aba de Monitor -->
                 <p>Links em processamento: <span id="activeLinksCount">0</span></p>
                 <div id="monitorContent"></div>
             </div>
+            <div id="scraper" class="tab-pane active">
+                <h2>Adicionar Links para Raspagem</h2>
+                <div id="linkContainer"></div>
+                <div class="button-group">
+                    <button id="addLink">Novo Link</button>
+                    <button id="clearLinks">Limpar Links</button>
+                </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <button id="sendLinks">Enviar Links</button>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script src="../Scripts/TabControl.js"></script>
-    <script src="../Scripts/scraping.js"></script>
+    <script src="../Scripts/updateGames.js"></script>
     <script src="../Scripts/monitor.js"></script>
+    <script src="../Scripts/scraper.js"></script>
 </body>
 </html>

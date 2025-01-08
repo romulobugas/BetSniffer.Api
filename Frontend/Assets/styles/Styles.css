@@ -324,7 +324,85 @@ h2 {
     transition: background-color 0.3s ease;
 }
 
-    #toggleAll:hover {
+#toggleAll:hover {
+    background-color: #ff8c00;
+}
+
+.link-input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #8888aa;
+    border-radius: 4px;
+    background-color: #2e2e4f;
+    color: #ffffff;
+}
+
+#addLink, #sendLinks {
+    padding: 10px 20px;
+    margin: 10px 5px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#addLink {
+    background-color: #ffa500;
+    color: #ffffff;
+}
+
+#addLink:hover {
+    background-color: #ff8c00;
+}
+
+#clearLinks, #sendLinks {
+    padding: 10px 20px;
+    margin: 10px 5px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#clearLinks {
+    background-color: #ffa500;
+    color: #ffffff;
+}
+
+    #clearLinks:hover {
         background-color: #ff8c00;
     }
 
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#sendLinks {
+    padding: 10px 20px;
+    background-color: #28a745; /* Verde */
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+#sendLinks:hover {
+    background-color: #218838; /* Verde escuro no hover */
+}
+
+.link-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #8888aa;
+    border-radius: 4px;
+    background: #444466;
+    color: #ffffff;
+    font-size: 14px;
+}
