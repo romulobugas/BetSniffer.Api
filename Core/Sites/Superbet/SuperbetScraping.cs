@@ -613,13 +613,19 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
         private decimal ParseBetAmount(string betName)
         {
+            // Usa Regex para encontrar valores decimais corretamente
             var match = Regex.Match(betName, @"[+-]?\d+[.,]?\d*");
-            if (match.Success && decimal.TryParse(match.Value.Replace(',', '.'), out var result))
+            if (match.Success)
             {
-                return result;
+                // Tenta converter o valor diretamente para decimal, garantindo o formato correto
+                if (decimal.TryParse(match.Value, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var result))
+                {
+                    return result;
+                }
             }
             throw new FormatException($"Formato de nome de aposta inválido: {betName}");
         }
+
 
         private void SaveBets(List<BetInfo> bets)
         {
