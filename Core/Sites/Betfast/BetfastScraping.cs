@@ -321,7 +321,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 if (teamsElement != null)
                 {
                     var teamsText = teamsElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    var teams = teamsText.Split('-'); // Separador de times
+                    var teams = System.Text.RegularExpressions.Regex.Split(teamsText, @"\s-\s");
 
                     homeTeam = "";
                     awayTeam = "";
