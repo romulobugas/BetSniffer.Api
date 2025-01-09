@@ -3,7 +3,7 @@
 namespace BetSniffer.Api.Core.Sites.Bet365
 
 {
-    public static class Bet365Tags
+    public static class PixbetTags
     {
         // Dicionário de tags fixas que você quer rastrear
         public static readonly List<string> TagNames = new()

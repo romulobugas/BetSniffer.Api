@@ -1,20 +1,17 @@
 ﻿using BetSniffer.Api.Models;
-using Microsoft.EntityFrameworkCore;
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using OpenQA.Selenium.Interactions;
+using BetSniffer.Api.Core.Sites.Superbet;
+using PuppeteerSharp;
 
 namespace BetSniffer.Api.Core.Sites.Bet365
 {
-    public class Bet365Scraping : IScrapingService
+    public class PixbetScraping : IScrapingService
     {
         #region VariaveisGlobais
 
@@ -24,29 +21,36 @@ namespace BetSniffer.Api.Core.Sites.Bet365
         private string gameHourText;
         private string homeTeam;
         private string awayTeam;
+        private string leagueName;
         private DateTime gameDateTime;
         private Site site;
         private GamesInfo gamesInfo;
+        private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
+        private readonly ILogService _logService;
+        private WebScrapingServicePuppeteer _webScrapingService;
 
         #endregion
 
-        public Bet365Scraping(
-            IWebDriver driver,
-            ApplicationDbContext dbContext,
-            TeamService teamService,
-            IRepositoryService<GamesInfo> gamesInfoRepository,
-            IRepositoryService<BetInfo> betInfoRepository)
+        public PixbetScraping(ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository, IRepositoryService<BetInfo> betInfoRepository)
         {
-            _driver = driver ?? throw new ArgumentNullException(nameof(driver));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
             _betInfoRepository = betInfoRepository ?? throw new ArgumentNullException(nameof(betInfoRepository));
+            _gameService = new GameService(_dbContext);
+
+            // Inicializa o serviço de log diretamente
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            _logService = new LogService(configuration);
         }
 
         public List<TagInfo> ScrapeTags(string url, string siteName)
@@ -56,75 +60,121 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             if (string.IsNullOrEmpty(siteName))
                 throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
 
-            // Verifica se o site já existe no banco
             site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ??
                        AddNewSite(siteName);
 
-            _driver.Navigate().GoToUrl(url);
+            _webScrapingService = new WebScrapingServicePuppeteer();
+            _webScrapingService.Initialize();
+            using var browser = _webScrapingService;
+            var page = browser.NavigateTo(url);
 
-            // Aguarda o carregamento inicial da página com tentativas
-            int maxAttempts = 3;
-            int attempt = 0;
-            bool elementFound = false;
-            IWebElement element = null;
+            System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
 
-            while (attempt < maxAttempts && !elementFound)
-            {
-                try
-                {
-                    WebDriverWait wait = new(_driver, TimeSpan.FromSeconds(10));
-                    element = wait.Until(driver => driver.FindElement(By.CssSelector("div.sph-FixturePodHeader_Wrapper")));
-                    elementFound = true; // Elemento encontrado, sair do loop
-                }
-                catch (WebDriverTimeoutException)
-                {
-                    attempt++;
-                    if (attempt < maxAttempts)
-                    {
+            string ageVerification = "div.p-dialog-mask[data-pc-section='mask']";
 
-                        Thread.Sleep(5000); // Aguarda 5 segundos antes de recarregar
-                        Console.WriteLine($"Elemento não encontrado. Tentando novamente ({attempt}/{maxAttempts})...");
-                        _driver.Navigate().GoToUrl(url); // Recarrega a página
-                    }
-                    else
-                    {
-                        Console.WriteLine("Elemento não encontrado após múltiplas tentativas.");
-                        throw; // Lança exceção após falha em todas as tentativas
-                    }
-                }
-            }
+            // Confirmação de idade
+            ConfirmAgeVerification(page, ageVerification);
 
-            // Caso tenha encontrado, "element" estará disponível para manipulação
-            if (elementFound)
-            {
-                Console.WriteLine("Elemento encontrado com sucesso!");
-            }
+            //HandleCookies(page, cookieAcceptButtonSelector);
 
+            //string popupSelector = ".overlay.new-message.visible .popup span.close";
 
-            // Coleta informações do jogo
-            ExtractGameInfo();
+            //_gameService.ClosePopup(page,popupSelector);
+
+            ExtractGameInfo(page);
 
             // Inicializa informações do jogo
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
-            Bet365Tags.AddDynamicTags(homeTeam, awayTeam);
+            SuperbetTags.AddDynamicTags(_teamService.NormalizeText(homeTeam), _teamService.NormalizeText(awayTeam));
 
-            gamesInfo = new GamesInfo
+            var existingGame = _dbContext.GamesInfo
+            .FirstOrDefault(g =>
+                g.HomeTeamId == homeTeamDb &&
+                g.AwayTeamId == awayTeamDb &&
+                g.GameDate == gameDateTime &&
+                g.Site.SiteId == site.SiteId);
+
+            if (existingGame != null)
             {
-                HomeTeamId = homeTeamDb,
-                AwayTeamId = awayTeamDb,
-                GameDate = gameDateTime,
-                League = gameName,
-                Site = site,
-                URL = url
-            };
+                gamesInfo = existingGame;
+                gamesInfo.Status = 1;
+                gamesInfo.LastUpdated = DateTime.Now;
+            }
+            else
+            {
+                gamesInfo = new GamesInfo
+                {
+                    HomeTeamId = homeTeamDb,
+                    AwayTeamId = awayTeamDb,
+                    GameDate = gameDateTime,
+                    League = leagueName,
+                    Site = site,
+                    URL = url,
+                    Status = 1,
+                    LastUpdated = DateTime.Now
+                };
+                _dbContext.GamesInfo.Add(gamesInfo);
+            }
 
-            // Processa todas as abas disponíveis
-            ProcessTabsAndMarketViews();
+            _dbContext.SaveChanges();
 
-            return new List<TagInfo>(); // Substitua com a lógica para retornar as informações processadas
+
+            //ProcessTabsAndMarketViews(page);
+
+
+
+
+            Console.WriteLine("Processo de raspagem concluído.");
+            _webScrapingService.Dispose();
+
+            return new List<TagInfo>();
         }
+
+        private void ConfirmAgeVerification(IPage page, string ageVerificationSelector)
+        {
+            try
+            {
+
+                var popupElement = page.WaitForSelectorAsync(ageVerificationSelector, new WaitForSelectorOptions
+                {
+                    Timeout = 15000, // Tempo limite para encontrar o popup
+                    Visible = true   // Certifica-se de que o elemento está visível
+                }).GetAwaiter().GetResult();
+
+                if (popupElement != null)
+                {
+                    Console.WriteLine("Popup de verificação de idade encontrado.");
+
+                    // Dentro do popup, busca o botão "Sim" baseado no padrão
+                    var confirmButton = popupElement.QuerySelectorAsync("button[aria-label='Sim']").GetAwaiter().GetResult();
+
+                    if (confirmButton != null)
+                    {
+                        page.EvaluateFunctionAsync("element => element.click()", confirmButton).GetAwaiter().GetResult();
+                        Console.WriteLine("Botão 'Sim' clicado com sucesso.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Botão 'Sim' não encontrado dentro do popup.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Popup de verificação de idade não encontrado.");
+                }
+            }
+            catch (TimeoutException ex)
+            {
+                Console.WriteLine($"Erro: Tempo limite excedido para encontrar o popup ou botão 'Sim'. Detalhes: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro inesperado ao confirmar verificação de idade: {ex.Message}");
+            }
+        }
+
 
         private Site AddNewSite(string siteName)
         {
@@ -135,30 +185,115 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             return site;
         }
 
-        private void ExtractGameInfo()
+        private void ExtractGameInfo(IPage page)
         {
-            var spanElements = _driver.FindElements(By.CssSelector("div[data-testid='event-view-header-soccer-center-container'] span"));
-            gameName = spanElements.Count >= 2 ? spanElements[1].Text.Trim() : "Nome não encontrado";
-
-            var eventPresentationView = _driver.FindElement(By.CssSelector("div[data-id='card-scoreboard']"));
-
-            var teamElements = eventPresentationView.FindElements(By.XPath(".//span[@data-id='event-card-competitor-name']"));
-            if (teamElements.Count >= 2)
+            try
             {
-                homeTeam = teamElements[0].Text.Trim();
-                awayTeam = teamElements[1].Text.Trim();
+                // Captura o elemento raiz que contém o Shadow DOM
+                var rootElement = page.QuerySelectorAsync("div#bt-inner-page").GetAwaiter().GetResult();
+                if (rootElement == null)
+                {
+                    throw new Exception("Elemento raiz 'div#bt-inner-page' não encontrado.");
+                }
+
+                // Acessa o Shadow DOM
+                var shadowRootHandle = page.EvaluateFunctionHandleAsync(
+                    @"(el) => el.shadowRoot",
+                    rootElement
+                ).GetAwaiter().GetResult();
+
+                // Converte shadowRootHandle para IElementHandle
+                var shadowRoot = shadowRootHandle as IElementHandle;
+                if (shadowRoot == null)
+                {
+                    throw new Exception("Não foi possível acessar o Shadow Root como 'IElementHandle'.");
+                }
+
+                // Busca pelo elemento 'scoreBoardCard'
+                var scoreBoardCardHandle = shadowRoot.QuerySelectorAsync("div[data-editor-id='scoreBoardCard']").GetAwaiter().GetResult();
+                if (scoreBoardCardHandle == null)
+                {
+                    throw new Exception("Elemento 'scoreBoardCard' não encontrado dentro do Shadow DOM.");
+                }
+
+                // Liga: Captura o texto do elemento que possui 'scoreBoardCategory' e trata o texto para remover nação
+                var leagueText = GetInnerText(scoreBoardCardHandle, "div[data-editor-id='scoreBoardCategory']")
+                    .Split('\n')
+                    .Last()
+                    .Trim();
+
+                // Captura os elementos que contêm as informações dos times e horários
+                var matchInfoElements = scoreBoardCardHandle.QuerySelectorAllAsync("div > div").GetAwaiter().GetResult();
+
+                if (matchInfoElements == null || matchInfoElements.Length < 3)
+                {
+                    throw new Exception("Estrutura de times e horários não encontrada ou incompleta.");
+                }
+
+                // Filtra o time da casa com base no padrão de conteúdo textual sem elementos gráficos
+                var homeTeamElement = matchInfoElements.FirstOrDefault(el =>
+                    el.EvaluateFunctionAsync<bool>("el => el.textContent.trim().length > 0 && el.querySelectorAll('img').length === 0 && el.textContent.includes('FC')").GetAwaiter().GetResult());
+
+                // Filtra o time visitante com base no padrão de conteúdo textual sem elementos gráficos
+                var awayTeamElement = matchInfoElements.LastOrDefault(el =>
+                    el.EvaluateFunctionAsync<bool>("el => el.textContent.trim().length > 0 && el.querySelectorAll('img').length === 0 && el.textContent.includes('FC')").GetAwaiter().GetResult());
+
+                if (homeTeamElement == null || awayTeamElement == null)
+                {
+                    throw new Exception("Não foi possível capturar os times.");
+                }
+
+                // Extrai os nomes dos times
+                var homeTeam = homeTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var awayTeam = awayTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam))
+                {
+                    throw new Exception("Não foi possível capturar os times.");
+                }
+
+                // Captura a data e a hora
+                var gameDayText = matchInfoElements[1].QuerySelectorAsync("div[data-editor-id='prematchStartedAt'] div").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var gameHourText = matchInfoElements[1].QuerySelectorAsync("div[data-editor-id='prematchStartedAt'] span").GetAwaiter().GetResult()?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                if (string.IsNullOrEmpty(gameDayText) || string.IsNullOrEmpty(gameHourText))
+                {
+                    throw new Exception("Não foi possível capturar a data e hora.");
+                }
+
+                // Combina a data e a hora
+                var gameDateTime = ParseGameDateTime(gameDayText, gameHourText);
+
+                // Exibe as informações no console
+                Console.WriteLine($"Liga: {leagueText}");
+                Console.WriteLine($"Times: {homeTeam} x {awayTeam}");
+                Console.WriteLine($"Data e Hora: {gameDateTime}");
             }
-            else
+            catch (Exception ex)
             {
-                throw new Exception("Não foi possível encontrar os dois times.");
+                Console.WriteLine($"Erro ao capturar informações do jogo: {ex.Message}");
             }
-
-            gameDayText = eventPresentationView.FindElement(By.XPath(".//span[@data-testid='prematch-start-date']")).Text.Trim();
-            gameHourText = eventPresentationView.FindElement(By.XPath(".//span[@data-testid='prematch-start-time']")).Text.Trim();
-
-            gameDateTime = ParseGameDateTime(gameDayText, gameHourText);
-            Console.WriteLine($"Data e Hora do Jogo: {gameDateTime}");
         }
+
+        private string GetInnerText(IElementHandle parentHandle, string selector)
+        {
+            var elementHandle = parentHandle.QuerySelectorAsync(selector).GetAwaiter().GetResult();
+            if (elementHandle == null)
+            {
+                throw new Exception($"Elemento '{selector}' não encontrado.");
+            }
+
+            // Captura o texto e remove quebras de linha e espaços extras
+            var rawText = elementHandle.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+            return string.Join(" ", rawText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)).Trim();
+        }
+
+
+
+
+
+
+
 
         private DateTime ParseGameDateTime(string dayText, string hourText)
         {
@@ -317,7 +452,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             var eventMarketViews = _driver.FindElements(By.CssSelector("div[data-id='market-item']"));
 
             // Lista de tags cadastradas que queremos buscar
-            var tagNames = Bet365Tags.TagNames;            
+            var tagNames = PixbetTags.TagNames;            
 
             // Lista para armazenar as apostas
             List<BetInfo> bets = new List<BetInfo>();

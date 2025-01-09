@@ -74,7 +74,7 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<VbetScraping>();
             builder.Services.AddScoped<BetanoScraping>();
             builder.Services.AddScoped<BetfastScraping>();
-            builder.Services.AddScoped<Bet365Scraping>();
+            builder.Services.AddScoped<PixbetScraping>();
             builder.Services.AddScoped<SuperbetScraping>();
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<BatchScrapingController>();
