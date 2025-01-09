@@ -11,6 +11,16 @@
         linkInput.classList.add("link-input");
         linkInput.placeholder = "Insira o link para raspagem";
         linkInput.value = initialValue; // Define valor inicial, se houver
+
+        // Adicionar evento para criar uma nova caixa ao pressionar "Enter"
+        linkInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                addLinkInput(); // Adiciona uma nova caixa de texto
+                linkInput.nextSibling.focus(); // Move o foco para a nova caixa
+                event.preventDefault(); // Evita comportamento padrão
+            }
+        });
+
         linkContainer.appendChild(linkInput);
     }
 
