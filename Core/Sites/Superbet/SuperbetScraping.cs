@@ -421,7 +421,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                             market.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
 
                             // Aguarda um curto intervalo para garantir que o mercado seja carregado corretamente
-                            Thread.Sleep(new Random().Next(300, 500));
+                            Thread.Sleep(new Random().Next(11, 144));
                         }
                         catch (Exception ex)
                         {
@@ -461,7 +461,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                 if (expandButton != null)
                                 {
                                     expandButton.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
-                                    Thread.Sleep(new Random().Next(400, 800)); // Pausa para permitir o carregamento
+                                    Thread.Sleep(new Random().Next(433, 872)); // Pausa para permitir o carregamento
                                     Console.WriteLine("Mercado expandido com sucesso ao clicar no botão de expandir.");
                                 }
                                 else
@@ -492,7 +492,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                 {
                                     Console.WriteLine($"Processando submercado: {subMarketName}");
                                     subMarketButton.ClickAsync().GetAwaiter().GetResult();
-                                    Thread.Sleep(new Random().Next(200, 500));
+                                    Thread.Sleep(new Random().Next(313, 618));
 
                                     // Processa o mercado expandido com o submercado
                                     ProcessExpandedMarket(market, $"{marketTitle} {subMarketName}");

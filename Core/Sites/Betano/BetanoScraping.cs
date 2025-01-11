@@ -255,8 +255,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
         }
 
-
-
         private DateTime ParseGameDateTime(string dateTimeText)
         {
             if (string.IsNullOrWhiteSpace(dateTimeText))
@@ -274,39 +272,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
             }
 
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
-        }
-
-
-
-        private DateTime ParseCustomDate(string dayText)
-        {
-            var match = Regex.Match(dayText, @"(\d+)\s+de\s+(\w+)", RegexOptions.IgnoreCase);
-            if (!match.Success)
-                throw new Exception($"Formato de data inválido: {dayText}");
-
-            var day = int.Parse(match.Groups[1].Value);
-            var month = MonthNameToNumber(match.Groups[2].Value.ToLower());
-            var year = DateTime.Today.Year;
-
-            if (month < DateTime.Today.Month)
-                year++;
-
-            return new DateTime(year, month, day);
-        }
-
-        private int MonthNameToNumber(string monthName)
-        {
-            var months = new Dictionary<string, int>
-            {
-                { "janeiro", 1 }, { "fevereiro", 2 }, { "março", 3 }, { "abril", 4 },
-                { "maio", 5 }, { "junho", 6 }, { "julho", 7 }, { "agosto", 8 },
-                { "setembro", 9 }, { "outubro", 10 }, { "novembro", 11 }, { "dezembro", 12 }
-            };
-
-            if (!months.ContainsKey(monthName))
-                throw new Exception($"Nome do mês inválido: {monthName}");
-
-            return months[monthName];
         }
 
         private void ProcessTabsAndMarketViews(IPage page)
@@ -352,8 +317,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 Console.WriteLine($"Ignorando a aba: {tabName}");
                                 continue;
                             }
-
-
 
                             Console.WriteLine($"Processando aba: {tabName}");
 
@@ -447,13 +410,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
             // Aguarda um tempo para carregar todos os mercados
             System.Threading.Thread.Sleep(new Random().Next(1725, 3230));
 
-            // Exemplo de movimentação do mouse
-            page.Mouse.MoveAsync(50, 50).GetAwaiter().GetResult(); // Move o mouse para um ponto arbitrário
-
-            // Adiciona uma pausa aleatória para simular o comportamento humano
-            Random random = new Random();
-            Thread.Sleep(random.Next(423, 1240)); // Pausa de 500ms a 1500ms
-
             // Encontra todos os contêineres de aposta dentro de <div class="markets">
             var eventMarketViews = page.QuerySelectorAllAsync("div.markets div[data-marketid]").GetAwaiter().GetResult();
 
@@ -491,6 +447,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
                             continue;
                         }
 
+
+                        Console.WriteLine($"Processando mercado: {tagName}");
                         int tagId = matchingTag.Key;
 
 
@@ -509,14 +467,14 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 else
                                 {
                                     eventMarketView.ClickAsync();
-                                    Thread.Sleep(random.Next(490, 1229));
+                                    System.Threading.Thread.Sleep(new Random().Next(490, 1129));
                                     retries++;
                                 }
                             }
                             catch
                             {
                                 eventMarketView.ClickAsync();
-                                Thread.Sleep(random.Next(320, 1195));
+                                System.Threading.Thread.Sleep(new Random().Next(320, 1195));
                                 retries++;
                             }
                         }
@@ -531,10 +489,10 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
                         var currentBets = new List<BetInfo>();
 
+                        Console.WriteLine($"Obtendo dados do mercado: {tagName}");
+
                         foreach (var selectionElement in selectionElements)
                         {
-                            
-
                             try
                             {
                                 var overUnderElement = selectionElement.QuerySelectorAsync(".s-name").GetAwaiter().GetResult();
@@ -616,6 +574,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                         // **3. Salvar as alterações no banco de dados**
                         if (_dbContext.ChangeTracker.HasChanges())
                         {
+                            Console.WriteLine($"Salvando mercado: {tagName}");
                             _dbContext.SaveChanges();
                             Console.WriteLine("Alterações salvas com sucesso.");
                             

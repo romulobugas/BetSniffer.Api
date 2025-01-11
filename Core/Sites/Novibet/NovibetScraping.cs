@@ -242,9 +242,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
             var awayTeamDb = _teamService.EnsureTeamExists(awayTeam);
 
-
             NovibetTags.AddDynamicTags(homeTeam, awayTeam);
-
 
             // Verifica se o jogo já existe no banco
             var existingGame = _dbContext.GamesInfo
