@@ -10,7 +10,7 @@
             "vbet",
             "betfair",
             "superbet",
-            "pix"
+            "pixbet"
             // Adicione outros sites conforme necessário
         };
 

@@ -258,53 +258,59 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
             try
             {
-                // Define um dicionário para os meses em inglês para conversão direta
-                var monthMappings = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { "Jan", 1 }, { "Feb", 2 }, { "Mar", 3 }, { "Apr", 4 }, { "May", 5 }, { "Jun", 6 },
-                    { "Jul", 7 }, { "Aug", 8 }, { "Sep", 9 }, { "Oct", 10 }, { "Nov", 11 }, { "Dec", 12 }
-                };
+                var now = DateTime.Now; // Usa o horário local
 
-                var now = DateTime.UtcNow;
+                // Normaliza entradas removendo repetições como "Amanhã, Amanhã"
+                dateTimeText = dateTimeText.Replace("Amanhã, Amanhã", "Amanhã", StringComparison.OrdinalIgnoreCase)
+                                           .Replace("Hoje, Hoje", "Hoje", StringComparison.OrdinalIgnoreCase)
+                                           .Replace(",", "").Trim();
 
-                // Verifica os casos especiais "Hoje" e "Amanhã"
+                // Trata "Hoje" e "Amanhã" diretamente substituindo por datas específicas
                 if (dateTimeText.StartsWith("Hoje", StringComparison.OrdinalIgnoreCase))
                 {
-                    var timePart = dateTimeText.Replace("Hoje", "").Replace(",", "").Trim();
-                    if (TimeSpan.TryParse(timePart, out var todayTime))
-                    {
-                        return new DateTime(now.Year, now.Month, now.Day, todayTime.Hours, todayTime.Minutes, 0);
-                    }
+                    dateTimeText = dateTimeText.Replace("Hoje", now.ToString("yyyy-MM-dd"), StringComparison.OrdinalIgnoreCase);
                 }
                 else if (dateTimeText.StartsWith("Amanhã", StringComparison.OrdinalIgnoreCase))
                 {
-                    var timePart = dateTimeText.Replace("Amanhã", "").Replace(",", "").Trim();
-                    if (TimeSpan.TryParse(timePart, out var tomorrowTime))
-                    {
-                        return new DateTime(now.Year, now.Month, now.Day, tomorrowTime.Hours, tomorrowTime.Minutes, 0).AddDays(1);
-                    }
+                    dateTimeText = dateTimeText.Replace("Amanhã", now.AddDays(1).ToString("yyyy-MM-dd"), StringComparison.OrdinalIgnoreCase);
                 }
 
-                // Formatos do tipo "Fri 10. Jan, 16:45"
-                var parts = dateTimeText.Split(new[] { ' ', ',', '.' }, StringSplitOptions.RemoveEmptyEntries);
+                // Remove vírgulas e espaços redundantes
+                dateTimeText = dateTimeText.Replace(",", "").Trim();
+
+                // Tenta parsear o formato direto como "yyyy-MM-dd HH:mm" ou "yyyy-MM-dd H:mm"
+                var formats = new[] { "yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm" };
+                if (DateTime.TryParseExact(dateTimeText, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
+                {
+                    return parsedDate;
+                }
+
+                // Divide o texto para formatos do tipo "Fri 10. Jan, 16:45"
+                var parts = dateTimeText.Split(new[] { ' ', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                 if (parts.Length >= 4)
                 {
+                    var monthMappings = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Jan", 1 }, { "Feb", 2 }, { "Mar", 3 }, { "Apr", 4 }, { "May", 5 }, { "Jun", 6 },
+                { "Jul", 7 }, { "Aug", 8 }, { "Sep", 9 }, { "Oct", 10 }, { "Nov", 11 }, { "Dec", 12 }
+            };
+
                     // Extrai dia, mês e hora
                     if (int.TryParse(parts[1], out var day) && monthMappings.TryGetValue(parts[2], out var month))
                     {
                         var timePart = parts[^1]; // Última parte contém o horário
                         if (TimeSpan.TryParse(timePart, out var parsedTime))
                         {
-                            var parsedDate = new DateTime(now.Year, month, day, parsedTime.Hours, parsedTime.Minutes, 0);
+                            var resultDate = new DateTime(now.Year, month, day, parsedTime.Hours, parsedTime.Minutes, 0);
 
                             // Ajusta para o próximo ano se a data estiver no passado
-                            if (parsedDate < now)
+                            if (resultDate < now)
                             {
-                                parsedDate = parsedDate.AddYears(1);
+                                resultDate = resultDate.AddYears(1);
                             }
 
-                            return parsedDate;
+                            return resultDate;
                         }
                     }
                 }
@@ -316,6 +322,8 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
         }
+
+
 
         private void ProcessTabsAndMarketViews(IPage page)
         {
@@ -587,7 +595,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
         {
             try
             {
-                var multiplierElement = button.QuerySelectorAsync("span.odd-button__odd-value-new").GetAwaiter().GetResult();
+                var multiplierElement = button.QuerySelectorAsync("span.odd-button__odd-value-placeholder").GetAwaiter().GetResult();
                 var multiplierText = multiplierElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                 if (decimal.TryParse(multiplierText?.Replace('.', ','), out var multiplier))
                 {
