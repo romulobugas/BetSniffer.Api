@@ -418,7 +418,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
 
                         // Simula a rolagem para baixo no contêiner principal
                         marketContainer.SendKeys(Keys.PageDown);
-                        Thread.Sleep(new Random().Next(1231, 1644));
+                        Thread.Sleep(new Random().Next(1031, 1244));
                     }
                     else
                     {
@@ -444,9 +444,6 @@ namespace BetSniffer.Api.Core.Sites.Vbet
         {
             try
             {
-                // Pausa aleatória para simular comportamento humano
-                Thread.Sleep(new Random().Next(521, 924));
-
                 // Captura o título do mercado
                 var marketTitleElement = _webScrapingService.FindElementWithin(marketElement, ".//p[contains(@class, '-title-')]");
                 string marketTitle = marketTitleElement?.Text.Trim() ?? string.Empty;

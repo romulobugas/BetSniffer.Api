@@ -141,23 +141,28 @@ namespace BetSniffer.Api.Controllers
         {
             var uri = new Uri(url);
             string host = uri.Host;
+
+            // Verifica se a URL pertence à Pixbet
+            if (url.Contains("pixbet", StringComparison.OrdinalIgnoreCase) ||
+                url.Contains("fssb.io", StringComparison.OrdinalIgnoreCase))
+            {
+                return "pixbet";
+            }
+
             string[] parts = host.Split('.');
 
             // Se houver mais de dois componentes e o último for um domínio de nível superior (.br, .com, etc.), pega o penúltimo
             if (parts.Length >= 3)
             {
-                // Se o domínio for algo como betfast.bet.br, retorna "betfast"
-                return parts[parts.Length - 3];
+                return parts[parts.Length - 3]; // Ex: betfast.bet.br -> "betfast"
             }
             else if (parts.Length == 2)
             {
-                // Para domínios como vbet.bet, retorna "vbet"
-                return parts[0];
+                return parts[0]; // Ex: vbet.bet -> "vbet"
             }
 
             return host;
         }
-
 
         private IScrapingService GetScrapingService(
             string siteName,
@@ -174,6 +179,7 @@ namespace BetSniffer.Api.Controllers
                 "betfast" => new BetfastScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betfair" => new BetfairScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "superbet" => new SuperbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "pixbet" => new PixbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }

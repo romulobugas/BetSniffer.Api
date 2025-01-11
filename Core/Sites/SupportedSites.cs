@@ -9,7 +9,8 @@
             "betano",
             "vbet",
             "betfair",
-            "superbet"
+            "superbet",
+            "pixbet"
             // Adicione outros sites conforme necessário
         };
 
