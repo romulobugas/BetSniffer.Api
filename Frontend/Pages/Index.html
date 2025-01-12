@@ -13,6 +13,7 @@
             <button class="tab-button active" data-tab="updateGames">Atualizar Jogos</button>
             <button class="tab-button" data-tab="monitor">Monitor</button>
             <button class="tab-button" data-tab="scraper">Raspagem</button>
+            <button class="tab-button" data-tab="arbitrage">Arbitragem</button>
         </div>
         <div class="tab-content">
             <div id="updateGames" class="tab-pane active">
@@ -35,7 +36,7 @@
                 <p>Links em processamento: <span id="activeLinksCount">0</span></p>
                 <div id="monitorContent"></div>
             </div>
-            <div id="scraper" class="tab-pane active">
+            <div id="scraper" class="tab-pane">
                 <h2>Adicionar Links para Raspagem</h2>
                 <div id="linkContainer"></div>
                 <div class="button-group">
@@ -46,7 +47,15 @@
                     <button id="sendLinks">Enviar Links</button>
                 </div>
             </div>
-
+            <div id="arbitrage" class="tab-pane active">
+                <h2>Arbitragem de Apostas</h2>
+                <div class="profit-input">
+                    <label for="bankValue">Valor da Banca (R$):</label>
+                    <input type="text" id="bankValue" placeholder="Insira o valor da banca" />
+                    <button id="checkNewBets">Verificar Novas Apostas</button>
+                </div>
+                <div id="arbitrageContent" class="mosaic-container"></div>
+            </div>
         </div>
     </div>
 
@@ -54,6 +63,7 @@
     <script src="../Scripts/updateGames.js"></script>
     <script src="../Scripts/monitor.js"></script>
     <script src="../Scripts/scraper.js"></script>
+    <script src="../Scripts/arbitrage.js"></script>
     <script src="../Scripts/main.js"></script>
 </body>
 </html>

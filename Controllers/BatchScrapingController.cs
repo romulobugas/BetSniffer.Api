@@ -20,6 +20,7 @@ using System.Linq;
 using System.Globalization;
 using System.Reflection;
 using BetSniffer.Api.Core.Sites.Superbet;
+using Microsoft.EntityFrameworkCore;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -135,8 +136,6 @@ namespace BetSniffer.Api.Controllers
             });
         }
 
-
-
         private string ExtractSiteName(string url)
         {
             var uri = new Uri(url);
@@ -164,12 +163,7 @@ namespace BetSniffer.Api.Controllers
             return host;
         }
 
-        private IScrapingService GetScrapingService(
-            string siteName,
-            ApplicationDbContext dbContext,
-            TeamService teamService,
-            IRepositoryService<GamesInfo> gamesInfoRepository,
-            IRepositoryService<BetInfo> betInfoRepository)
+        private IScrapingService GetScrapingService(string siteName, ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository,IRepositoryService<BetInfo> betInfoRepository)
         {
             return siteName.ToLower() switch
             {
@@ -323,6 +317,102 @@ namespace BetSniffer.Api.Controllers
             }
         }
 
+        [HttpGet("arbitrage-results")]
+        public IActionResult GetArbitrageResults([FromQuery] int? siteIdX, [FromQuery] int? siteIdY, [FromQuery] decimal? minPercentage, [FromQuery] decimal? maxPercentage)
+        {
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                var query = dbContext.ArbitrageResults.AsQueryable();
+
+                // Filtros opcionais
+                if (siteIdX.HasValue)
+                {
+                    query = query.Where(ar => ar.SiteIdX == siteIdX.Value);
+                }
+
+                if (siteIdY.HasValue)
+                {
+                    query = query.Where(ar => ar.SiteIdY == siteIdY.Value);
+                }
+
+                if (minPercentage.HasValue)
+                {
+                    query = query.Where(ar => ar.ArbitrageLucroPercent >= minPercentage.Value);
+                }
+
+                if (maxPercentage.HasValue)
+                {
+                    query = query.Where(ar => ar.ArbitrageLucroPercent <= maxPercentage.Value);
+                }
+
+                // Seleciona os campos necessários (excluindo os solicitados)
+                var results = query
+                    .Select(ar => new
+                    {
+                        ar.ArbitrageLucroPercent,
+                        ar.TagNameX,
+                        ar.OverUnderX,
+                        ar.BetAmountX,
+                        ar.MultiplierX,
+                        ar.HomeTeam,
+                        ar.SiteNameX,
+                        ar.SiteNameY,
+                        ar.AwayTeam,
+                        ar.OverUnderY,
+                        ar.BetAmountY,
+                        ar.MultiplierY,
+                        ar.TagNameY,
+                        ar.GameDateX
+                    })
+                    .OrderByDescending(ar => ar.ArbitrageLucroPercent)
+                    .ToList();
+
+                if (!results.Any())
+                {
+                    return NotFound(new { message = "Nenhum resultado de arbitragem encontrado." });
+                }
+
+                return Ok(results);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Erro ao buscar os resultados de arbitragem: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("execute-arbitrage")]
+        public IActionResult ExecuteArbitrageCalculation()
+        {
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                // Executa a procedure diretamente
+                dbContext.Database.ExecuteSqlRaw("EXEC ExecuteArbitrageCalculation");
+
+                // Conta os resultados da tabela ArbitrageResults
+                var resultsCount = dbContext.ArbitrageResults.Count();
+
+                // Retorna a mensagem apropriada
+                if (resultsCount > 0)
+                {
+                    return Ok(new { message = $"{resultsCount} Apostas encontradas" });
+                }
+                else
+                {
+                    return Ok(new { message = "Nenhuma aposta encontrada" });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Retorna erro em caso de falha
+                return StatusCode(500, new { message = $"Erro ao executar a arbitragem: {ex.Message}" });
+            }
+        }
 
     }
 }

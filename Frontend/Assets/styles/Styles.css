@@ -14,13 +14,15 @@ body {
 }
 
 .container {
-    max-width: 800px;
+    width: 98%; /* Quase toda a largura da página */
+    max-width: none; /* Remove limite máximo de largura */
     margin: auto;
     padding: 20px;
     background: #2e2e4f;
     border-radius: 8px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
 }
+
 
 h1 {
     text-align: center;
@@ -132,14 +134,6 @@ button#toggleAll:hover {
 #activeTasksList li:hover {
     background-color: #444466;
     cursor: default;
-}
-.container {
-    max-width: 900px;
-    margin: auto;
-    padding: 20px;
-    background: #2e2e4f;
-    border-radius: 8px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
 }
 
 /* Aba Monitor */
@@ -291,15 +285,6 @@ h2 {
             outline: none;
         }
 
-/* Ajuste do container */
-.container {
-    padding: 40px 20px; /* Aumenta o espaço interno */
-    max-width: 900px; /* Centraliza e amplia */
-    margin: auto;
-    border-radius: 12px;
-    background: #1e1e2f;
-    box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.6);
-}
 /* Ajuste para manter exatamente 3 colunas */
 #siteCheckboxList {
     display: grid;
@@ -406,3 +391,221 @@ h2 {
     color: #ffffff;
     font-size: 14px;
 }
+
+/* Ajuste geral do mosaic */
+.mosaic {
+    display: flex;
+    flex-direction: column; /* Organiza tudo em colunas */
+    align-items: center;
+    justify-content: center; /* Centraliza o conteúdo verticalmente */
+    background-color: #2e2e4f;
+    border: 1px solid #444466;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    padding: 20px; /* Aumenta o espaço interno */
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+    height: auto; /* Adapta à altura necessária */
+}
+
+/* Ajuste do cabeçalho do lucro */
+.mosaic-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 25px; /* Adiciona mais espaço entre o título e o restante do conteúdo */
+}
+
+    .mosaic-header h3 {
+        margin: 0;
+        font-size: 1.6rem;
+        font-weight: bold;
+        color: #f0ad4e;
+    }
+
+/* Corpo do mosaico */
+.mosaic-body {
+    display: flex;
+    flex-direction: row; /* Coloca os elementos em linha */
+    width: 100%;
+    justify-content: space-between; /* Distribui os elementos uniformemente */
+    align-items: flex-start; /* Garante alinhamento superior para consistência */
+    gap: 20px; /* Espaçamento entre as colunas */
+}
+
+/* Colunas dentro do corpo */
+.mosaic-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Centraliza os ícones verticalmente */
+    text-align: center;
+    gap: 10px;
+}
+
+
+    .mosaic-column img.site-icon {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 10px;
+    }
+
+    .mosaic-column p {
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .mosaic-column .site-name {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .mosaic-column .bet-info {
+        font-size: 0.85rem;
+        color: #ddd;
+        margin-top: 5px;
+    }
+
+/* Ajuste dos times e do botão VS */
+.team-container {
+    display: flex;
+    flex-direction: column; /* Alinha os elementos verticalmente */
+    align-items: center; /* Centraliza horizontalmente */
+    justify-content: center; /* Centraliza verticalmente */
+    gap: 10px; /* Espaço entre os elementos */
+}
+
+.team-buttons {
+    display: flex;
+    align-items: center; /* Centraliza verticalmente os botões e "VS" */
+    justify-content: center; /* Centraliza horizontalmente */
+    gap: 15px; /* Espaço entre os botões e o texto "VS" */
+    margin-bottom: 5px; /* Espaço entre os botões e a data */
+}
+
+/* Botões dos times */
+.team-button {
+    background-color: #2e2e4f; /* Fundo consistente com o layout */
+    color: #f0ad4e; /* Texto dourado */
+    font-weight: bold;
+    border: 1px solid #f0ad4e; /* Borda dourada */
+    border-radius: 5px;
+    padding: 5px 15px;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 1rem;
+    transition: all 0.3s ease-in-out;
+}
+    .team-button:hover {
+        background-color: #f0ad4e;
+        color: #2e2e4f;
+    }
+
+/* Ajuste do texto "VS" */
+.vs-text {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #f0ad4e;
+}
+
+/* Ajuste da data e hora */
+.game-date {
+    font-size: 0.9rem;
+    color: #aaa;
+    text-align: center;
+    font-style: italic;
+    margin-top: 15px; /* Aumenta a distância abaixo dos botões */
+}
+
+
+
+/* Mercados e valores */
+.market-info {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #f0ad4e;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+.bet-info {
+    font-size: 0.9rem;
+    color: #ddd;
+    margin-top: 3px;
+    text-align: center;
+}
+
+button[title] {
+    position: relative;
+}
+
+    button[title]:hover::after {
+        content: attr(title); /* Exibe o conteúdo do atributo 'title' */
+        position: absolute;
+        top: -25px; /* Ajuste vertical */
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #2e2e4f; /* Fundo escuro */
+        color: #f0ad4e; /* Texto dourado */
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        border-radius: 5px;
+        white-space: nowrap;
+        z-index: 10;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+.profit-input {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Alinha os elementos à esquerda */
+    gap: 10px; /* Espaçamento entre os elementos */
+    margin-bottom: 20px; /* Espaçamento inferior */
+}
+
+    .profit-input label {
+        font-size: 1rem;
+        color: #f0ad4e; /* Cor dourada */
+        font-weight: bold;
+        margin-right: 10px; /* Espaçamento entre o rótulo e o campo de entrada */
+    }
+
+    .profit-input input {
+        border: 1px solid #444466; /* Borda do campo */
+        background-color: #2e2e4f; /* Fundo escuro */
+        color: #ffffff; /* Texto branco */
+        font-size: 1rem;
+        padding: 8px 12px; /* Espaçamento interno */
+        border-radius: 5px; /* Arredondamento dos cantos */
+        outline: none;
+        width: 250px; /* Largura do campo */
+        transition: all 0.3s ease-in-out;
+    }
+
+        .profit-input input::placeholder {
+            color: #888; /* Cor do placeholder */
+            font-style: italic; /* Estilo do placeholder */
+        }
+
+        .profit-input input:focus {
+            border-color: #f0ad4e; /* Borda dourada ao focar */
+            background-color: #3e3e5f; /* Fundo mais claro ao focar */
+        }
+
+    .profit-input button {
+        background-color: #f0ad4e; /* Fundo dourado */
+        color: #2e2e4f; /* Texto escuro */
+        font-size: 1rem;
+        font-weight: bold;
+        padding: 8px 16px; /* Espaçamento interno */
+        border: none;
+        border-radius: 5px; /* Arredondamento dos cantos */
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+    }
+
+        .profit-input button:hover {
+            background-color: #d48f38; /* Fundo mais escuro ao passar o mouse */
+            color: #fff; /* Texto branco ao passar o mouse */
+        }

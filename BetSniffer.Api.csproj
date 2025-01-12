@@ -19,6 +19,7 @@
   <ItemGroup>
     <None Remove="Frontend\Components\Monitor.html" />
     <None Remove="Frontend\Components\Scraping.html" />
+    <None Remove="Frontend\Scripts\arbitrage.js" />
     <None Remove="Frontend\Scripts\main.js" />
     <None Remove="Frontend\Scripts\monitor.js" />
     <None Remove="Frontend\Scripts\scraper.js" />

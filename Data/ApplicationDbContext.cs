@@ -10,6 +10,8 @@ namespace BetSniffer.Api.Data
         public DbSet<Site> Site { get; set; }
         public DbSet<Team> Teams { get; set; }
         public DbSet<BetArbitrage> BetArbitrage { get; set; }
+        public DbSet<ArbitrageResults> ArbitrageResults { get; set; } // Adicionada nova DbSet
+
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -112,6 +114,94 @@ namespace BetSniffer.Api.Data
                 entity.Property(b => b.GameDate).HasColumnType("datetime");
                 entity.Property(b => b.ArbitragePercentage).HasColumnType("decimal(10, 2)");
             });
+
+            // Configuração da tabela ArbitrageResults
+            modelBuilder.Entity<ArbitrageResults>(entity =>
+            {
+                entity.HasKey(a => new { a.BetIdX, a.BetIdY }); // Chave composta
+
+                entity.Property(a => a.ValorLucro)
+                      .HasColumnName("Valor_Lucro")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.ArbitrageLucroPercent)
+                      .HasColumnName("Arbitrage_Lucro_Percent")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.TagNameX)
+                      .HasColumnName("TagName_X")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.OverUnderX)
+                      .HasColumnName("OverUnder_X")
+                      .HasMaxLength(50);
+
+                entity.Property(a => a.BetAmountX)
+                      .HasColumnName("BetAmount_X")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.MultiplierX)
+                      .HasColumnName("Multiplier_X")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.HomeTeam)
+                      .HasColumnName("HomeTeam")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.SiteNameX)
+                      .HasColumnName("SiteName_X")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.SiteNameY)
+                      .HasColumnName("SiteName_Y")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.AwayTeam)
+                      .HasColumnName("AwayTeam")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.OverUnderY)
+                      .HasColumnName("OverUnder_Y")
+                      .HasMaxLength(50);
+
+                entity.Property(a => a.BetAmountY)
+                      .HasColumnName("BetAmount_Y")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.MultiplierY)
+                      .HasColumnName("Multiplier_Y")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.TagNameY)
+                      .HasColumnName("TagName_Y")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.SiteIdX)
+                      .HasColumnName("SiteId_X");
+
+                entity.Property(a => a.GameDateX)
+                      .HasColumnName("GameDate_X")
+                      .HasColumnType("datetime");
+
+                entity.Property(a => a.BetIdX)
+                      .HasColumnName("BetId_X");
+
+                entity.Property(a => a.BetIdY)
+                      .HasColumnName("BetId_Y");
+
+                entity.Property(a => a.SiteIdY)
+                      .HasColumnName("SiteId_Y");
+
+                entity.Property(a => a.StakeX)
+                      .HasColumnName("Stake_X")
+                      .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.StakeY)
+                      .HasColumnName("Stake_Y")
+                      .HasColumnType("decimal(18, 2)");
+            });
+
+
         }
     }
 }
