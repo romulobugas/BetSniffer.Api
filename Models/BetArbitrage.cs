@@ -102,7 +102,10 @@ namespace BetSniffer.Api.Models
         // Relacionamento com BetInfo (um para muitos)
         public virtual ICollection<BetInfo> Bets { get; set; }  // Adicionando a coleção de Bets
 
+        [StringLength(255)]
+        public string GameName { get; set; } // Adicionando o campo GameName (pode ser nulo)
     }
+
 
     public class Site
     {

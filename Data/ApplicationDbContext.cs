@@ -30,6 +30,7 @@ namespace BetSniffer.Api.Data
                 entity.Property(g => g.URL).HasMaxLength(500).IsRequired(false);
                 entity.Property(g => g.Status).HasDefaultValue(0);
                 entity.Property(g => g.LastUpdated).HasColumnType("datetime2").IsRequired(false);
+                entity.Property(g => g.GameName).HasMaxLength(255).IsRequired(false); // Configuração do GameName
 
                 // Relacionamento com Site
                 entity.HasOne(g => g.Site)
@@ -115,7 +116,6 @@ namespace BetSniffer.Api.Data
                 entity.Property(b => b.ArbitragePercentage).HasColumnType("decimal(10, 2)");
             });
 
-            // Configuração da tabela ArbitrageResults
             modelBuilder.Entity<ArbitrageResults>(entity =>
             {
                 entity.HasKey(a => new { a.BetIdX, a.BetIdY }); // Chave composta
@@ -199,7 +199,24 @@ namespace BetSniffer.Api.Data
                 entity.Property(a => a.StakeY)
                       .HasColumnName("Stake_Y")
                       .HasColumnType("decimal(18, 2)");
+
+                entity.Property(a => a.LeagueX)
+                      .HasColumnName("League_X")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.LeagueY)
+                      .HasColumnName("League_Y")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.GameX)
+                      .HasColumnName("Game_X")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.GameY)
+                      .HasColumnName("Game_Y")
+                      .HasMaxLength(255);
             });
+
 
 
         }

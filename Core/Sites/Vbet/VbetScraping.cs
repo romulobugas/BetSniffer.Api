@@ -104,7 +104,8 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                     Site = site,
                     URL = url,
                     Status = 1,
-                    LastUpdated = DateTime.Now
+                    LastUpdated = DateTime.Now,
+                    GameName = homeTeam + " - " + awayTeam
                 };
                 _dbContext.GamesInfo.Add(gamesInfo);
             }

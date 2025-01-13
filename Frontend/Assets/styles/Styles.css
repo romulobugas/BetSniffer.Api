@@ -556,6 +556,33 @@ button[title] {
         box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
     }
 
+/* Estilo para o campo editável */
+.editable-bet-value {
+    display: inline-block;
+    padding: 2px 5px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    color: #000;
+    font-size: 0.9rem;
+    text-align: center;
+    cursor: pointer;
+    min-width: 50px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out;
+}
+
+    .editable-bet-value:hover {
+        border-color: #f0ad4e; /* Destaca ao passar o mouse */
+    }
+
+    .editable-bet-value[contenteditable="true"] {
+        border-color: #f0ad4e;
+        background-color: #fffaf0; /* Fundo levemente diferente ao editar */
+        outline: none;
+        cursor: text;
+    }
+
 .profit-input {
     display: flex;
     align-items: center;
@@ -610,29 +637,131 @@ button[title] {
             color: #fff; /* Texto branco ao passar o mouse */
         }
 
-/* Estilo para o campo editável */
-.editable-bet-value {
-    display: inline-block;
-    padding: 2px 5px;
-    background-color: #fff;
-    border: 1px solid #ddd;
+.arbitrage-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 5px;
+    background-color: #2a2a3c;
+    border: 1px solid #444;
     border-radius: 5px;
-    color: #000;
-    font-size: 0.9rem;
-    text-align: center;
-    cursor: pointer;
-    min-width: 50px;
-    box-sizing: border-box;
-    transition: border-color 0.2s ease-in-out;
 }
 
-    .editable-bet-value:hover {
-        border-color: #f0ad4e; /* Destaca ao passar o mouse */
-    }
+.profit {
+    display: flex; /* Permite alinhamento flexível */
+    align-items: center; /* Alinha verticalmente */
+    justify-content: center; /* Alinha horizontalmente */
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: orange;
+    border-right: 1px solid #444;
+    padding: 2px; /* Reduz o espaçamento interno */
+    height: 100%; /* Garante alinhamento com a altura da linha */
+    box-sizing: border-box; /* Inclui padding no cálculo de tamanho */
+}
 
-    .editable-bet-value[contenteditable="true"] {
-        border-color: #f0ad4e;
-        background-color: #fffaf0; /* Fundo levemente diferente ao editar */
+.arbitrage-content {
+    display: grid;
+    grid-template-columns: 5% 30% 7% 24% 34%; /* Ajusta a proporção das colunas para otimizar o espaço */
+    gap: 0px; /* Remove qualquer espaço extra entre colunas */
+    width: 100%; /* Garante que o conteúdo ocupe toda a largura disponível */
+    align-items: center; /* Alinha verticalmente as grids */
+}
+
+.arbitrage-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Garante que as grids sejam distribuídas uniformemente */
+    padding: 5px;
+    gap: 0px; /* Remove espaços extras entre grids */
+}
+
+.arbitrage-date {
+    display: flex; /* Flexbox para alinhamento central */
+    flex-direction: column; /* Coloca data e hora em colunas */
+    align-items: center; /* Centraliza horizontalmente */
+    justify-content: center; /* Centraliza verticalmente */
+    text-align: center; /* Centraliza texto */
+    border-left: 1px solid #444;
+    border-right: 1px solid #444;
+    padding: 2px 5px; /* Reduz o espaçamento interno */
+    height: auto; /* Garante alinhamento com outras células */
+    line-height: 1.2; /* Ajusta a altura da linha */
+    box-sizing: border-box; /* Inclui padding no cálculo do tamanho */
+}
+
+.arbitrage-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto; /* Ajusta para distribuir os elementos de forma proporcional */
+    align-items: center; /* Centraliza o conteúdo verticalmente */
+    gap: 2px; /* Reduz o espaço entre colunas */
+    border-bottom: 1px solid #444; /* Linha separadora */
+    padding: 2px 6px; /* Reduz o padding interno */
+    height: 38px; /* Mantém a altura fixa */
+    box-sizing: border-box; /* Inclui o padding no cálculo do tamanho */
+}
+
+.site-icon-odd {
+    width: 25px;
+    height: 25px;
+    margin-right: 2px; /* Reduz a margem entre o ícone e o nome */
+}
+
+
+.site-name-odd {
+    font-weight: bold;
+    color: white;
+    text-align: left;
+    font-size: 14px;
+}
+
+.teams, .market, .stake-input {
+    font-size: 14px;
+    color: #ccc;
+    text-align: left;
+    display: flex;
+    align-items: center; /* Centraliza o texto verticalmente */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Garante que o texto longo seja cortado */
+    white-space: nowrap; /* Evita quebra de linha */
+}
+
+.odd {
+    font-size: 14px;
+    margin-right: 10px;
+    text-align: right;
+    font-weight: bold;
+    color: #f4b400;
+}
+
+.stake-input {
+    text-align: right;
+    font-size: 14px;
+    color: white;
+    margin-right: 2px; /* Aproxima do canto direito */
+}
+
+.market {
+    text-align: left;
+    margin-left: 2px; /* Aproxima do início da célula */
+}
+
+/* Estilo compartilhado para os campos de entrada */
+.input-field {
+    border: 1px solid #444;
+    background-color: #2a2a3c;
+    color: white;
+    font-size: 14px;
+    padding: 8px;
+    border-radius: 5px;
+    width: 100px; /* Tamanho padrão para o campo */
+    text-align: right;
+    box-sizing: border-box; /* Inclui padding no cálculo do tamanho */
+}
+
+    .input-field:focus {
         outline: none;
-        cursor: text;
+        border-color: #f0ad4e; /* Destaca a borda ao focar */
+        background-color: #3e3e5f; /* Fundo mais claro ao focar */
     }
