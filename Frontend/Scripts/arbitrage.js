@@ -117,7 +117,6 @@
                               ${stakeY}
                         </span>
                     </p>
-
                 </div>
             </div>
         `;
