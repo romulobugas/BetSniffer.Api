@@ -1,5 +1,4 @@
-﻿
-namespace BetSniffer.Api.Models
+﻿namespace BetSniffer.Api.Models
 {
     public class ArbitrageResults
     {
@@ -24,5 +23,9 @@ namespace BetSniffer.Api.Models
         public int SiteIdY { get; set; }
         public decimal StakeX { get; set; }
         public decimal StakeY { get; set; }
+        public string LeagueX { get; set; } // Novo campo
+        public string LeagueY { get; set; } // Novo campo
+        public string GameX { get; set; } // Novo campo
+        public string GameY { get; set; } // Novo campo
     }
 }

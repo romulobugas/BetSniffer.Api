@@ -168,7 +168,8 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                         Site = site,
                         URL = url,
                         Status = 1,
-                        LastUpdated = DateTime.Now
+                        LastUpdated = DateTime.Now,
+                        GameName = homeTeam + " - " + awayTeam
                     };
                     _dbContext.GamesInfo.Add(gamesInfo);
                 }
@@ -340,7 +341,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
 
 
                 // Validação: interrompe o processamento se os nomes dos times estiverem vazios
-                if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam))
+                if (string.IsNullOrEmpty(_teamService.NormalizeText(homeTeam)) || string.IsNullOrEmpty(_teamService.NormalizeText(awayTeam)))
                 {
                     Console.WriteLine("Nomes dos times inválidos. Pulando para o próximo jogo.");
                     homeTeam = null; // Zera para evitar propagação errada

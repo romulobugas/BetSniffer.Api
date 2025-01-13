@@ -103,7 +103,8 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                     Site = site,
                     URL = url,
                     Status = 1,
-                    LastUpdated = DateTime.Now
+                    LastUpdated = DateTime.Now,
+                    GameName = homeTeam + " - " + awayTeam
                 };
                 _dbContext.GamesInfo.Add(gamesInfo);
             }
