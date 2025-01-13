@@ -6,10 +6,57 @@
 
     // Função para calcular o valor das apostas proporcionalmente às odds
     const calculateStakes = (bankValue, odd1, odd2) => {
-        const totalOdds = odd1 + odd2;
-        const stake1 = (bankValue * odd2) / totalOdds;
-        const stake2 = (bankValue * odd1) / totalOdds;
+        const stake1 = (bankValue * odd2) / (odd1 + odd2); // Calcula para a primeira odd
+        const stake2 = (bankValue * odd1) / (odd1 + odd2); // Calcula para a segunda odd
         return [stake1.toFixed(2), stake2.toFixed(2)];
+    };
+
+    // Recalcula os valores da outra aposta e ajusta a banca
+    const recalculateBetValues = (editedValue, otherBetElement, multiplierEdited, multiplierOther) => {
+        const totalBank = editedValue * (multiplierEdited + multiplierOther) / multiplierOther;
+
+        // Recalcula o valor proporcional da outra casa
+        const otherStake = totalBank - editedValue;
+
+        // Atualiza a interface com os novos valores
+        otherBetElement.textContent = `${otherStake.toFixed(2)}`;
+        bankInput.value = totalBank.toFixed(2);
+    };
+
+    // Adiciona evento ao campo editável
+    const activateEditableFields = () => {
+        document.querySelectorAll(".editable-bet-value").forEach((editable) => {
+            editable.addEventListener("dblclick", (e) => {
+                const currentElement = e.target;
+                currentElement.contentEditable = "true";
+                currentElement.focus();
+            });
+
+            editable.addEventListener("blur", (e) => {
+                const currentElement = e.target;
+                currentElement.contentEditable = "false";
+
+                const newValue = parseFloat(currentElement.textContent.replace("R$", "").trim());
+                if (!isNaN(newValue) && newValue > 0) {
+                    const multiplierEdited = parseFloat(currentElement.dataset.multiplier);
+                    const otherBetElement = document.querySelector(
+                        `.editable-bet-value:not([data-multiplier="${multiplierEdited}"])`
+                    );
+                    const multiplierOther = parseFloat(otherBetElement.dataset.multiplier);
+
+                    recalculateBetValues(newValue, otherBetElement, multiplierEdited, multiplierOther);
+                } else {
+                    currentElement.textContent = `R$${currentElement.dataset.initialValue}`; // Restaura valor inicial se inválido
+                }
+            });
+
+            editable.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.target.blur(); // Finaliza edição ao pressionar Enter
+                }
+            });
+        });
     };
 
     // Função para criar o mosaico (alterado)
@@ -35,8 +82,17 @@
                     <img src="../Assets/images/${arbitrage.siteNameX.toLowerCase()}.png" alt="${arbitrage.siteNameX}" class="site-icon" />
                     <p class="site-name">${arbitrage.siteNameX}</p>
                     <p class="market-info">${arbitrage.tagNameX || "Mercado não especificado"}</p>
-                    <p class="bet-info">${arbitrage.overUnderX || "N/A"}: ${arbitrage.multiplierX.toFixed(2)}</p>
-                    <p class="bet-info">Valor da Aposta: R$${stakeX}</p>
+                    <p class="bet-info">${arbitrage.overUnderX || "N/A"}: ${arbitrage.betAmountX.toFixed(2)}</p>
+                    <p class="bet-info">ODD: ${arbitrage.multiplierX.toFixed(2)}</p>
+                    <p class="bet-info">
+                        Valor da Aposta R$:
+                        <span class="editable-bet-value"
+                              contenteditable="false"
+                              data-initial-value="${stakeX}" 
+                              data-multiplier="${arbitrage.multiplierX}">
+                              ${stakeX}
+                        </span>
+                    </p>
                 </div>
                 <div class="team-container">
                     <div class="team-buttons">
@@ -50,8 +106,18 @@
                     <img src="../Assets/images/${arbitrage.siteNameY.toLowerCase()}.png" alt="${arbitrage.siteNameY}" class="site-icon" />
                     <p class="site-name">${arbitrage.siteNameY}</p>
                     <p class="market-info">${arbitrage.tagNameY || "Mercado não especificado"}</p>
-                    <p class="bet-info">${arbitrage.overUnderY || "N/A"}: ${arbitrage.multiplierY.toFixed(2)}</p>
-                    <p class="bet-info">Valor da Aposta: R$${stakeY}</p>
+                    <p class="bet-info">${arbitrage.overUnderY || "N/A"}: ${arbitrage.betAmountY.toFixed(2)}</p>
+                    <p class="bet-info">ODD: ${arbitrage.multiplierY.toFixed(2)}</p>
+                    <p class="bet-info">
+                        Valor da Aposta R$:
+                        <span class="editable-bet-value"
+                              contenteditable="false"
+                              data-initial-value="${stakeY}" 
+                              data-multiplier="${arbitrage.multiplierY}">
+                              ${stakeY}
+                        </span>
+                    </p>
+
                 </div>
             </div>
         `;
@@ -59,6 +125,7 @@
 
         mosaic.innerHTML = mosaicContent;
         arbitrageContainer.appendChild(mosaic);
+        activateEditableFields(); // Ativa eventos após inserir no DOM
 
         // Alternar nomes dos times ao clicar
         const homeTeamElement = mosaic.querySelector(".home-team");

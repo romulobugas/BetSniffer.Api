@@ -609,3 +609,30 @@ button[title] {
             background-color: #d48f38; /* Fundo mais escuro ao passar o mouse */
             color: #fff; /* Texto branco ao passar o mouse */
         }
+
+/* Estilo para o campo editável */
+.editable-bet-value {
+    display: inline-block;
+    padding: 2px 5px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    color: #000;
+    font-size: 0.9rem;
+    text-align: center;
+    cursor: pointer;
+    min-width: 50px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease-in-out;
+}
+
+    .editable-bet-value:hover {
+        border-color: #f0ad4e; /* Destaca ao passar o mouse */
+    }
+
+    .editable-bet-value[contenteditable="true"] {
+        border-color: #f0ad4e;
+        background-color: #fffaf0; /* Fundo levemente diferente ao editar */
+        outline: none;
+        cursor: text;
+    }
