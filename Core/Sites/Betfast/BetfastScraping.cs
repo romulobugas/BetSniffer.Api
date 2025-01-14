@@ -152,10 +152,24 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                     g.Site.SiteId == site.SiteId);
 
                 if (existingGame != null)
-                {                    
+                {
                     gamesInfo = existingGame;
                     gamesInfo.Status = 1;
                     gamesInfo.LastUpdated = DateTime.Now;
+                    gamesInfo.URL = url;
+                    gamesInfo.GameName = homeTeam + " - " + awayTeam;
+
+                    // Verifica se existem apostas associadas ao jogo
+                    var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
+
+                    if (existingBets.Any())
+                    {
+                        Console.WriteLine($"Encontradas {existingBets.Count} apostas associadas ao jogo: {gamesInfo.GameName}");
+
+                        // Remove todas as apostas associadas ao jogo
+                        _dbContext.BetInfo.RemoveRange(existingBets);
+                        Console.WriteLine($"Apostas associadas ao jogo {gamesInfo.GameName} da casa {gamesInfo.Site.Name} foram removidas.");
+                    }
                 }
                 else
                 {
@@ -172,7 +186,14 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                         GameName = homeTeam + " - " + awayTeam
                     };
                     _dbContext.GamesInfo.Add(gamesInfo);
+
+                    // Como o jogo é novo, nenhuma aposta estará associada a ele ainda.
+                    Console.WriteLine($"Nenhuma aposta associada ao jogo: {gamesInfo.GameName} (novo jogo adicionado).");
                 }
+
+                Console.WriteLine($"Salvando Jogo: {gamesInfo.GameName}");
+                _dbContext.SaveChanges();
+                Console.WriteLine("Jogo salvo com sucesso.");
 
                 ProcessTabsAndMarketViews(iframe);
 
@@ -745,26 +766,13 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                             {
                                 Console.WriteLine($"Multiplicador inválido: {multiplierText}");
                                 continue;
-                            }
-
-                            // Substituir o nome do time na tag por "Casa" ou "Visitante", respeitando a estrutura do texto
-                            string adjustedTagName = marketTitle;
-
-                            if (marketTitle.Contains(homeTeam, StringComparison.OrdinalIgnoreCase))
-                            {
-                                adjustedTagName = adjustedTagName.Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase);
-                            }
-
-                            if (marketTitle.Contains(awayTeam, StringComparison.OrdinalIgnoreCase))
-                            {
-                                adjustedTagName = adjustedTagName.Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
-                            }
+                            }                            
 
                             // Cria a aposta
                             currentBets.Add(new BetInfo
                             {
                                 GamesInfo = gamesInfo,
-                                TagName = adjustedTagName,
+                                TagName = marketTitle,
                                 OverUnder = overUnder,
                                 BetAmount = betAmount,
                                 Multiplier = multiplier,

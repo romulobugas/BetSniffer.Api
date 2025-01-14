@@ -250,18 +250,30 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     g.HomeTeamId == homeTeamDb &&
                     g.AwayTeamId == awayTeamDb &&
                     g.GameDate == gameDateTime &&
-                    g.Site.SiteId == site.SiteId); // A comparação é feita usando o SiteId
+                    g.Site.SiteId == site.SiteId);
 
             if (existingGame != null)
             {
-                // Se o jogo já existe no banco, preenche o gamesInfo com os dados existentes
                 gamesInfo = existingGame;
                 gamesInfo.Status = 1;
                 gamesInfo.LastUpdated = DateTime.Now;
+                gamesInfo.URL = url;
+                gamesInfo.GameName = homeTeam + " - " + awayTeam;
+
+                // Verifica se existem apostas associadas ao jogo
+                var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
+
+                if (existingBets.Any())
+                {
+                    Console.WriteLine($"Encontradas {existingBets.Count} apostas associadas ao jogo: {gamesInfo.GameName}");
+
+                    // Remove todas as apostas associadas ao jogo
+                    _dbContext.BetInfo.RemoveRange(existingBets);
+                    Console.WriteLine($"Apostas associadas ao jogo {gamesInfo.GameName} da casa {gamesInfo.Site.Name} foram removidas.");
+                }
             }
             else
             {
-                // Se o jogo não existir no banco, cria um novo GamesInfo
                 gamesInfo = new GamesInfo
                 {
                     HomeTeamId = homeTeamDb,
@@ -274,10 +286,15 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     LastUpdated = DateTime.Now,
                     GameName = homeTeam + " - " + awayTeam
                 };
-
-                // Adiciona o novo jogo ao banco
                 _dbContext.GamesInfo.Add(gamesInfo);
+
+                // Como o jogo é novo, nenhuma aposta estará associada a ele ainda.
+                Console.WriteLine($"Nenhuma aposta associada ao jogo: {gamesInfo.GameName} (novo jogo adicionado).");
             }
+
+            Console.WriteLine($"Salvando Jogo: {gamesInfo.GameName}");
+            _dbContext.SaveChanges();
+            Console.WriteLine("Jogo salvo com sucesso.");
 
             // Lista para armazenar resultados
             List<TagInfo> allTagInfos = new List<TagInfo>();
@@ -516,23 +533,10 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                                         betAmount = decimal.Parse(Regex.Match(betName, @"(\+?\d+(?:,\d+)?)").Value.Replace(",", "."), CultureInfo.InvariantCulture);
                                     }
 
-                                    // Substituir o nome do time na tag por "Casa" ou "Visitante", respeitando a estrutura do texto
-                                    string adjustedTagName = tagName;
-
-                                    if (tagName.Contains(homeTeam, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        adjustedTagName = adjustedTagName.Replace(homeTeam, "Casa", StringComparison.OrdinalIgnoreCase);
-                                    }
-
-                                    if (tagName.Contains(awayTeam, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        adjustedTagName = adjustedTagName.Replace(awayTeam, "Visitante", StringComparison.OrdinalIgnoreCase);
-                                    }
-
                                     currentBets.Add(new BetInfo
                                     {
                                         GamesInfo = gamesInfo,
-                                        TagName = adjustedTagName,
+                                        TagName = tagName,
                                         OverUnder = overUnder,
                                         BetAmount = betAmount,
                                         Multiplier = decimal.Parse(multiplier.Replace(",", "."), CultureInfo.InvariantCulture),

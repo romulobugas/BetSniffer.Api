@@ -91,6 +91,20 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                 gamesInfo = existingGame;
                 gamesInfo.Status = 1;
                 gamesInfo.LastUpdated = DateTime.Now;
+                gamesInfo.URL = url;
+                gamesInfo.GameName = homeTeam + " - " + awayTeam;
+
+                // Verifica se existem apostas associadas ao jogo
+                var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
+
+                if (existingBets.Any())
+                {
+                    Console.WriteLine($"Encontradas {existingBets.Count} apostas associadas ao jogo: {gamesInfo.GameName}");
+
+                    // Remove todas as apostas associadas ao jogo
+                    _dbContext.BetInfo.RemoveRange(existingBets);
+                    Console.WriteLine($"Apostas associadas ao jogo {gamesInfo.GameName} da casa {gamesInfo.Site.Name} foram removidas.");
+                }
             }
             else
             {
@@ -107,9 +121,14 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                     GameName = homeTeam + " - " + awayTeam
                 };
                 _dbContext.GamesInfo.Add(gamesInfo);
+
+                // Como o jogo é novo, nenhuma aposta estará associada a ele ainda.
+                Console.WriteLine($"Nenhuma aposta associada ao jogo: {gamesInfo.GameName} (novo jogo adicionado).");
             }
 
+            Console.WriteLine($"Salvando Jogo: {gamesInfo.GameName}");
             _dbContext.SaveChanges();
+            Console.WriteLine("Jogo salvo com sucesso.");
 
             ProcessTabsAndMarketViews(page);
 
