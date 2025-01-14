@@ -482,21 +482,102 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
 
 
+                        // Verifica se o botão "MOSTRAR MAIS" está presente e clica
+                        var showMoreButton = market.QuerySelectorAsync("button.show-more-market-lines-toggle").GetAwaiter().GetResult();
+                        if (showMoreButton != null)
+                        {
+                            try
+                            {
+                                // Centraliza o botão "MOSTRAR MAIS" na tela antes do clique
+                                showMoreButton.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
+
+                                // Aguarda um curto intervalo para garantir que o botão esteja visível e clicável
+                                Thread.Sleep(new Random().Next(151, 322));
+
+                                // Clica no botão para expandir mais mercados
+                                showMoreButton.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
+
+                                // Aguarda o carregamento das linhas adicionais
+                                Thread.Sleep(new Random().Next(500, 1000));
+
+                                Console.WriteLine("Botão 'MOSTRAR MAIS' clicado e linhas adicionais carregadas.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Erro ao clicar no botão 'MOSTRAR MAIS': {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Botão 'MOSTRAR MAIS' não encontrado.");
+                        }
+
                         // Processa submercados (times ou categorias)
                         var subMarketButtons = market.QuerySelectorAllAsync("div.market-layout-card__team").GetAwaiter().GetResult();
                         if (subMarketButtons != null && subMarketButtons.Length > 0)
                         {
                             foreach (var subMarketButton in subMarketButtons)
                             {
-                                var subMarketName = subMarketButton.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                                if (!string.IsNullOrEmpty(subMarketName))
+                                try
                                 {
-                                    Console.WriteLine($"Processando submercado: {subMarketName}");
-                                    subMarketButton.ClickAsync().GetAwaiter().GetResult();
-                                    Thread.Sleep(new Random().Next(313, 618));
+                                    // Captura o nome do submercado
+                                    var subMarketName = subMarketButton.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                    if (!string.IsNullOrEmpty(subMarketName))
+                                    {
+                                        Console.WriteLine($"Processando submercado: {subMarketName}");
 
-                                    // Processa o mercado expandido com o submercado
-                                    ProcessExpandedMarket(market, $"{marketTitle} {subMarketName}");
+                                        // Realiza até 3 tentativas para clicar no submercado
+                                        bool isClicked = false;
+                                        for (int attempt = 1; attempt <= 3; attempt++)
+                                        {
+                                            try
+                                            {
+                                                // Centraliza o botão do submercado na tela antes do clique
+                                                subMarketButton.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
+
+                                                // Aguarda um curto intervalo para garantir que o elemento esteja em foco
+                                                Thread.Sleep(new Random().Next(51, 158));
+
+                                                // Clica no botão do submercado
+                                                subMarketButton.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
+
+                                                // Aguarda um curto intervalo para verificar se o botão foi clicado
+                                                Thread.Sleep(new Random().Next(311, 722));
+
+                                                // Verifica se o botão foi marcado como clicado
+                                                var isSelected = subMarketButton.EvaluateFunctionAsync<bool>("el => el.hasAttribute('data-is-team-selected')").GetAwaiter().GetResult();
+                                                if (isSelected)
+                                                {
+                                                    Console.WriteLine($"Submercado '{subMarketName}' clicado com sucesso na tentativa {attempt}.");
+                                                    isClicked = true;
+                                                    break;
+                                                }
+                                                else
+                                                {
+                                                    Console.WriteLine($"Submercado '{subMarketName}' não foi clicado na tentativa {attempt}. Tentando novamente...");
+                                                }
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                Console.WriteLine($"Erro ao tentar clicar no submercado '{subMarketName}' na tentativa {attempt}: {ex.Message}");
+                                            }
+                                        }
+
+                                        // Se o botão não for clicado após 3 tentativas, registra o erro
+                                        if (!isClicked)
+                                        {
+                                            Console.WriteLine($"Falha ao clicar no submercado '{subMarketName}' após 3 tentativas. Ignorando este submercado.");
+                                            return;
+                                        }
+
+                                        // Processa o mercado expandido com o submercado
+                                        ProcessExpandedMarket(market, $"{marketTitle} {subMarketName}");
+                                    }
+
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"Erro ao processar submercado: {ex.Message}");
                                 }
                             }
                         }
@@ -505,6 +586,8 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                             // Processa o mercado diretamente se não houver submercados
                             ProcessExpandedMarket(market, marketTitle);
                         }
+
+
                     }
                     catch (Exception ex)
                     {
