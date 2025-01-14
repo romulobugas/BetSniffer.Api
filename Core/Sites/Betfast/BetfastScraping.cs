@@ -118,6 +118,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
 
                 // Aguarda o iframe do conteúdo do jogo ser carregado
                 System.Threading.Thread.Sleep(new Random().Next(873, 1405));
+
                 var innerIframeSelector = "iframe"; // Ajuste para o seletor correto do iframe do jogo
                 var innerIframe = _webScrapingService.GetFrameBySelector(innerIframeSelector);
 
@@ -156,8 +157,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                     gamesInfo = existingGame;
                     gamesInfo.Status = 1;
                     gamesInfo.LastUpdated = DateTime.Now;
-                    gamesInfo.URL = url;
-                    gamesInfo.GameName = homeTeam + " - " + awayTeam;
+                    gamesInfo.GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam);
 
                     // Verifica se existem apostas associadas ao jogo
                     var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
@@ -183,7 +183,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                         URL = url,
                         Status = 1,
                         LastUpdated = DateTime.Now,
-                        GameName = homeTeam + " - " + awayTeam
+                        GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam)
                     };
                     _dbContext.GamesInfo.Add(gamesInfo);
 

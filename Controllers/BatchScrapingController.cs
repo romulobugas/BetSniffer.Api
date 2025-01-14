@@ -369,7 +369,9 @@ namespace BetSniffer.Api.Controllers
                         ar.LeagueX,
                         ar.LeagueY,
                         ar.GameX,
-                        ar.GameY
+                        ar.GameY,
+                        ar.URLX,
+                        ar.URLY
                     })
                     .OrderByDescending(ar => ar.ArbitrageLucroPercent)
                     .ToList();

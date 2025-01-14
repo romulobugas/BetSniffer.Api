@@ -27,5 +27,7 @@
         public string LeagueY { get; set; } // Novo campo
         public string GameX { get; set; } // Novo campo
         public string GameY { get; set; } // Novo campo
+        public string URLX { get; set; } // Novo campo
+        public string URLY { get; set; } // Novo campo
     }
 }

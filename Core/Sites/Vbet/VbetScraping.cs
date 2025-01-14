@@ -92,8 +92,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                 gamesInfo = existingGame;
                 gamesInfo.Status = 1;
                 gamesInfo.LastUpdated = DateTime.Now;
-                gamesInfo.URL = url;
-                gamesInfo.GameName = homeTeam + " - " + awayTeam;
+                gamesInfo.GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam);
 
                 // Verifica se existem apostas associadas ao jogo
                 var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
@@ -119,7 +118,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                     URL = url,
                     Status = 1,
                     LastUpdated = DateTime.Now,
-                    GameName = homeTeam + " - " + awayTeam
+                    GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam)
                 };
                 _dbContext.GamesInfo.Add(gamesInfo);
 

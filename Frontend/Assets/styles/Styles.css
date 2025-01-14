@@ -765,3 +765,15 @@ button[title] {
         border-color: #f0ad4e; /* Destaca a borda ao focar */
         background-color: #3e3e5f; /* Fundo mais claro ao focar */
     }
+
+/* Remove estilos padrões dos links */
+.team-link {
+    text-decoration: none; /* Remove o sublinhado por padrão */
+    color: inherit; /* Herda a cor do elemento pai */
+    cursor: pointer; /* Mostra o cursor de link */
+}
+
+    /* Exibe o sublinhado apenas ao passar o mouse */
+    .team-link:hover {
+        text-decoration: underline; /* Adiciona o sublinhado ao hover */
+    }

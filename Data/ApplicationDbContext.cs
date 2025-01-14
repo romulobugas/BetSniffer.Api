@@ -215,10 +215,14 @@ namespace BetSniffer.Api.Data
                 entity.Property(a => a.GameY)
                       .HasColumnName("Game_Y")
                       .HasMaxLength(255);
+                entity.Property(a => a.URLX)
+                      .HasColumnName("Url_X")
+                      .HasMaxLength(255);
+
+                entity.Property(a => a.URLY)
+                      .HasColumnName("Url_Y")
+                      .HasMaxLength(255);
             });
-
-
-
         }
     }
 }

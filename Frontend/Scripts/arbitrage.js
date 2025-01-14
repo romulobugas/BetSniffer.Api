@@ -168,12 +168,20 @@
                 <div class="arbitrage-grid">
                     <img src="../Assets/icons/${arbitrage.siteNameX.toLowerCase()}.ico" alt="${arbitrage.siteNameX}" class="site-icon-odd" />
                     <span class="site-name-odd">${arbitrage.siteNameX}</span>
-                    <span class="teams">${arbitrage.gameX}</span>
+                    <span class="teams">
+                        <a href="${arbitrage.urlx || '#'}" target="_blank" rel="noopener noreferrer" class="team-link">
+                            ${arbitrage.gameX}
+                        </a>
+                    </span>
                 </div>
                 <div class="arbitrage-grid">
                     <img src="../Assets/icons/${arbitrage.siteNameY.toLowerCase()}.ico" alt="${arbitrage.siteNameY}" class="site-icon-odd" />
                     <span class="site-name-odd">${arbitrage.siteNameY}</span>
-                   <span class="teams">${arbitrage.gameY}</span>
+                   <span class="teams">
+                        <a href="${arbitrage.urly || '#'}" target="_blank" rel="noopener noreferrer" class="team-link">
+                            ${arbitrage.gameY}
+                        </a>
+                    </span>
                 </div>
             </div>
 
@@ -212,6 +220,11 @@
         arbitrageContainer.appendChild(row);
     };
 
+    const updateTotalBets = () => {
+        const totalBets = document.querySelectorAll(".arbitrage-row").length;
+        document.getElementById("totalBets").textContent = totalBets;
+    };
+
     const fetchArbitrageData = async (bankValue = 0) => {
         try {
             const response = await fetch("/api/BatchScraping/arbitrage-results");
@@ -239,9 +252,13 @@
 
             data.forEach((arbitrage) => createArbitrageRow(arbitrage));
             activateStakeInputs(); // Ativa os eventos de edição após carregar os dados
+            updateTotalBets(); // Atualiza o total de apostas
+
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
             showArbitrageMessage("Erro ao carregar os dados. Tente novamente.");
+            updateTotalBets(); // Atualiza o total para 0 em caso de erro
+
         }
     };
 
