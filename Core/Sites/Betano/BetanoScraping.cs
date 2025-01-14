@@ -465,9 +465,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 eventMarketView.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
 
                                 // Aguarda um curto intervalo
-                                Thread.Sleep(new Random().Next(94, 157));
+                                Thread.Sleep(new Random().Next(257, 722));
 
-                                // Verifica se as seleções estão disponíveis
                                 var selections = eventMarketView.QuerySelectorAllAsync(".selections").GetAwaiter().GetResult();
                                 if (selections.Length > 0)
                                 {
@@ -475,19 +474,15 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 }
                                 else
                                 {
-                                    // Realiza o clique no elemento usando JavaScript
-                                    eventMarketView.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
-
-                                    // Aguarda após o clique
-                                    Thread.Sleep(new Random().Next(490, 1129));
+                                    eventMarketView.ClickAsync();
+                                    System.Threading.Thread.Sleep(new Random().Next(490, 1129));
                                     retries++;
                                 }
                             }
                             catch
                             {
-                                // Tenta novamente caso ocorra erro
-                                eventMarketView.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
-                                Thread.Sleep(new Random().Next(320, 1195));
+                                eventMarketView.ClickAsync();
+                                System.Threading.Thread.Sleep(new Random().Next(320, 1195));
                                 retries++;
                             }
                         }
