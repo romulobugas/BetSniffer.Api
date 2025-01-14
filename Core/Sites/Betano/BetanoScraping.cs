@@ -460,6 +460,14 @@ namespace BetSniffer.Api.Core.Sites.Betano
                         {
                             try
                             {
+
+                                // Centraliza o elemento na tela antes de interagir
+                                eventMarketView.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
+
+                                // Aguarda um curto intervalo
+                                Thread.Sleep(new Random().Next(94, 157));
+
+                                // Verifica se as seleções estão disponíveis
                                 var selections = eventMarketView.QuerySelectorAllAsync(".selections").GetAwaiter().GetResult();
                                 if (selections.Length > 0)
                                 {
@@ -467,15 +475,19 @@ namespace BetSniffer.Api.Core.Sites.Betano
                                 }
                                 else
                                 {
-                                    eventMarketView.ClickAsync();
-                                    System.Threading.Thread.Sleep(new Random().Next(490, 1129));
+                                    // Realiza o clique no elemento usando JavaScript
+                                    eventMarketView.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
+
+                                    // Aguarda após o clique
+                                    Thread.Sleep(new Random().Next(490, 1129));
                                     retries++;
                                 }
                             }
                             catch
                             {
-                                eventMarketView.ClickAsync();
-                                System.Threading.Thread.Sleep(new Random().Next(320, 1195));
+                                // Tenta novamente caso ocorra erro
+                                eventMarketView.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
+                                Thread.Sleep(new Random().Next(320, 1195));
                                 retries++;
                             }
                         }
