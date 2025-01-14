@@ -31,7 +31,7 @@
     const applyNumericMask = (input) => {
         input.addEventListener("input", (e) => {
             const currentValue = e.target.value;
-            const sanitizedValue = currentValue.replace(/[^0-9.]/g, ""); // Remove caracteres inválidos
+            const sanitizedValue = currentValue.replace(/,/g, ".").replace(/[^0-9.]/g, ""); // Remove caracteres inválidos
 
             // Apenas atualiza o campo se o valor mudou
             if (currentValue !== sanitizedValue) {
@@ -40,32 +40,38 @@
         });
     };
 
-
-
-
     // Atualiza os valores e recalcula as apostas
     const handleStakeInputChange = (input) => {
         const row = input.closest(".arbitrage-row");
         const oddElements = row.querySelectorAll(".odd");
         const odd1 = parseFloat(oddElements[0].textContent.replace("ODD: ", ""));
         const odd2 = parseFloat(oddElements[1].textContent.replace("ODD: ", ""));
-        const otherInput = [...row.querySelectorAll(".stake-input")].find((el) => el !== input);
+        const stakeInputs = row.querySelectorAll(".stake-input");
 
         const newValue = parseFloat(input.value);
         if (!isNaN(newValue) && newValue > 0) {
-            const totalBank = (newValue * (odd1 + odd2)) / odd2;
+            // Identifica se o input é do primeiro ou do segundo campo
+            const isFirstInput = input === stakeInputs[0];
+
+            // Calcula o total da banca com base no input alterado
+            const totalBank = isFirstInput
+                ? (newValue * (odd1 + odd2)) / odd2
+                : (newValue * (odd1 + odd2)) / odd1;
+
+            // Recalcula o outro campo
             const otherStake = totalBank - newValue;
 
-            // Atualiza o valor no outro campo
-            otherInput.value = otherStake.toFixed(2);
+            // Atualiza os valores
+            if (isFirstInput) {
+                stakeInputs[1].value = otherStake.toFixed(2);
+            } else {
+                stakeInputs[0].value = otherStake.toFixed(2);
+            }
 
             // Atualiza o valor da banca
             bankInput.value = totalBank.toFixed(2);
         }
     };
-
-
-
 
     // Ativa os campos de input para as apostas
     const activateStakeInputs = () => {
