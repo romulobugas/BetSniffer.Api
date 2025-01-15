@@ -270,57 +270,105 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     return;
                 }
 
-                // Captura o nome da liga
+                // Tenta capturar o nome da liga na estrutura antiga
                 var leagueElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > div > div:nth-child(2) > span").GetAwaiter().GetResult();
+
+                if (leagueElement == null)
+                {
+                    // Se a estrutura antiga não for encontrada, tenta a nova estrutura
+                    Console.WriteLine("Estrutura antiga não encontrada, tentando a nova estrutura...");
+                    leagueElement = gameInfoElement.QuerySelectorAsync("div > div:nth-child(2) > span").GetAwaiter().GetResult();
+                }
+
                 if (leagueElement != null)
                 {
-                    leagueName = "";
+                    // Obtém o texto do elemento
                     leagueName = leagueElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                     Console.WriteLine($"Liga: {leagueName}");
                 }
                 else
                 {
-                    throw new Exception("Não foi possível capturar o nome da liga.");
+                    // Caso nenhuma estrutura seja encontrada, lança uma exceção
+                    throw new Exception("Não foi possível capturar o nome da liga em nenhuma das estruturas.");
                 }
+
 
                 // Captura a data e hora do jogo
                 var dateTimeElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(1) > div > div > time").GetAwaiter().GetResult();
+
+                if (dateTimeElement == null)
+                {
+                    // Caso a estrutura antiga não funcione, tenta a nova estrutura
+                    Console.WriteLine("Estrutura antiga para data e hora não encontrada, tentando a nova estrutura...");
+                    dateTimeElement = gameInfoElement.QuerySelectorAsync("div > section > section > div:nth-child(2)").GetAwaiter().GetResult();
+                }
+
+                if (dateTimeElement == null)
+                {
+                    // Segunda tentativa com outro padrão baseado na nova estrutura
+                    Console.WriteLine("Tentando capturar a data e hora em uma estrutura adicional...");
+                    dateTimeElement = gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(2)").GetAwaiter().GetResult();
+                }
+
                 if (dateTimeElement != null)
                 {
-                    gameDateTime = default;
+                    // Obtém o texto da data e hora
                     var gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                     gameDateTime = ParseGameDateTime(gameDateTimeText);
                     Console.WriteLine($"Horário do Jogo: {gameDateTime}");
                 }
                 else
                 {
-                    throw new Exception("Não foi possível capturar a data e hora do jogo.");
+                    // Lança uma exceção caso nenhuma estrutura seja encontrada
+                    throw new Exception("Não foi possível capturar a data e hora do jogo em nenhuma das estruturas.");
                 }
 
-                // Captura os nomes dos times
+                // Tentativa de captura pela estrutura antiga
                 var homeTeamElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(2) > div:nth-child(1) > span > p").GetAwaiter().GetResult();
                 var awayTeamElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(2) > div:nth-child(3) > span > p").GetAwaiter().GetResult();
 
-                if (homeTeamElement != null && awayTeamElement != null)
+                if (homeTeamElement == null || awayTeamElement == null)
                 {
-                    homeTeam = "";
-                    awayTeam = "";
+                    // Estrutura antiga não encontrada, tenta capturar pela nova estrutura
+                    Console.WriteLine("Estrutura antiga para nomes dos times não encontrada, tentando a nova estrutura...");
+                    var teamsElement = gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(3)").GetAwaiter().GetResult();
 
+                    if (teamsElement != null)
+                    {
+                        // Obtém o texto do elemento contendo os dois times
+                        var teamsText = teamsElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                        // Divide os nomes dos times pelo separador " x "
+                        var teams = teamsText.Split(" x ");
+                        if (teams.Length == 2)
+                        {
+                            homeTeam = teams[0].Trim();
+                            awayTeam = teams[1].Trim();
+                        }
+                        else
+                        {
+                            throw new Exception("O formato dos nomes dos times não corresponde ao esperado 'TimeCasa x TimeVisitante'.");
+                        }
+                    }
+                }
+                else
+                {
+                    // Captura os textos dos times a partir da estrutura antiga
                     homeTeam = homeTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                     awayTeam = awayTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                }
 
-                    if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam)) 
-                    {
-                        _logService.Log($"Um dos times está vazio - Times: {homeTeam} vs {awayTeam} em {gameDateTime}");
-                        throw new Exception($"Um dos times está vazio - Times: {homeTeam} vs {awayTeam} em {gameDateTime}");
-                    }
-
+                if (!string.IsNullOrEmpty(homeTeam) && !string.IsNullOrEmpty(awayTeam))
+                {
                     Console.WriteLine($"Times: {homeTeam} vs {awayTeam}");
                 }
                 else
                 {
-                    throw new Exception("Não foi possível capturar os nomes dos times.");
+                    // Lança uma exceção caso nenhum dos padrões funcione
+                    throw new Exception("Não foi possível capturar os nomes dos times em nenhuma das estruturas.");
                 }
+
+
             }
             catch (Exception ex)
             {

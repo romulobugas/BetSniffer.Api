@@ -12,9 +12,6 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
             { 4, new List<string> { "Chutes no alvo Acima/Abaixo" } },
             { 7, new List<string> { "Impedimentos Acima/Abaixo no Tempo Integral" } },
             { 5, new List<string> { "Faltas Totais na Partida" } },
-            //{ 25, new List<string> { "Total de Arremessos Laterais", "Total de Arremessos Laterais da Equipe" } },
-            //{ 28, new List<string> { "Total de Desarmes", "Total de Desarmes da Equipe" } },
-            //{ 31, new List<string> { "Total de Tiros de Meta" } },
         };
 
         // Isolamento por contexto de thread
@@ -38,16 +35,8 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
                 { 36, new List<string> { $"{awayTeam}: Total de Cartões da Equipe Acima/Abaixo" } },
                 { 12, new List<string> { $"{homeTeam}: Total de Chutes a Gol da Equipe Acima/Abaixo" } },
                 { 13, new List<string> { $"{awayTeam}: Total de Chutes a Gol da Equipe Acima/Abaixo" } },
-                //{ 16, new List<string> { $"Total de Impedimentos da Equipe {homeTeam}" } },
-                //{ 17, new List<string> { $"Total de Impedimentos da Equipe {awayTeam}" } },
                 { 18, new List<string> { $"{homeTeam}: Total de Faltas da Equipe Acima/Abaixo" } },
                 { 19, new List<string> { $"{awayTeam}: Total de Faltas da Equipe Acima/Abaixo" } },
-                //{ 26, new List<string> { $"Total de Arremessos Laterais da Equipe {homeTeam}" } },
-                //{ 27, new List<string> { $"Total de Arremessos Laterais da Equipe {awayTeam}" } },
-                //{ 29, new List<string> { $"Total de Desarmes da Equipe {homeTeam}" } },
-                //{ 30, new List<string> { $"Total de Desarmes da Equipe {awayTeam}" } },
-                //{ 32, new List<string> { $"Total de Tiros de Meta da Equipe {homeTeam}" } },
-                //{ 33, new List<string> { $"Total de Tiros de Meta da Equipe {awayTeam}" } },
                 { 14, new List<string> { $"{homeTeam}: Total de Chutes do Time Mais/Menos" } },
                 { 15, new List<string> { $"{awayTeam}: Total de Chutes do Time Mais/Menos" } },
             };
