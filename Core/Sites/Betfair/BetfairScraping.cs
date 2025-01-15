@@ -374,6 +374,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             {
                 Console.WriteLine($"Erro ao extrair informações do jogo: {ex.Message}");
                 _logService.LogError("Erro ao extrair informações do jogo: ", ex);
+                _webScrapingService.Dispose();
+                throw;
             }
         }
 
@@ -437,6 +439,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             }
             catch (Exception ex)
             {
+                _logService.LogError($"Erro ao converter a data: {dateTimeText} - {ex.Message}", ex);
                 throw new Exception($"Erro ao converter a data: {dateTimeText} - {ex.Message}");
             }
 
