@@ -24,6 +24,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             { 25, "Total de Laterais" },
             { 28, "Total de Desarmes" },
             { 31, "Total de Tiros de Meta" },
+            { 37, "Bola na trave" },
         };
 
         // Isolamento por thread usando ThreadLocal
@@ -57,6 +58,8 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 { 30, $"{awayTeam} - Total de Desarmes" },
                 { 32, $"{homeTeam} - Total de Tiros de Meta" },
                 { 33, $"{awayTeam} - Total de Tiros de Meta" },
+                { 38, $"{homeTeam} - Bola na trave" },
+                { 39, $"{awayTeam} - Bola na trave" },
             };
 
             foreach (var tag in dynamicTags)

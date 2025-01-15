@@ -41,6 +41,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             { 31, new List<string> { "Total de tiros de meta" } },
             { 32, new List<string> { "Time de casa total de tiro de meta" } },
             { 33, new List<string> { "Time de fora total de tiro de meta" } },
+            { 37, new List<string> { "Bola na trave" } },
         };
 
         // Isolamento por contexto de thread

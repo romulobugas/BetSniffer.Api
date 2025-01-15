@@ -20,6 +20,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
             { 5, new List<string> { "Total de Faltas", "Total de Faltas (alternativas)" } },
             { 25, new List<string> { "Total de laterais", "Total de laterais (alternativas)" } },
             { 28, new List<string> { "Total de Desarmes", "Total de Desarmes (alternativas)" } },
+            { 37, new List<string> { "Bola na trave", "Bola na trave (alternativas)" } },
         };
 
         // Método para obter as tags isoladas por thread
