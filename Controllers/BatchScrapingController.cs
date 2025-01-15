@@ -49,36 +49,37 @@ namespace BetSniffer.Api.Controllers
         }
 
         [HttpPost("scrape")]
-        public IActionResult ScrapeTagsBatch([FromBody] List<string> urls)
+        public IActionResult ScrapeTagsBatch([FromBody] List<ScrapeRequest> requests)
         {
-            if (urls == null || urls.Count == 0)
+            if (requests == null || requests.Count == 0)
             {
                 return BadRequest(new { message = "A lista de URLs não pode estar vazia." });
             }
 
-            // Remove duplicados na mesma requisição
-            urls = urls.Distinct().ToList();
+            // Ordenar pela data e times, valores nulos são tratados no final
+            var sortedRequests = requests
+                .OrderBy(req => req.GameDate ?? DateTime.MaxValue)
+                .ThenBy(req => req.HomeTeam ?? int.MaxValue)
+                .ThenBy(req => req.AwayTeam ?? int.MaxValue)
+                .ToList();
 
-            // Limite de threads definido no appsettings
             int maxThreads = _scrapingSettings.MaxConcurrentThreads;
             SemaphoreSlim semaphore = new SemaphoreSlim(maxThreads);
 
             var results = new ConcurrentBag<object>();
             var errors = new ConcurrentBag<string>();
 
-            foreach (var url in urls)
+            foreach (var request in sortedRequests)
             {
-
-                if (_runningTasks.ContainsKey(url))
+                if (_runningTasks.ContainsKey(request.URL))
                 {
-                    errors.Add($"URL já está em processamento: {url}");
+                    errors.Add($"URL já está em processamento: {request.URL}");
                     continue;
                 }
 
-                // Cria uma thread para cada link
                 var task = Task.Run(async () =>
                 {
-                    await semaphore.WaitAsync(); // Aguarda a liberação de uma vaga no limite de threads
+                    await semaphore.WaitAsync();
 
                     try
                     {
@@ -90,7 +91,7 @@ namespace BetSniffer.Api.Controllers
 
                         try
                         {
-                            string siteName = ExtractSiteName(url);
+                            string siteName = ExtractSiteName(request.URL);
 
                             if (!SupportedSites.IsSiteSupported(siteName))
                             {
@@ -98,34 +99,37 @@ namespace BetSniffer.Api.Controllers
                                 return;
                             }
 
-                            // Obtem o serviço de scraping
                             var scrapingService = GetScrapingService(siteName, dbContext, teamService, gamesInfoRepo, betInfoRepo);
 
-                            // Executa o scraping de forma síncrona
-                            scrapingService.ScrapeTags(url, siteName);
+                            scrapingService.ScrapeTags(request.URL, siteName);
 
-                            results.Add(new { Url = url, SiteName = siteName, Result = "Sucesso" });
+                            results.Add(new
+                            {
+                                Url = request.URL,
+                                SiteName = siteName,
+                                Result = "Sucesso",
+                                GameDate = request.GameDate,
+                                HomeTeam = request.HomeTeam,
+                                AwayTeam = request.AwayTeam
+                            });
                         }
                         catch (Exception ex)
                         {
-                            errors.Add($"Erro ao processar URL '{url}': {ex.Message}");
+                            errors.Add($"Erro ao processar URL '{request.URL}': {ex.Message}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        errors.Add($"Erro geral no processamento de URL '{url}': {ex.Message}");
+                        errors.Add($"Erro geral no processamento de URL '{request.URL}': {ex.Message}");
                     }
                     finally
                     {
-                        _runningTasks.TryRemove(url, out _);
-                        Console.WriteLine($"Tarefa removida para URL: {url}");
-                        semaphore.Release(); // Libera uma vaga no limite de threads
-
+                        _runningTasks.TryRemove(request.URL, out _);
+                        semaphore.Release();
                     }
                 });
 
-                _runningTasks.TryAdd(url, task); // Adiciona a tarefa ao dicionário
-                Console.WriteLine($"Tarefa adicionada para URL: {url}");
+                _runningTasks.TryAdd(request.URL, task);
             }
 
             return Ok(new
@@ -250,37 +254,54 @@ namespace BetSniffer.Api.Controllers
                 }
 
                 var games = query.AsEnumerable()
-                         .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                         .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
-                         .Select(group => new
-                         {
-                             GameDate = group.Key.GameDate,
-                             HomeTeam = group.Key.HomeTeamId,
-                             AwayTeam = group.Key.AwayTeamId,
-                             URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
-                                         .Select(g => g.URL)
-                                         .Distinct()
-                                         .ToList()
-                         })
-                         .Where(g => g.URLs.Count > 0)
-                         .OrderBy(g => g.GameDate) // Ordena os jogos pela data e hora mais próximos do horário atual
-                         .ToList();
+                                 .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                                 .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
+                                 .Select(group => new
+                                 {
+                                     GameDate = group.Key.GameDate,
+                                     HomeTeam = group.Key.HomeTeamId,
+                                     AwayTeam = group.Key.AwayTeamId,
+                                     URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
+                                                 .Select(g => g.URL)
+                                                 .Distinct()
+                                                 .ToList()
+                                 })
+                                 .Where(g => g.URLs.Count > 0)
+                                 .OrderBy(g => g.GameDate) // Ordenar por data do jogo
+                                 .ThenBy(g => g.HomeTeam) // Ordenar por time da casa
+                                 .ThenBy(g => g.AwayTeam) // Ordenar por time visitante
+                                 .ToList();
 
-                var urlsToScrape = games.SelectMany(g => g.URLs).Distinct().ToList();
 
-                if (!urlsToScrape.Any())
+                // Seleciona e organiza as URLs com base nos critérios especificados
+                var requests = games.SelectMany(g => g.URLs.Select(url => new ScrapeRequest
+                {
+                    URL = url,
+                    GameDate = g.GameDate,
+                    HomeTeam = g.HomeTeam,
+                    AwayTeam = g.AwayTeam
+                }))
+                .Distinct()
+                .OrderBy(req => req.GameDate) // Ordena pela data do jogo
+                .ThenBy(req => req.HomeTeam)  // Ordena pelo ID do time da casa
+                .ThenBy(req => req.AwayTeam)  // Ordena pelo ID do time visitante
+                .ToList();
+
+
+                if (!requests.Any())
                 {
                     return Ok(new { message = "Nenhum jogo com URL para scraping foi encontrado." });
                 }
 
-                // Reutiliza o método ScrapeTagsBatch para enviar as URLs
-                var scrapingResult = ScrapeTagsBatch(urlsToScrape) as OkObjectResult;
+                // Enviar as URLs e datas para o ScrapeTagsBatch
+                var scrapingResult = ScrapeTagsBatch(requests) as OkObjectResult;
 
                 return Ok(new
                 {
-                    message = $"Jogos para o intervalo de datas informado foram enviados para scraping. Jogos: {urlsToScrape.Count}",
+                    message = $"Jogos para o intervalo de datas informado foram enviados para scraping. Total de URLs: {requests.Count}",
                     scrapingResult?.Value
                 });
+
             }
             catch (Exception ex)
             {

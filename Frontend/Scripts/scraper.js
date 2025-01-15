@@ -48,12 +48,20 @@
             return;
         }
 
+        // Montar os dados no formato esperado pela API
+        const data = links.map(link => ({
+            url: link,
+            gameDate: new Date().toISOString(), // Data e hora atual no formato ISO
+            homeTeam: 0, // Valor padrão para homeTeam
+            awayTeam: 0  // Valor padrão para awayTeam
+        }));
+
         fetch("/api/BatchScraping/scrape", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(links), // Envia a lista de links como JSON
+            body: JSON.stringify(data), // Envia os dados no formato JSON
         })
             .then(response => {
                 if (!response.ok) {
@@ -69,4 +77,5 @@
                 alert("Ocorreu um erro ao enviar os links.");
             });
     });
+
 });
