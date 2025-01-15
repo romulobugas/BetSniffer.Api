@@ -12,6 +12,7 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
             { 4, new List<string> { "Chutes no alvo Acima/Abaixo" } },
             { 7, new List<string> { "Impedimentos Acima/Abaixo no Tempo Integral" } },
             { 5, new List<string> { "Faltas Totais na Partida" } },
+            { 3, new List<string> { "Total Match Shots O/U" } },
         };
 
         // Isolamento por contexto de thread
