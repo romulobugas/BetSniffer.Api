@@ -164,28 +164,29 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                     return; // Sai da função se nenhum popup visível for encontrado
                 }
 
-                // Agora procura o botão "Sou maior de 18 anos" dentro do popup visível
-                var confirmButton = _webScrapingService.FindElementWithin(visiblePopup, ".//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'sou maior de 18 anos')]");
+                // Procura o botão "Tenho 18 anos ou mais"
+                var confirmButton = visiblePopup.FindElement(By.XPath(".//button[contains(text(),'Tenho 18 anos ou mais')]"));
 
                 if (confirmButton == null)
                 {
-                    Console.WriteLine("Botão 'Sou maior de 18 anos' não encontrado no popup visível.");
+                    Console.WriteLine("Botão 'Tenho 18 anos ou mais' não encontrado no popup visível.");
                     return; // Sai da função se o botão não for encontrado
                 }
 
-                // Clica no botão "Sou maior de 18 anos"
+                // Clica no botão "Tenho 18 anos ou mais"
                 confirmButton.Click();
-                Console.WriteLine("Botão 'Sou maior de 18 anos' clicado com sucesso.");
+                Console.WriteLine("Botão 'Tenho 18 anos ou mais' clicado com sucesso.");
                 Thread.Sleep(new Random().Next(1521, 1802)); // Pausa após clicar no botão
-
+            }
+            catch (NoSuchElementException ex)
+            {
+                Console.WriteLine($"Elemento não encontrado: {ex.Message}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao tentar fechar o pop-up de verificação de idade: {ex.Message}");
+                Console.WriteLine($"Erro ao tentar fechar o popup de verificação de idade: {ex.Message}");
             }
         }
-
-
 
         private void ExtractGameInfo()
         {
