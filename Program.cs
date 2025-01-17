@@ -53,10 +53,11 @@ namespace BetSniffer.Api
                 return new ChromeDriver(options);
             });
 
-            // Registro do DbContext
+            // Registro do DbContext com timeout de 3 minutos
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
-                    builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;"
+                    builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;",
+                    sqlOptions => sqlOptions.CommandTimeout(180) // Timeout configurado
                 ));
 
             // Adiciona ScrapingSettings como uma configuração injetável

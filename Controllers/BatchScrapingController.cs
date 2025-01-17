@@ -418,6 +418,9 @@ namespace BetSniffer.Api.Controllers
                 using var scope = _serviceScopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+                // Define um timeout de 180 segundos (3 minutos)
+                dbContext.Database.SetCommandTimeout(180);
+
                 // Executa a procedure diretamente
                 dbContext.Database.ExecuteSqlRaw("EXEC ExecuteArbitrageCalculation");
 
@@ -440,6 +443,7 @@ namespace BetSniffer.Api.Controllers
                 return StatusCode(500, new { message = $"Erro ao executar a arbitragem: {ex.Message}" });
             }
         }
+
 
     }
 }

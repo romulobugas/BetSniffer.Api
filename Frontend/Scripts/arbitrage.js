@@ -105,10 +105,48 @@
     // Evento para atualizar os valores conforme o usuário altera o valor da banca
     bankInput.addEventListener("input", updateStakeValues);
 
-    // Evento para o botão "Verificar Novas Apostas"
     checkNewBetsButton.addEventListener("click", async () => {
+        const timeout = 3 * 60 * 1000; // 3 minutos em milissegundos
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        // Elementos para a mensagem de execução
+        const executionMessage = document.createElement("div");
+        executionMessage.style.position = "fixed";
+        executionMessage.style.bottom = "20px";
+        executionMessage.style.right = "20px";
+        executionMessage.style.backgroundColor = "#000";
+        executionMessage.style.color = "#fff";
+        executionMessage.style.padding = "10px 15px";
+        executionMessage.style.borderRadius = "5px";
+        executionMessage.style.zIndex = "1000";
+        document.body.appendChild(executionMessage);
+
+        let elapsedTime = 0;
+        const intervalId = setInterval(() => {
+            elapsedTime++;
+            executionMessage.textContent = `Executando processo de atualização das apostas: Tempo de execução ${elapsedTime}s`;
+        }, 1000);
+
+        // Configura o timeout para abortar a requisição após o limite
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, timeout);
+
         try {
-            const response = await fetch("/api/BatchScraping/execute-arbitrage", { method: "POST" });
+            const response = await fetch("/api/BatchScraping/execute-arbitrage", {
+                method: "POST",
+                signal: signal,
+            });
+
+            clearTimeout(timeoutId);
+            clearInterval(intervalId);
+            document.body.removeChild(executionMessage); // Remove a mensagem de execução
+
+            if (!response.ok) {
+                throw new Error(`Erro HTTP: ${response.status}`);
+            }
+
             const data = await response.json();
 
             if (data.message) {
@@ -117,10 +155,19 @@
 
             fetchArbitrageData(); // Atualiza os dados após verificar novas apostas
         } catch (error) {
-            console.error("Erro ao verificar novas apostas:", error);
-            showTemporaryMessage("Erro ao verificar novas apostas. Tente novamente.");
+            clearTimeout(timeoutId);
+            clearInterval(intervalId);
+            document.body.removeChild(executionMessage); // Remove a mensagem de execução
+
+            if (error.name === "AbortError") {
+                showTemporaryMessage("A operação foi abortada devido ao tempo limite.");
+            } else {
+                console.error("Erro ao verificar novas apostas:", error);
+                showTemporaryMessage("Erro ao verificar novas apostas. Tente novamente.");
+            }
         }
     });
+
 
     const showTemporaryMessage = (message) => {
         // Cria a mensagem temporária

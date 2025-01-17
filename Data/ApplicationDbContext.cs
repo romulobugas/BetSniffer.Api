@@ -118,11 +118,7 @@ namespace BetSniffer.Api.Data
 
             modelBuilder.Entity<ArbitrageResults>(entity =>
             {
-                entity.HasKey(a => new { a.BetIdX, a.BetIdY }); // Chave composta
-
-                entity.Property(a => a.ValorLucro)
-                      .HasColumnName("Valor_Lucro")
-                      .HasColumnType("decimal(18, 2)");
+                entity.HasKey(a => new { a.SiteIdX, a.SiteIdY, a.GameX, a.GameY }); // Substitua pelos campos que compõem a chave primária.
 
                 entity.Property(a => a.ArbitrageLucroPercent)
                       .HasColumnName("Arbitrage_Lucro_Percent")
@@ -183,22 +179,8 @@ namespace BetSniffer.Api.Data
                       .HasColumnName("GameDate_X")
                       .HasColumnType("datetime");
 
-                entity.Property(a => a.BetIdX)
-                      .HasColumnName("BetId_X");
-
-                entity.Property(a => a.BetIdY)
-                      .HasColumnName("BetId_Y");
-
                 entity.Property(a => a.SiteIdY)
                       .HasColumnName("SiteId_Y");
-
-                entity.Property(a => a.StakeX)
-                      .HasColumnName("Stake_X")
-                      .HasColumnType("decimal(18, 2)");
-
-                entity.Property(a => a.StakeY)
-                      .HasColumnName("Stake_Y")
-                      .HasColumnType("decimal(18, 2)");
 
                 entity.Property(a => a.LeagueX)
                       .HasColumnName("League_X")

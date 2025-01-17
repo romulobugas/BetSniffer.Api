@@ -2,7 +2,6 @@
 {
     public class ArbitrageResults
     {
-        public decimal ValorLucro { get; set; }
         public decimal ArbitrageLucroPercent { get; set; }
         public string TagNameX { get; set; }
         public string OverUnderX { get; set; }
@@ -18,11 +17,7 @@
         public string TagNameY { get; set; }
         public int SiteIdX { get; set; }
         public DateTime GameDateX { get; set; }
-        public int BetIdX { get; set; }
-        public int BetIdY { get; set; }
         public int SiteIdY { get; set; }
-        public decimal StakeX { get; set; }
-        public decimal StakeY { get; set; }
         public string LeagueX { get; set; } // Novo campo
         public string LeagueY { get; set; } // Novo campo
         public string GameX { get; set; } // Novo campo
