@@ -94,53 +94,19 @@ BEGIN
             2
         )) > 1;
 
-    -- Update existing records in the ArbitrageResults table
-UPDATE ArbitrageResults
-SET 
-    Arbitrage_Lucro_Percent = t.Arbitrage_Lucro_Percent,
-    Multiplier_X = t.Multiplier_X,
-    Multiplier_Y = t.Multiplier_Y
-FROM ArbitrageResults a
-INNER JOIN #TempArbitrageResults t
-ON a.SiteId_X = t.SiteId_X 
-   AND a.SiteId_Y = t.SiteId_Y 
-   AND a.Game_X = t.Game_X COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.Game_Y = t.Game_Y COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.TagName_X = t.TagName_X COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.TagName_Y = t.TagName_Y COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.OverUnder_X = t.OverUnder_X COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.OverUnder_Y = t.OverUnder_Y COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.BetAmount_X = t.BetAmount_X
-   AND a.BetAmount_Y = t.BetAmount_Y
-   AND a.HomeTeam = t.HomeTeam COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND a.AwayTeam = t.AwayTeam COLLATE SQL_Latin1_General_CP1_CI_AS;
+    -- Replace data in the final table
+    BEGIN TRANSACTION;
 
+    -- Ensure data consistency during the replacement
+    TRUNCATE TABLE ArbitrageResults;
 
-    -- Delete records where Arbitrage_Lucro_Percent is less than 1%
-DELETE FROM ArbitrageResults
-WHERE Arbitrage_Lucro_Percent < 1;
+    INSERT INTO ArbitrageResults
+    SELECT * FROM #TempArbitrageResults;
 
--- Insert new records
-INSERT INTO ArbitrageResults
-SELECT t.*
-FROM #TempArbitrageResults t
-LEFT JOIN ArbitrageResults a
-ON t.SiteId_X = a.SiteId_X 
-   AND t.SiteId_Y = a.SiteId_Y 
-   AND t.Game_X = a.Game_X COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.Game_Y = a.Game_Y COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.TagName_X = a.TagName_X COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.TagName_Y = a.TagName_Y COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.OverUnder_X = a.OverUnder_X COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.OverUnder_Y = a.OverUnder_Y COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.BetAmount_X = a.BetAmount_X
-   AND t.BetAmount_Y = a.BetAmount_Y
-   AND t.HomeTeam = a.HomeTeam COLLATE SQL_Latin1_General_CP1_CI_AS
-   AND t.AwayTeam = a.AwayTeam COLLATE SQL_Latin1_General_CP1_CI_AS
-WHERE a.SiteId_X IS NULL;
+    COMMIT TRANSACTION;
 
--- Drop the temporary table
-DROP TABLE #TempArbitrageResults;
+    -- Drop the temporary table
+    DROP TABLE #TempArbitrageResults;
 
 -- Select the final results
 SELECT * FROM ArbitrageResults

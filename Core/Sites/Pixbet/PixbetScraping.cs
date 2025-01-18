@@ -193,6 +193,19 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                 {
                     try
                     {
+                        // Centraliza o mercado na tela usando JavaScript
+                        try
+                        {
+                            marketDiv.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
+
+                            // Aguarda um curto intervalo para garantir que o mercado seja carregado corretamente
+                            Thread.Sleep(new Random().Next(511, 722));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Erro ao centralizar o mercado: {ex.Message}");
+                        }
+
                         // Captura o nome do mercado
                         var marketNameElement = marketDiv.QuerySelectorAsync("h3.eventpage_fe_Markets_marketName").GetAwaiter().GetResult();
                         var marketNameRaw = marketNameElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
@@ -218,18 +231,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
 
                         int tagId = matchingTag.Key;
 
-                        // Centraliza o mercado na tela usando JavaScript
-                        try
-                        {
-                            marketDiv.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
-
-                            // Aguarda um curto intervalo para garantir que o mercado seja carregado corretamente
-                            Thread.Sleep(new Random().Next(311, 522));
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Erro ao centralizar o mercado: {ex.Message}");
-                        }
+                        
 
                         // Captura as seleções dentro do mercado expandido
                         var selectionRows = marketDiv.QuerySelectorAllAsync("button.eventpage_fe_HandicapSelection_line, button.eventpage_fe_OverUnderSelection_line").GetAwaiter().GetResult();
