@@ -71,6 +71,8 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             // Confirmação de idade
             //ConfirmAgeVerification(page, ageVerification); //Comentado pois na implementação atual não aparece o pop-up da idade.
 
+            ClosePopup(page, ".components-fe_Popup_iconClose");
+
             ExtractGameInfo(page);
 
             // Inicializa informações do jogo
@@ -137,6 +139,41 @@ namespace BetSniffer.Api.Core.Sites.Bet365
             return new List<TagInfo>();
         }
 
+        public void ClosePopup(IPage page, string popupSelector = ".components-fe_Popup_iconClose", int timeoutMilliseconds = 10000)
+        {
+            try
+            {
+                // Pausa aleatória para simular comportamento humano
+                System.Threading.Thread.Sleep(new Random().Next(855, 1226));
+
+                // Localiza o botão de fechar o pop-up
+                var closeButton = page.WaitForSelectorAsync(popupSelector, new WaitForSelectorOptions
+                {
+                    Timeout = timeoutMilliseconds,
+                    Visible = true // Garante que o elemento está visível
+                }).GetAwaiter().GetResult();
+
+                if (closeButton != null)
+                {
+                    page.EvaluateFunctionAsync("element => element.click()", closeButton).GetAwaiter().GetResult();
+                    Console.WriteLine("Pop-up fechado com sucesso.");
+                }
+                else
+                {
+                    Console.WriteLine("Botão de fechar pop-up não encontrado.");
+                }
+            }
+            catch (TimeoutException)
+            {
+                Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao tentar fechar o pop-up: {ex.Message}");
+            }
+        }
+
+
         private void ProcessTabsAndMarketViews(IPage page)
         {
             try
@@ -189,23 +226,13 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                     return;
                 }
 
+                // Carrega os mercados da Pixbet
+                var tagNames = PixbetTags.TagNames;
+
                 foreach (var marketDiv in expandedMarketDivs)
                 {
                     try
                     {
-                        // Centraliza o mercado na tela usando JavaScript
-                        try
-                        {
-                            marketDiv.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
-
-                            // Aguarda um curto intervalo para garantir que o mercado seja carregado corretamente
-                            Thread.Sleep(new Random().Next(411, 622));
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Erro ao centralizar o mercado: {ex.Message}");
-                        }
-
                         // Captura o nome do mercado
                         var marketNameElement = marketDiv.QuerySelectorAsync("h3.eventpage_fe_Markets_marketName").GetAwaiter().GetResult();
                         var marketNameRaw = marketNameElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
@@ -219,8 +246,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
 
                         Console.WriteLine($"Processando mercado: {marketName}");
 
-                        // Verifica se o mercado está registrado nas tags do Pixbet
-                        var tagNames = PixbetTags.TagNames;
+                        // Verifica se o mercado está registrado nas tags do Pixbet                        
                         var matchingTag = tagNames.FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == _teamService.NormalizeText(marketName)));
 
                         if (matchingTag.Key == 0)
@@ -229,9 +255,20 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                             continue;
                         }
 
-                        int tagId = matchingTag.Key;
+                        // Centraliza o mercado na tela usando JavaScript
+                        try
+                        {
+                            marketDiv.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
 
-                        
+                            // Aguarda um curto intervalo para garantir que o mercado seja carregado corretamente
+                            Thread.Sleep(new Random().Next(711, 922));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Erro ao centralizar o mercado: {ex.Message}");
+                        }
+
+                        int tagId = matchingTag.Key;                        
 
                         // Captura as seleções dentro do mercado expandido
                         var selectionRows = marketDiv.QuerySelectorAllAsync("button.eventpage_fe_HandicapSelection_line, button.eventpage_fe_OverUnderSelection_line").GetAwaiter().GetResult();
