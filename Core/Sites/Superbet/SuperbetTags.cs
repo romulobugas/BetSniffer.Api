@@ -21,6 +21,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             { 28, new List<string> { "Total de Desarmes", "Total de Desarmes da Equipe" } },
             { 31, new List<string> { "Total de Tiros de Meta", "Total de Tiros de Meta da Equipe" } },
             { 37, new List<string> { "Total de Chutes na Trave", "Time: Total de Acertos na Trave" } },
+            { 3, new List<string> { "Finalizações Totais", "Total de Finalizações da Equipe" } },
         };
 
         // Isolamento por contexto de thread
@@ -67,6 +68,8 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 { 33, new List<string> { $"Total de Tiros de Meta da Equipe {awayTeam}" } },
                 { 38, new List<string> { $"Time: Total de Acertos na Trave {homeTeam}" } },
                 { 39, new List<string> { $"Time: Total de Acertos na Trave {awayTeam}" } },
+                { 14, new List<string> { $"Total de Finalizações da Equipe {homeTeam}" } },
+                { 15, new List<string> { $"Total de Finalizações da Equipe {awayTeam}" } },
             };
 
             // Adicionar ao dicionário isolado de tags da thread
