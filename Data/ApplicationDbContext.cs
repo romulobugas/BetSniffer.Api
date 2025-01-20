@@ -12,9 +12,7 @@ namespace BetSniffer.Api.Data
         public DbSet<BetArbitrage> BetArbitrage { get; set; }
         public DbSet<ArbitrageResults> ArbitrageResults { get; set; } // Adicionada nova DbSet
 
-
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
 

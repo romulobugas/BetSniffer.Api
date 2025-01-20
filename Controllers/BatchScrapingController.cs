@@ -1,27 +1,23 @@
-﻿using BetSniffer.Api.Core.Interfaces;
+﻿using BetSniffer.Api.Configuration;
+using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Services;
-using BetSniffer.Api.Core.Sites.Betano;
-using BetSniffer.Api.Core.Sites.Novibet;
-using BetSniffer.Api.Core.Sites.Vbet;
 using BetSniffer.Api.Core.Sites;
+using BetSniffer.Api.Core.Sites.Bet365;
+using BetSniffer.Api.Core.Sites.Betano;
+using BetSniffer.Api.Core.Sites.Betboom;
+using BetSniffer.Api.Core.Sites.Betfair;
+using BetSniffer.Api.Core.Sites.Betfast;
+using BetSniffer.Api.Core.Sites.Novibet;
+using BetSniffer.Api.Core.Sites.Superbet;
+using BetSniffer.Api.Core.Sites.Vbet;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Concurrent;
-using System.Threading;
-using BetSniffer.Api.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Threading.Tasks;
-using BetSniffer.Api.Core.Sites.Betfast;
-using BetSniffer.Api.Core.Sites.Betfair;
-using BetSniffer.Api.Core.Sites.Bet365;
-using System.Linq;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
-using BetSniffer.Api.Core.Sites.Superbet;
-using Microsoft.EntityFrameworkCore;
-using BetSniffer.Api.Core.Sites.Betboom;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -39,14 +35,18 @@ namespace BetSniffer.Api.Controllers
 
         private readonly ScrapingSettings _scrapingSettings;
 
+        private readonly IBetScrapingAsyncInterface _betBoomService;
+
 
         #endregion
 
-        public BatchScrapingController(IServiceScopeFactory serviceScopeFactory, IOptions<ScrapingSettings> scrapingSettings)
+        public BatchScrapingController(IServiceScopeFactory serviceScopeFactory, IOptions<ScrapingSettings> scrapingSettings, IBetScrapingAsyncInterface betBoomService)
         {
             _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
 
             _scrapingSettings = scrapingSettings.Value ?? throw new ArgumentNullException(nameof(scrapingSettings));
+
+            _betBoomService = betBoomService;
         }
 
         [HttpPost("scrape")]
@@ -100,19 +100,36 @@ namespace BetSniffer.Api.Controllers
                                 return;
                             }
 
-                            var scrapingService = GetScrapingService(siteName, dbContext, teamService, gamesInfoRepo, betInfoRepo);
-
-                            scrapingService.ScrapeTags(request.URL, siteName);
-
-                            results.Add(new
+                            if (siteName == "betboom")
                             {
-                                Url = request.URL,
-                                SiteName = siteName,
-                                Result = "Sucesso",
-                                GameDate = request.GameDate,
-                                HomeTeam = request.HomeTeam,
-                                AwayTeam = request.AwayTeam
-                            });
+                                await _betBoomService.ScrapeTags(request.URL, siteName);
+
+                                results.Add(new
+                                {
+                                    Url = request.URL,
+                                    SiteName = siteName,
+                                    Result = "Sucesso",
+                                    GameDate = request.GameDate,
+                                    HomeTeam = request.HomeTeam,
+                                    AwayTeam = request.AwayTeam
+                                });
+                            }
+                            else
+                            {
+                                var scrapingService = GetScrapingService(siteName, dbContext, teamService, gamesInfoRepo, betInfoRepo);
+
+                                scrapingService.ScrapeTags(request.URL, siteName);
+
+                                results.Add(new
+                                {
+                                    Url = request.URL,
+                                    SiteName = siteName,
+                                    Result = "Sucesso",
+                                    GameDate = request.GameDate,
+                                    HomeTeam = request.HomeTeam,
+                                    AwayTeam = request.AwayTeam
+                                });
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -179,7 +196,7 @@ namespace BetSniffer.Api.Controllers
                 "betfair" => new BetfairScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "superbet" => new SuperbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "pixbet" => new PixbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
-                "betboom" => new BetboomScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                //"betboom" => new BetboomScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }

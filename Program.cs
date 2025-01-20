@@ -1,21 +1,19 @@
-using Microsoft.EntityFrameworkCore;
-using BetSniffer.Api.Core.Services;
-using BetSniffer.Api.Data;
-using BetSniffer.Api.Core.Sites.Novibet;
-using BetSniffer.Api.Core.Sites.Vbet;
-using BetSniffer.Api.Core.Sites.Bet365; // Importado Bet365
-using BetSniffer.Api.Core.Interfaces;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium;
-using System.Diagnostics;
-using BetSniffer.Api.Models;
-using Microsoft.Extensions.DependencyInjection;
-using BetSniffer.Api.Controllers;
-using BetSniffer.Api.Core.Sites.Betano;
 using BetSniffer.Api.Configuration;
-using BetSniffer.Api.Core.Sites.Betfast;
-using BetSniffer.Api.Core.Sites.Superbet;
+using BetSniffer.Api.Controllers;
+using BetSniffer.Api.Core.Interfaces;
+using BetSniffer.Api.Core.Services;
+using BetSniffer.Api.Core.Sites.Bet365; // Importado Bet365
+using BetSniffer.Api.Core.Sites.Betano;
 using BetSniffer.Api.Core.Sites.Betboom;
+using BetSniffer.Api.Core.Sites.Betfast;
+using BetSniffer.Api.Core.Sites.Novibet;
+using BetSniffer.Api.Core.Sites.Superbet;
+using BetSniffer.Api.Core.Sites.Vbet;
+using BetSniffer.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using System.Diagnostics;
 
 namespace BetSniffer.Api
 {
@@ -57,7 +55,7 @@ namespace BetSniffer.Api
             // Registro do DbContext com timeout de 3 minutos
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
-                    builder.Configuration.GetConnectionString("DefaultConnection") + ";TrustServerCertificate=True;",
+                    builder.Configuration.GetConnectionString("DefaultConnection"),
                     sqlOptions => sqlOptions.CommandTimeout(180) // Timeout configurado
                 ));
 
@@ -78,10 +76,11 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<BetfastScraping>();
             builder.Services.AddScoped<PixbetScraping>();
             builder.Services.AddScoped<SuperbetScraping>();
-            builder.Services.AddScoped<BetboomScraping>();
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<BatchScrapingController>();
             builder.Services.AddScoped<GamesUpdateController>();            
+
+            builder.Services.AddScoped<IBetScrapingAsyncInterface, BetboomScraping>();
 
             // Configuração de CORS (liberação total)
             builder.Services.AddCors(options =>

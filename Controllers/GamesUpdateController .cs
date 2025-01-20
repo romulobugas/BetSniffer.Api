@@ -1,9 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using BetSniffer.Api.Data;
-using BetSniffer.Api.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using BetSniffer.Api.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BetSniffer.Api.Controllers
 {
