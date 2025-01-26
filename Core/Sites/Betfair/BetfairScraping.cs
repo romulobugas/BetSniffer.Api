@@ -564,23 +564,35 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 processedTabs.Add(tabName);
 
                                 // Trecho para rolar até o final da página e retornar ao topo utilizando PG DOWN e PG UP de forma simplificada.
+                                // Localiza o elemento "scrollable-desktop-container"
+                                var elementHandle = page.WaitForSelectorAsync("#scrollable-desktop-container").GetAwaiter().GetResult();
 
-                                // Role até o final da página pressionando "PG DOWN" 15 vezes
-                                for (int i = 0; i < 15; i++)
+                                if (elementHandle != null)
                                 {
-                                    page.Keyboard.PressAsync("PageDown").GetAwaiter().GetResult();
-                                    System.Threading.Thread.Sleep(new Random().Next(398, 575)); // Pausa entre os comandos
-                                    page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
+                                    // Foca no elemento antes de começar o loop
+                                    elementHandle.FocusAsync().GetAwaiter().GetResult();
+
+                                    // Role até o final pressionando "PageDown" 15 vezes
+                                    for (int i = 0; i < 15; i++)
+                                    {
+                                        // Pressiona "PageDown" no elemento focado
+                                        page.Keyboard.PressAsync("PageDown").GetAwaiter().GetResult();
+                                        System.Threading.Thread.Sleep(new Random().Next(398, 575)); // Pausa entre os comandos
+                                    }
+
+                                    System.Threading.Thread.Sleep(new Random().Next(821, 1277)); // Aguarda o carregamento
+
+                                    // Role de volta ao topo pressionando "PageUp" 15 vezes
+                                    for (int i = 0; i < 15; i++)
+                                    {
+                                        // Pressiona "PageUp" no elemento focado
+                                        page.Keyboard.PressAsync("PageUp").GetAwaiter().GetResult();
+                                        System.Threading.Thread.Sleep(new Random().Next(357, 578)); // Pausa entre os comandos
+                                    }
                                 }
-
-                                System.Threading.Thread.Sleep(new Random().Next(821, 1277)); // Aguarda o carregamento
-
-                                // Role de volta ao topo pressionando "PG UP" 15 vezes
-                                for (int i = 0; i < 15; i++)
+                                else
                                 {
-                                    page.Keyboard.PressAsync("PageUp").GetAwaiter().GetResult();
-                                    System.Threading.Thread.Sleep(new Random().Next(357, 578)); // Pausa entre os comandos
-                                    page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
+                                    Console.WriteLine("Elemento 'scrollable-desktop-container' não encontrado.");
                                 }
 
                                 System.Threading.Thread.Sleep(new Random().Next(842, 1211)); // Aguarda a atualização
@@ -691,7 +703,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                 foreach (var subMarketButton in subMarketButtons)
                                                 {
                                                     var buttonText = subMarketButton.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                                                    if (buttonText == "Casa" || buttonText == "Fora" || buttonText == "Tempo regulamentar" || buttonText == "Ambos os times" || buttonText == "Total")
+                                                    if (buttonText == "Casa" || buttonText == "Fora" || buttonText == "Tempo regulamentar" || buttonText == "Total" || buttonText == "Ambos os times")
                                                     {
                                                         Console.WriteLine($"Clicando no submercado: {buttonText}");
                                                         subMarketButton.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
@@ -710,12 +722,35 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                                     var buttonTextExpanded = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                                                                     if (buttonTextExpanded == "Mostrar mais")
                                                                     {
-                                                                        System.Threading.Thread.Sleep(new Random().Next(845, 1627));
-                                                                        button.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
-                                                                        button.FocusAsync().GetAwaiter().GetResult(); // Garante o foco no elemento ou aba
-                                                                        page.FocusAsync("body").GetAwaiter().GetResult(); // Garante o foco no corpo da página
-                                                                        System.Threading.Thread.Sleep(new Random().Next(845, 1627));
-                                                                        Console.WriteLine("Botão 'Mostrar mais' clicado com sucesso.");
+                                                                        Console.WriteLine("Botão 'Mostrar mais' encontrado. Tentando expandir...");
+                                                                        bool isExpanded = false;
+
+                                                                        // Tenta clicar no botão até 3 vezes
+                                                                        for (int attempt = 1; attempt <= 3; attempt++)
+                                                                        {
+                                                                            button.FocusAsync().GetAwaiter().GetResult();
+                                                                            System.Threading.Thread.Sleep(new Random().Next(311, 554));
+                                                                            button.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
+                                                                            System.Threading.Thread.Sleep(new Random().Next(322, 753));
+
+                                                                            // Verifica se o texto mudou para "Mostrar menos"
+                                                                            var newButtonText = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                                                            if (newButtonText == "Mostrar menos")
+                                                                            {
+                                                                                Console.WriteLine($"Botão 'Mostrar mais' expandido com sucesso na tentativa {attempt}.");
+                                                                                isExpanded = true;
+                                                                                break;
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                Console.WriteLine($"Tentativa {attempt}: Botão não expandiu. Tentando novamente...");
+                                                                            }
+                                                                        }
+
+                                                                        if (!isExpanded)
+                                                                        {
+                                                                            Console.WriteLine("Falha ao expandir o botão 'Mostrar mais' após 3 tentativas.");
+                                                                        }
                                                                         break;
                                                                     }
                                                                 }
@@ -911,9 +946,6 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         // Converte o valor numérico para o formato com ponto como separador decimal
                         var numericBetName = match.Value.Replace(",", ".");
 
-                        Console.WriteLine($"Valor numérico extraído: {numericBetName}");
-
-
                         // Captura os botões de odds na linha
                         var oddButtons = betRow.QuerySelectorAllAsync("button").GetAwaiter().GetResult()
                             .Where(button =>
@@ -955,6 +987,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                     Site = gamesInfo.Site,
                                     TagId = tagId
                                 });
+                                Console.WriteLine($"Aposta adicionada - Mais de:'{decimal.Parse(numericBetName, CultureInfo.InvariantCulture)}' - ODD: {moreThanMultiplierText}");
                             }
                             else
                             {
@@ -976,6 +1009,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                     Site = gamesInfo.Site,
                                     TagId = tagId
                                 });
+                                Console.WriteLine($"Aposta adicionada - Menos de:'{decimal.Parse(numericBetName, CultureInfo.InvariantCulture)}' - ODD: {moreThanMultiplierText}");
                             }
                             else
                             {
@@ -1002,6 +1036,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                     Site = gamesInfo.Site,
                                     TagId = tagId
                                 });
+                                Console.WriteLine($"Aposta adicionada - Mais de:'{decimal.Parse(numericBetName, CultureInfo.InvariantCulture)}' - ODD: {multiplier}");
                             }
                             else
                             {

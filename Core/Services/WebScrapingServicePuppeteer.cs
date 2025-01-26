@@ -31,10 +31,11 @@ namespace BetSniffer.Api.Core.Services
                     "--disable-setuid-sandbox",
                     "--disable-blink-features=AutomationControlled",
                     "--disable-extensions",
-                    "--disable-gpu",
                     "--ignore-certificate-errors",
                     "--start-maximized", // Abre o navegador em tela cheia
-                    "--disable-infobars" // Remove a barra de informações do navegador
+                    "--disable-infobars", // Remove a barra de informações do navegador
+                    "--enable-accelerated-2d-canvas",
+                    "--use-gl=desktop"
                 }
             }).GetAwaiter().GetResult();
 
@@ -61,8 +62,6 @@ namespace BetSniffer.Api.Core.Services
             }).GetAwaiter().GetResult();
 
             Console.WriteLine($"Viewport ajustado para: {screenDimensions["width"]}x{screenDimensions["height"]}");
-
-
 
             // Injeta scripts de mascaramento desde o início
             InjectAntiAutomationScripts();
@@ -91,6 +90,11 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
+                // Ajusta o zoom da página para 80%
+                _page.EvaluateExpressionAsync("document.body.style.zoom = '0.7'").GetAwaiter().GetResult();
+                Console.WriteLine("Zoom da página ajustado para 70%.");
+
+
                 _page.GoToAsync(url, new NavigationOptions
                 {
                     WaitUntil = new[] { WaitUntilNavigation.Load }, // Aguarda apenas o carregamento básico
