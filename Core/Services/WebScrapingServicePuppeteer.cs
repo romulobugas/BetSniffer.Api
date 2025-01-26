@@ -90,11 +90,6 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                // Ajusta o zoom da página para 80%
-                _page.EvaluateExpressionAsync("document.body.style.zoom = '0.7'").GetAwaiter().GetResult();
-                Console.WriteLine("Zoom da página ajustado para 70%.");
-
-
                 _page.GoToAsync(url, new NavigationOptions
                 {
                     WaitUntil = new[] { WaitUntilNavigation.Load }, // Aguarda apenas o carregamento básico
