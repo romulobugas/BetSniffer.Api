@@ -25,6 +25,7 @@ namespace BetSniffer.Api.Core.Services
             {
                 Headless = false, // Permite visualizar o navegador
                 ExecutablePath = customChromePath,
+                DefaultViewport = null, // Desativa o viewport padrão do Puppeteer
                 Args = new[]
                 {
                     "--no-sandbox",
@@ -35,33 +36,14 @@ namespace BetSniffer.Api.Core.Services
                     "--start-maximized", // Abre o navegador em tela cheia
                     "--disable-infobars", // Remove a barra de informações do navegador
                     "--enable-accelerated-2d-canvas",
-                    "--use-gl=desktop"
+                    "--use-gl=desktop",
+                    "--force-device-scale-factor=0.7" // Define o zoom global do navegador para 70%
                 }
             }).GetAwaiter().GetResult();
 
             // Obtém a primeira aba existente
             var pages = _browser.PagesAsync().GetAwaiter().GetResult();
             _page = pages.FirstOrDefault() ?? _browser.NewPageAsync().GetAwaiter().GetResult(); // Usa a aba existente ou cria uma nova
-
-            // Obtém as dimensões completas da tela (tela disponível)
-            var screenDimensions = _page.EvaluateFunctionAsync<Dictionary<string, int>>(@"
-                () => {
-                    return {
-                        width: window.screen.width,
-                        height: window.screen.height
-                    };
-                }
-            ").GetAwaiter().GetResult();
-
-            // Ajusta o viewport para usar a resolução máxima
-            _page.SetViewportAsync(new ViewPortOptions
-            {
-                Width = screenDimensions["width"], // Largura máxima da tela
-                Height = screenDimensions["height"], // Altura máxima da tela
-                DeviceScaleFactor = 1 // Nenhuma escala aplicada
-            }).GetAwaiter().GetResult();
-
-            Console.WriteLine($"Viewport ajustado para: {screenDimensions["width"]}x{screenDimensions["height"]}");
 
             // Injeta scripts de mascaramento desde o início
             InjectAntiAutomationScripts();
