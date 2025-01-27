@@ -235,7 +235,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
                 System.Threading.Thread.Sleep(new Random().Next(1921, 3224));
 
                 // Captura o texto de data e hora completo
-                var dateElement = page.WaitForSelectorAsync("div.tw-font-bold", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
+                var dateElement = page.WaitForSelectorAsync("div.tw-text-center > div.tw-font-bold", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
                 var gameDateTimeText = dateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
 
                 // Captura o nome dos times
