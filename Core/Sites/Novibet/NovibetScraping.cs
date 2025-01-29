@@ -458,7 +458,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             List<TagInfo> tagInfos = new List<TagInfo>();
 
             // Encontra todos os contêineres de aposta
-            System.Threading.Thread.Sleep(new Random().Next(2873, 3405));
+            System.Threading.Thread.Sleep(new Random().Next(1273, 2105));
             var eventMarketViews = _webScrapingService.WaitForElements("app-event-marketview", 5000);
 
             foreach (var eventMarketView in eventMarketViews)

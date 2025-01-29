@@ -708,7 +708,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                                         Console.WriteLine($"Clicando no submercado: {buttonText}");
                                                         subMarketButton.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
                                                         subMarketButton.FocusAsync().GetAwaiter().GetResult(); // Garante o foco no elemento ou aba
-                                                        System.Threading.Thread.Sleep(new Random().Next(51, 820));
+                                                        System.Threading.Thread.Sleep(new Random().Next(511, 820));
                                                         Console.WriteLine($"Submercado '{buttonText}' clicado.");
 
                                                         // Verifica se o botão de "Mostrar mais" está presente e clica
@@ -846,7 +846,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             try
             {
                 // Pausa para garantir que os mercados carreguem
-                Thread.Sleep(new Random().Next(851, 1132));
+                Thread.Sleep(new Random().Next(951, 1232));
 
                 // Captura o título do mercado
                 var titleElement = market.QuerySelectorAsync("button[aria-expanded='true']").GetAwaiter().GetResult();
@@ -880,6 +880,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                 // Processamento adicional do mercado com o `tagId` encontrado
                 Console.WriteLine($"Processando mercado: {marketTitle} {(string.IsNullOrEmpty(buttonText) ? "" : $"({buttonText})")} com Tag ID: {tagId}");
+
+                Thread.Sleep(new Random().Next(951, 1232));
 
                 // Captura todas as linhas de apostas baseadas na estrutura correta
                 var betRows = market.QuerySelectorAllAsync("div > div > div") // Captura os possíveis contêineres de linhas
