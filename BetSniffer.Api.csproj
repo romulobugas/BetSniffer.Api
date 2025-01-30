@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Title>BetSniffer</Title>
-    <Version>25.01.29.1</Version>
+    <Version>25.01.30.1</Version>
     <ApplicationIcon>Utils\XeiraBet.ico</ApplicationIcon>
   </PropertyGroup>
 
