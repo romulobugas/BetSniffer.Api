@@ -303,10 +303,21 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')").GetAwaiter().GetResult();
                 }
 
-                // Se o datetime não existir ou for nulo, captura o texto visível
-                if (string.IsNullOrEmpty(gameDateTimeText))
+                // **2. Se o datetime não existir ou for nulo, tenta capturar o texto visível dentro do <time>**
+                if (string.IsNullOrEmpty(gameDateTimeText) && dateTimeElement != null)
                 {
                     gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                }
+
+                // **3. Se ainda não encontrou, tenta capturar baseado na estrutura**
+                if (string.IsNullOrEmpty(gameDateTimeText))
+                {
+                    var alternativeDateElement = gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(2)").GetAwaiter().GetResult();
+
+                    if (alternativeDateElement != null)
+                    {
+                        gameDateTimeText = alternativeDateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    }
                 }
 
                 // **Verifica qual método de parsing utilizar**
