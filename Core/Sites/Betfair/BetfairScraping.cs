@@ -293,33 +293,56 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 }
 
 
-                // Captura a data e hora do jogo
-                var dateTimeElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(1) > div > div > time").GetAwaiter().GetResult();
+                // Captura a data e hora do jogo verificando múltiplas estruturas
+                var dateTimeElement = gameInfoElement.QuerySelectorAsync("time").GetAwaiter().GetResult();
+                string gameDateTimeText = "";
 
-                if (dateTimeElement == null)
-                {
-                    // Caso a estrutura antiga não funcione, tenta a nova estrutura
-                    Console.WriteLine("Estrutura antiga para data e hora não encontrada, tentando a nova estrutura...");
-                    dateTimeElement = gameInfoElement.QuerySelectorAsync("div > section > section > div:nth-child(2)").GetAwaiter().GetResult();
-                }
-
-                if (dateTimeElement == null)
-                {
-                    // Segunda tentativa com outro padrão baseado na nova estrutura
-                    Console.WriteLine("Tentando capturar a data e hora em uma estrutura adicional...");
-                    dateTimeElement = gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(2)").GetAwaiter().GetResult();
-                }
-
+                // Tenta capturar pelo atributo datetime primeiro (mais confiável)
                 if (dateTimeElement != null)
                 {
-                    // Obtém o texto da data e hora
-                    var gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    gameDateTime = ParseGameDateTime(gameDateTimeText);
+                    gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')").GetAwaiter().GetResult();
+                }
+
+                // Se o datetime não existir ou for nulo, captura o texto visível
+                if (string.IsNullOrEmpty(gameDateTimeText))
+                {
+                    gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                }
+
+                // **Verifica qual método de parsing utilizar**
+                if (!string.IsNullOrEmpty(gameDateTimeText))
+                {
+                    // **Se o formato for "Thu Jan 30 2025 21:30:00 GMT-0300 (Horário Padrão de Brasília)"**
+                    if (Regex.IsMatch(gameDateTimeText, @"\w{3} \w{3} \d{1,2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}"))
+                    {
+                        // Remove o fuso horário e a parte entre parênteses
+                        string cleanedDateTime = Regex.Replace(gameDateTimeText, @"GMT[+-]\d{4}.*", "").Trim();
+
+                        if (DateTime.TryParseExact(cleanedDateTime, "ddd MMM dd yyyy HH:mm:ss",
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.AssumeLocal, out DateTime parsedDateTime))
+                        {
+                            gameDateTime = parsedDateTime;
+                        }
+                        else
+                        {
+                            throw new Exception($"Erro ao converter a data: {cleanedDateTime}");
+                        }
+                    }
+                    // **Se o formato for "Hoje, 21:30" ou "31 de jan.,14:00", utiliza o legado**
+                    else if (Regex.IsMatch(gameDateTimeText, @"(Hoje|Amanhã|\d{1,2} de \w{3,}),\s*\d{2}:\d{2}"))
+                    {
+                        gameDateTime = ParseGameDateTime(gameDateTimeText);
+                    }
+                    else
+                    {
+                        throw new Exception($"Formato de data inesperado: {gameDateTimeText}");
+                    }
+
                     Console.WriteLine($"Horário do Jogo: {gameDateTime}");
                 }
                 else
                 {
-                    // Lança uma exceção caso nenhuma estrutura seja encontrada
                     throw new Exception("Não foi possível capturar a data e hora do jogo em nenhuma das estruturas.");
                 }
 
