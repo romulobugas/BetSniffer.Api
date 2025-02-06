@@ -186,7 +186,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
             }
         }
 
-
         public void ConfirmAgeVerification(IPage page, string ageVerificationSelector, int timeoutMilliseconds = 10000)
         {
             try
@@ -217,7 +216,6 @@ namespace BetSniffer.Api.Core.Sites.Betano
                 Console.WriteLine($"Erro ao confirmar verificação de idade: {ex.Message}");
             }
         }
-
 
         private Site AddNewSite(string siteName)
         {

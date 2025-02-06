@@ -480,39 +480,6 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             throw new Exception($"Formato inesperado para 'dateTimeText': {dateTimeText}");
         }
 
-
-
-        private DateTime ParseCustomDate(string dayText)
-        {
-            var match = Regex.Match(dayText, @"(\d+)\s+de\s+(\w+)", RegexOptions.IgnoreCase);
-            if (!match.Success)
-                throw new Exception($"Formato de data inválido: {dayText}");
-
-            var day = int.Parse(match.Groups[1].Value);
-            var month = MonthNameToNumber(match.Groups[2].Value.ToLower());
-            var year = DateTime.Today.Year;
-
-            if (month < DateTime.Today.Month)
-                year++;
-
-            return new DateTime(year, month, day);
-        }
-
-        private int MonthNameToNumber(string monthName)
-        {
-            var months = new Dictionary<string, int>
-            {
-                { "janeiro", 1 }, { "fevereiro", 2 }, { "março", 3 }, { "abril", 4 },
-                { "maio", 5 }, { "junho", 6 }, { "julho", 7 }, { "agosto", 8 },
-                { "setembro", 9 }, { "outubro", 10 }, { "novembro", 11 }, { "dezembro", 12 }
-            };
-
-            if (!months.ContainsKey(monthName))
-                throw new Exception($"Nome do mês inválido: {monthName}");
-
-            return months[monthName];
-        }
-
         private void ProcessTabsAndMarketViews(IPage page)
         {
             var ignoredTabs = new HashSet<string> { "Criar Aposta", "Popular", "Jogador", "Todos os mercados" }; // Abas ignoradas
