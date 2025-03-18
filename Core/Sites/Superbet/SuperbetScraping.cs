@@ -198,6 +198,21 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 // Simula comportamento humano com uma pausa aleatória
                 System.Threading.Thread.Sleep(new Random().Next(842, 1471));
 
+                // Captura os breadcrumbs onde está a liga
+                var breadcrumbElements = page.QuerySelectorAllAsync(".sds-breadcrumb-item__label").GetAwaiter().GetResult();
+
+                if (breadcrumbElements.Length >= 2)
+                {
+                    // A liga geralmente está na penúltima posição antes do nome dos times
+                    leagueName = breadcrumbElements[breadcrumbElements.Length - 2]
+                        .EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    Console.WriteLine($"Liga: {leagueName}");
+                }
+                else
+                {
+                    throw new Exception("Não foi possível capturar a liga.");
+                }
+
                 // Captura o elemento principal que contém as informações do jogo
                 var gameInfoElement = page.QuerySelectorAsync(".scoreboard-container").GetAwaiter().GetResult();
 
@@ -207,25 +222,12 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                     return;
                 }
 
-                // Captura o nome da liga
-                var leagueElement = gameInfoElement.QuerySelectorAsync(".scoreboard-tournament-name").GetAwaiter().GetResult();
-                if (leagueElement != null)
-                {
-                    leagueName = "";
-                    leagueName = leagueElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    Console.WriteLine($"Liga: {leagueName}");
-                }
-                else
-                {
-                    throw new Exception("Não foi possível capturar o nome da liga.");
-                }
-
                 // Captura a data e hora do jogo
-                var dateTimeElement = gameInfoElement.QuerySelectorAsync(".match-status span.scoreboard-match-date").GetAwaiter().GetResult();
+                var dateTimeElement = gameInfoElement.QuerySelectorAsync(".scoreboard-match-status span.scoreboard-match-date").GetAwaiter().GetResult();
                 if (dateTimeElement != null)
                 {
                     var dateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    var timeText = gameInfoElement.QuerySelectorAsync(".match-status span:not(.scoreboard-match-date)").GetAwaiter().GetResult()
+                    var timeText = gameInfoElement.QuerySelectorAsync(".scoreboard-match-status span:not(.scoreboard-match-date)").GetAwaiter().GetResult()
                         ?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
 
                     gameDateTime = default;
@@ -348,49 +350,48 @@ namespace BetSniffer.Api.Core.Sites.Superbet
         {
             try
             {
-                // Localiza o contêiner principal das abas
-                var marketGroupsContainer = page.QuerySelectorAllAsync("div.market-groups").GetAwaiter().GetResult().First();
+                // Localiza o contêiner principal 'market-groups'
+                var marketGroupsContainer = page.QuerySelectorAsync("div.market-groups").GetAwaiter().GetResult();
                 if (marketGroupsContainer == null)
                 {
                     Console.WriteLine("Contêiner 'market-groups' não encontrado.");
                     return;
                 }
 
-                // Localiza o contêiner principal das abas
-                var marketGroupsContainers = page.QuerySelectorAllAsync("div.market-groups").GetAwaiter().GetResult();
-                if (marketGroupsContainers == null || marketGroupsContainers.Length == 0)
+                // Dentro do 'market-groups', encontramos a nova estrutura que contém os filtros
+                var filterBarContainer = marketGroupsContainer.QuerySelectorAsync("div.sds-filter-bar").GetAwaiter().GetResult();
+                if (filterBarContainer == null)
                 {
-                    Console.WriteLine("Contêiner 'market-groups' não encontrado.");
+                    Console.WriteLine("Contêiner de filtros não encontrado dentro de 'market-groups'.");
+                    return;
+                }
+
+                // Captura todos os botões dentro da barra de filtros
+                var tabButtons = filterBarContainer.QuerySelectorAllAsync("div.sds-filter-bar__filter-container > button").GetAwaiter().GetResult();
+
+                if (tabButtons.Length == 0)
+                {
+                    Console.WriteLine("Nenhum botão de aba encontrado dentro da barra de filtros.");
                     return;
                 }
 
                 IElementHandle allTabButton = null;
 
-                // Itera pelos contêineres e procura a aba "Todos"
-                foreach (var container in marketGroupsContainers)
+                // Itera pelos botões e procura pela aba "Todos"
+                foreach (var button in tabButtons)
                 {
-                    var items = container.QuerySelectorAllAsync("div.group-selector__item").GetAwaiter().GetResult();
-                    foreach (var item in items)
+                    var textContent = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    if (textContent.Equals("Todos", StringComparison.OrdinalIgnoreCase))
                     {
-                        var textContent = item.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                        if (textContent == "Todos")
-                        {
-                            allTabButton = item;
-                            break;
-                        }
-                    }
-
-                    if (allTabButton != null)
-                    {
+                        allTabButton = button;
                         break;
                     }
                 }
 
+                // Se a aba "Todos" foi encontrada, clica nela
                 if (allTabButton != null)
                 {
-                    page.EvaluateFunctionAsync(
-                        "el => el.click()",
-                        allTabButton).GetAwaiter().GetResult();
+                    page.EvaluateFunctionAsync("el => el.click()", allTabButton).GetAwaiter().GetResult();
                     Console.WriteLine("Aba 'Todos' clicada.");
 
                     // Aguarda o carregamento do grid de eventos
@@ -408,6 +409,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 throw;
             }
         }
+
 
         private void ProcessMarketViews(IElementHandle marketGroupsContainer)
         {
@@ -480,7 +482,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                 if (expandButton != null)
                                 {
                                     expandButton.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
-                                    Thread.Sleep(new Random().Next(433, 872)); // Pausa para permitir o carregamento
+                                    Thread.Sleep(new Random().Next(633, 972)); // Pausa para permitir o carregamento
                                     Console.WriteLine("Mercado expandido com sucesso ao clicar no botão de expandir.");
                                 }
                                 else
@@ -510,13 +512,13 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                 showMoreButton.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
 
                                 // Aguarda um curto intervalo para garantir que o botão esteja visível e clicável
-                                Thread.Sleep(new Random().Next(151, 322));
+                                Thread.Sleep(new Random().Next(351, 622));
 
                                 // Clica no botão para expandir mais mercados
                                 showMoreButton.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
 
                                 // Aguarda o carregamento das linhas adicionais
-                                Thread.Sleep(new Random().Next(500, 1000));
+                                Thread.Sleep(new Random().Next(700, 1200));
 
                                 Console.WriteLine("Botão 'MOSTRAR MAIS' clicado e linhas adicionais carregadas.");
                             }
@@ -554,13 +556,13 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                                 subMarketButton.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
 
                                                 // Aguarda um curto intervalo para garantir que o elemento esteja em foco
-                                                Thread.Sleep(new Random().Next(51, 158));
+                                                Thread.Sleep(new Random().Next(351, 658));
 
                                                 // Clica no botão do submercado
                                                 subMarketButton.EvaluateFunctionAsync("el => el.click()").GetAwaiter().GetResult();
 
                                                 // Aguarda um curto intervalo para verificar se o botão foi clicado
-                                                Thread.Sleep(new Random().Next(311, 722));
+                                                Thread.Sleep(new Random().Next(511, 822));
 
                                                 // Verifica se o botão foi marcado como clicado
                                                 var isSelected = subMarketButton.EvaluateFunctionAsync<bool>("el => el.hasAttribute('data-is-team-selected')").GetAwaiter().GetResult();

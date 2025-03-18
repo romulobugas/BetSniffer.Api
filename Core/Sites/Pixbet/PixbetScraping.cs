@@ -261,7 +261,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                             marketDiv.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
 
                             // Aguarda um curto intervalo para garantir que o mercado seja carregado corretamente
-                            Thread.Sleep(new Random().Next(711, 922));
+                            Thread.Sleep(new Random().Next(911, 1422));
                         }
                         catch (Exception ex)
                         {
