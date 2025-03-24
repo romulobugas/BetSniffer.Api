@@ -17,7 +17,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             { 8, new List<string> { "Total de escanteios time da casa" } },
             { 9, new List<string> { "Total de escanteios time de fora" } },
             { 34, new List<string> { "Total de cartões" } },
-            { 3, new List<string> { "Total de chutes" } },
+            { 3, new List<string> { "Total de chutes", "Total de finalizações" } },
             { 4, new List<string> { "Chutes a gol total" } },
             { 7, new List<string> { "Total de impedimentos" } },
             { 5, new List<string> { "Total de faltas" } },
