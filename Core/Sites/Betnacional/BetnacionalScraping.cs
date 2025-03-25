@@ -6,6 +6,7 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Betano;
 using Microsoft.OpenApi.Services;
+using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Betnacional
 {
@@ -72,10 +73,7 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
 
             System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
 
-            ExtractGameInfo(page);
-
-            var visitedGames = new HashSet<string>(); // Armazena IDs ou texto identificador dos jogos
-
+            ExtractGameInfo(page).GetAwaiter().GetResult();
 
             //string popupSelector = ".overlay.new-message.visible .popup span.close";
 
@@ -137,7 +135,7 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             _dbContext.SaveChanges();
             Console.WriteLine("Jogo salvo com sucesso.");
 
-            //ProcessTabsAndMarketViews(iframe);
+            ProcessTabsAndMarketViews(page).GetAwaiter().GetResult();
 
 
             Console.WriteLine("Processo de raspagem concluído.");
@@ -220,85 +218,147 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             return site;
         }
 
-        private void ExtractGameInfo(IPage page)
+        private async Task ExtractGameInfo(IPage page)
         {
             try
             {
-                Thread.Sleep(new Random().Next(1423, 2687));
+                await Task.Delay(new Random().Next(1423, 2687));
 
-                // Captura o container principal com informações gerais
-                var headerElement = page.WaitForSelectorAsync("div.bg-header", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
+                var headerElement = await page.WaitForSelectorAsync("div.bg-header", new WaitForSelectorOptions { Timeout = 10000 });
                 if (headerElement == null)
                     throw new Exception("Elemento com informações gerais do jogo não encontrado.");
 
-                // 🎯 Times
-                var matchNameElement = headerElement.QuerySelectorAsync("span.text-sm.md\\:text-lg.text-text-light-primary.font-bold").GetAwaiter().GetResult();
-                var matchName = matchNameElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                if (string.IsNullOrWhiteSpace(matchName) || !matchName.Contains("x"))
-                    throw new Exception($"Formato de nome de jogo inválido: {matchName}");
+                // 🎯 Captura dos times
+                var matchNameElement = await headerElement.QuerySelectorAsync("span.text-sm.md\\:text-lg.text-text-light-primary.font-bold");
+                var matchName = matchNameElement != null
+                    ? await matchNameElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()")
+                    : null;
 
-                var teams = matchName.Split("x");
+                if (string.IsNullOrWhiteSpace(matchName) || !matchName.Contains(" x "))
+                    throw new Exception($"Formato de nome de jogo inválido: '{matchName}'");
+
+                var teams = matchName.Split(" x ");
+                if (teams.Length != 2)
+                    throw new Exception($"Erro ao dividir os nomes dos times: '{matchName}'");
+
                 homeTeam = teams[0].Trim();
                 awayTeam = teams[1].Trim();
-                Console.WriteLine($"Times: {homeTeam} vs {awayTeam}");
 
-                // 🌍 Liga (último breadcrumb)
-                var breadcrumbElements = headerElement.QuerySelectorAllAsync("div.inline a").GetAwaiter().GetResult();
+                Console.WriteLine($"✅ Times identificados: {homeTeam} vs {awayTeam}");
+
+                // 🌍 Captura da Liga, Categoria e Esporte
+                var breadcrumbElements = await headerElement.QuerySelectorAllAsync("div.inline a");
                 if (breadcrumbElements.Length >= 3)
                 {
-                    string esporte = breadcrumbElements[0].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    string categoria = breadcrumbElements[1].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    leagueName = breadcrumbElements[2].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    Console.WriteLine($"Esporte: {esporte}, Categoria: {categoria}, Liga: {leagueName}");
+                    string esporte = await breadcrumbElements[0].EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+                    string categoria = await breadcrumbElements[1].EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+                    leagueName = await breadcrumbElements[2].EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+
+                    Console.WriteLine($"✅ Esporte: {esporte}, Categoria: {categoria}, Liga: {leagueName}");
                 }
                 else
                 {
-                    throw new Exception("Não foi possível capturar os breadcrumbs da liga.");
+                    throw new Exception("Não foi possível capturar todos os breadcrumbs da liga.");
                 }
 
-                // 🕒 Data e Hora
-                var dateElement = page.WaitForSelectorAsync("div.bg-odds-subheader .text-base.text-text-light-tertiary", new WaitForSelectorOptions { Timeout = 8000 }).GetAwaiter().GetResult();
+                // 🕒 Data e Hora do jogo
+                var dateElement = await page.WaitForSelectorAsync("div.bg-odds-subheader .text-base.text-text-light-tertiary", new WaitForSelectorOptions { Timeout = 8000 });
                 if (dateElement == null)
                     throw new Exception("Elemento com data e hora do jogo não encontrado.");
 
-                var dateTimeText = dateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var dateTimeText = await dateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                 gameDateTime = ParseGameDateTime(dateTimeText);
-                Console.WriteLine($"Data e Hora do Jogo: {gameDateTime}");
+
+                Console.WriteLine($"✅ Data e Hora do Jogo: {gameDateTime}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao extrair informações do jogo: {ex.Message}");
-                _logService.LogError("Erro ao extrair informações do jogo: ", ex);
+                Console.WriteLine($"❌ Erro ao extrair informações do jogo: {ex.Message}");
+                _logService.LogError("Erro ao extrair informações do jogo", ex);
             }
         }
+
 
         private DateTime ParseGameDateTime(string text)
         {
             var now = DateTime.Now;
+            var culture = CultureInfo.InvariantCulture;
 
-            if (text.StartsWith("Hoje"))
+            try
             {
-                var hour = text.Replace("Hoje às", "").Trim();
-                return DateTime.ParseExact($"{now:dd/MM/yyyy} {hour}", "dd/MM/yyyy HH:mm", null);
-            }
-            else if (text.StartsWith("Amanhã"))
-            {
-                var hour = text.Replace("Amanhã às", "").Trim();
-                return DateTime.ParseExact($"{now.AddDays(1):dd/MM/yyyy} {hour}", "dd/MM/yyyy HH:mm", null);
-            }
+                if (string.IsNullOrWhiteSpace(text))
+                    throw new ArgumentException("Texto de data/hora vazio ou nulo.");
 
-            throw new Exception($"Formato inesperado para data/hora: {text}");
+                text = text.Trim();
+
+                if (text.StartsWith("Hoje"))
+                {
+                    var hour = text.Replace("Hoje às", "").Trim();
+                    var dateString = $"{now:dd/MM/yyyy} {hour}";
+
+                    if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm", culture, DateTimeStyles.None, out var today))
+                        return today;
+                }
+                else if (text.StartsWith("Amanhã"))
+                {
+                    var hour = text.Replace("Amanhã às", "").Trim();
+                    var dateString = $"{now.AddDays(1):dd/MM/yyyy} {hour}";
+
+                    if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm", culture, DateTimeStyles.None, out var tomorrow))
+                        return tomorrow;
+                }
+                else
+                {
+                    // Exemplo: "sábado, 29 março às 10:00"
+                    var regex = new Regex(@"(\d{1,2})\s+([a-zç]+)\s+às\s+(\d{2}:\d{2})", RegexOptions.IgnoreCase);
+                    var match = regex.Match(text);
+
+                    if (match.Success)
+                    {
+                        int day = int.Parse(match.Groups[1].Value);
+                        string monthName = match.Groups[2].Value.ToLower();
+                        string time = match.Groups[3].Value;
+
+                        var monthMap = new Dictionary<string, int>
+                {
+                    { "janeiro", 1 }, { "fevereiro", 2 }, { "março", 3 }, { "abril", 4 },
+                    { "maio", 5 }, { "junho", 6 }, { "julho", 7 }, { "agosto", 8 },
+                    { "setembro", 9 }, { "outubro", 10 }, { "novembro", 11 }, { "dezembro", 12 }
+                };
+
+                        if (!monthMap.TryGetValue(monthName, out int month))
+                            throw new Exception($"Mês inválido: {monthName}");
+
+                        var year = now.Year; // Presume o ano atual
+                        var dateString = $"{day:D2}/{month:D2}/{year} {time}";
+
+                        if (DateTime.TryParseExact(dateString, "dd/MM/yyyy HH:mm", culture, DateTimeStyles.None, out var parsedDate))
+                            return parsedDate;
+                    }
+                }
+
+                throw new FormatException($"Formato inesperado para data/hora: '{text}'");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Erro ao converter data/hora: '{text}' - {ex.Message}");
+                _logService.LogError("Erro ao converter data/hora", ex);
+                throw;
+            }
         }
 
 
-        private void ProcessTabsAndMarketViews(IFrame iframe)
-        {
-            var ignoredTabs = new HashSet<string> { "Criar Aposta" }; // Abas ignoradas
-            var processedTabs = new HashSet<string>(); // Rastreia abas já processadas
-            var marketCategoriesSelector = "div.categories-wrapper div.market-categories > ul > li";
-            var rightArrowSelector = "div.mi-right-arrow";
 
-            System.Threading.Thread.Sleep(new Random().Next(625, 1684)); // Pequena pausa inicial
+        private async Task ProcessTabsAndMarketViews(IPage page)
+        {
+            var ignoredTabs = new HashSet<string> { "Criar aposta", "Buscar" };
+            var processedTabs = new HashSet<string>();
+            var tabSelector = "button[data-testid^='eventTab-']";
+            var marketContainerSelector = "section[data-testid='market-outcome-list']";
+
+            await Task.Delay(new Random().Next(625, 1684));
+
+            var tagNames = BetnacionalTags.TagNames;
 
             try
             {
@@ -308,18 +368,22 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
                 {
                     try
                     {
-                        // Captura as abas visíveis
-                        var tabs = iframe.QuerySelectorAllAsync(marketCategoriesSelector).GetAwaiter().GetResult();
+                        var tabs = await page.QuerySelectorAllAsync(tabSelector);
+                        if (tabs == null || tabs.Length == 0)
+                        {
+                            Console.WriteLine("Nenhuma aba encontrada na página.");
+                            return;
+                        }
 
-                        bool allTabsProcessed = true; // Assume que todas as abas estão processadas
-                        bool retryRightArrow = false; // Tenta clicar no botão da direita se necessário
+                        bool allTabsProcessed = true;
 
                         foreach (var tab in tabs)
                         {
                             try
                             {
-                                // Captura o nome da aba
-                                var tabName = tab.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                var tabName = await tab.EvaluateFunctionAsync<string>(
+                                    "el => el.textContent.trim().replace(/\\s+Novo$/, '')"
+                                );
 
                                 if (string.IsNullOrEmpty(tabName))
                                 {
@@ -327,7 +391,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
                                     continue;
                                 }
 
-                                // Ignora abas já processadas ou na lista ignorada
                                 if (ignoredTabs.Contains(tabName) || processedTabs.Contains(tabName))
                                 {
                                     Console.WriteLine($"Ignorando aba: {tabName}");
@@ -336,7 +399,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
 
                                 Console.WriteLine($"Processando aba: {tabName}");
 
-                                // Tenta clicar na aba com até 3 tentativas
                                 int retries = 0;
                                 bool clicked = false;
 
@@ -344,75 +406,53 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
                                 {
                                     try
                                     {
-                                        tab.ClickAsync().GetAwaiter().GetResult();
-                                        System.Threading.Thread.Sleep(new Random().Next(421, 684)); // Pequena pausa
+                                        await page.EvaluateFunctionAsync("el => el.click()", tab);
+                                        await Task.Delay(new Random().Next(421, 684));
                                         clicked = true;
-                                        Console.WriteLine($"Aba '{tabName}' clicada com sucesso.");
+                                        Console.WriteLine($"Aba '{tabName}' clicada com sucesso via JS.");
                                     }
-                                    catch (PuppeteerException)
+                                    catch (Exception)
                                     {
                                         retries++;
-                                        Console.WriteLine($"Falha ao clicar na aba '{tabName}', tentativa {retries}.");
-
-                                        retryRightArrow = true; // Sinaliza para tentar o botão da direita
+                                        Console.WriteLine($"Erro ao clicar na aba '{tabName}', tentativa {retries}.");
                                     }
                                 }
 
                                 if (!clicked)
                                 {
-                                    Console.WriteLine($"Não foi possível clicar na aba '{tabName}' após 3 tentativas.");
-                                    allTabsProcessed = false; // Não processou todas as abas
+                                    Console.WriteLine($"Falha ao clicar na aba '{tabName}' após 3 tentativas.");
+                                    allTabsProcessed = false;
                                     continue;
                                 }
 
-                                // Marca a aba como processada
                                 processedTabs.Add(tabName);
 
-                                // Aguarda mercados carregarem
-                                var marketsLoaded = iframe.WaitForSelectorAsync("div.markets", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
+                                var marketsLoaded = await page.WaitForSelectorAsync(marketContainerSelector, new WaitForSelectorOptions
+                                {
+                                    Timeout = 10000
+                                });
+
                                 if (marketsLoaded == null)
                                 {
-                                    Console.WriteLine("Nenhum mercado foi carregado para a aba selecionada.");
+                                    Console.WriteLine("Mercados não carregaram após o clique na aba.");
                                     continue;
                                 }
 
-                                // Processa os mercados visíveis
-                                ProcessMarketViews(iframe);
+                                await ProcessMarketViews(page, tagNames, tabName);
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"Erro ao processar uma aba: {ex.Message}");
+                                Console.WriteLine($"Erro ao processar aba: {ex.Message}");
                                 allTabsProcessed = false;
                             }
                         }
 
-                        // Se conseguiu processar todas as abas visíveis, não há necessidade de continuar
-                        if (allTabsProcessed && !retryRightArrow)
-                        {
-                            Console.WriteLine("Todas as abas visíveis foram processadas.");
-                            finished = true;
-                        }
-                        else if (retryRightArrow)
-                        {
-                            // Tenta clicar no botão da direita
-                            var nextButton = iframe.QuerySelectorAsync(rightArrowSelector).GetAwaiter().GetResult();
-                            if (nextButton != null)
-                            {
-                                Console.WriteLine("Tentando clicar na seta para a direita...");
-                                nextButton.ClickAsync().GetAwaiter().GetResult();
-                                System.Threading.Thread.Sleep(500); // Aguarda a rolagem
-                            }
-                            else
-                            {
-                                Console.WriteLine("Botão da seta para a direita não encontrado. Finalizando.");
-                                finished = true;
-                            }
-                        }
+                        finished = allTabsProcessed;
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Erro ao processar abas: {ex.Message}");
-                        finished = true; // Finaliza o processamento em caso de erro crítico
+                        Console.WriteLine($"Erro ao processar as abas principais: {ex.Message}");
+                        finished = true;
                     }
                 }
 
@@ -420,192 +460,208 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao localizar o contêiner de abas: {ex.Message}");
+                Console.WriteLine($"Erro geral ao processar as abas: {ex.Message}");
             }
         }
 
-        private void ProcessMarketViews(IFrame iframe)
+
+
+
+        private async Task ProcessMarketViews(IPage page, Dictionary<int, List<string>> tagNames, string tabName = null)
         {
-            // Pausa para garantir que os mercados carreguem
-            Thread.Sleep(new Random().Next(851, 1132));
-
-            // Captura os contêineres de mercados
-            var marketContainers = iframe.QuerySelectorAllAsync("div.markets > div.m-col > div.market").GetAwaiter().GetResult();
-            if (marketContainers == null || !marketContainers.Any())
+            try
             {
-                Console.WriteLine("Nenhum mercado encontrado.");
-                return;
-            }
+                Console.WriteLine("Iniciando processamento dos mercados...");
+                await Task.Delay(new Random().Next(851, 1132));
 
-            // Lista de tags cadastradas que queremos buscar
-            var tagNames = BetnacionalTags.TagNames;
-            
-
-            foreach (var marketContainer in marketContainers)
-            {
-                try
+                var marketContainers = await page.QuerySelectorAllAsync("[data-testid='outcomes-by-market']");
+                if (marketContainers == null || !marketContainers.Any())
                 {
-                    // Captura o título do mercado (Ex: "Total de Gols")
-                    var titleElement = marketContainer.QuerySelectorAsync("div.title > span").GetAwaiter().GetResult();
-                    if (titleElement == null) continue;
+                    Console.WriteLine("Nenhum mercado encontrado.");
+                    return;
+                }
 
-                    var marketTitle = _teamService.NormalizeText(titleElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult());
-
-                    // Verifica se o título está na lista de tags permitidas
-                    if (!tagNames.Values.Any(tagList => tagList.Contains(marketTitle)))
+                foreach (var marketContainer in marketContainers)
+                {
+                    try
                     {
-                        Console.WriteLine($"Mercado ignorado: {marketTitle}");
-                        continue;
-                    }
+                        var titleElement = await marketContainer.QuerySelectorAsync("[data-testid='market-name']");
+                        if (titleElement == null) continue;
 
-                    // Recupera o ID da tag associada
-                    string normalizedTagName = _teamService.NormalizeText(marketTitle);
+                        var marketTitleRaw = await titleElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+                        var marketTitle = _teamService.NormalizeText(marketTitleRaw);
 
-                    var matchingTag = BetnacionalTags.TagNames
-                        .FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
-
-                    if (matchingTag.Key == 0)
-                    {
-                        Console.WriteLine($"Tag não encontrada: {marketTitle}");
-                        continue;
-                    }
-
-                    int tagId = matchingTag.Key;
-
-
-                    // Define o seletor das opções de aposta
-                    const string betOptionsSelector = "div.market-odds > div.odd-rect-wide";
-
-                    // Máximo de tentativas para expandir o mercado
-                    const int maxRetries = 3;
-                    int retryCount = 0;
-
-                    // Loop de tentativas para expandir o mercado
-                    while (retryCount < maxRetries)
-                    {
-                        // Captura as opções de aposta no marketContainer
-                        var betOptions = marketContainer.QuerySelectorAllAsync(betOptionsSelector).GetAwaiter().GetResult();
-
-                        if (betOptions != null && betOptions.Length > 0)
+                        if (!tagNames.Values.Any(list => list.Contains(marketTitle)))
                         {
-                            Console.WriteLine($"Mercado expandido com sucesso. Encontradas {betOptions.Length} opções de aposta.");
-                            break; // Sai do loop se encontrar opções de aposta
+                            Console.WriteLine($"Mercado ignorado: {marketTitle}");
+                            continue;
                         }
 
-                        // Verifica se o botão de expandir mercado existe
-                        var arrowElement = marketContainer.QuerySelectorAsync("span.arrow").GetAwaiter().GetResult();
-                        if (arrowElement != null)
+                        var normalizedTagName = _teamService.NormalizeText(marketTitle);
+                        var matchingTag = tagNames
+                            .FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
+
+                        if (matchingTag.Key == 0)
                         {
-                            Console.WriteLine($"Tentativa {retryCount + 1}: Expandindo mercado...");
-                            arrowElement.ClickAsync().GetAwaiter().GetResult();
-                            Thread.Sleep(new Random().Next(526, 1231)); // Pausa entre as tentativas
+                            Console.WriteLine($"Tag não encontrada para: {marketTitle}");
+                            continue;
+                        }
+
+                        int tagId = matchingTag.Key;
+                        var currentBets = new List<BetInfo>();
+
+                        // 🧠 Estrutura de grid (como "Total")
+                        var gridItems = await marketContainer.QuerySelectorAllAsync("div.grid.grid-cols-3 > div");
+                        if (gridItems != null && gridItems.Length >= 3 && gridItems.Length % 3 == 0)
+                        {
+                            for (int i = 0; i + 2 < gridItems.Length; i += 3)
+                            {
+                                try
+                                {
+                                    var lineText = await gridItems[i].EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+                                    if (!decimal.TryParse(lineText.Replace(".", ","), out var betAmount))
+                                    {
+                                        Console.WriteLine($"Linha de aposta inválida: {lineText}");
+                                        continue;
+                                    }
+
+                                    var overSpan = await gridItems[i + 1].QuerySelectorAsync("span");
+                                    var underSpan = await gridItems[i + 2].QuerySelectorAsync("span");
+
+                                    var overText = overSpan != null ? await overSpan.EvaluateFunctionAsync<string>("el => el.textContent.trim()") : null;
+                                    var underText = underSpan != null ? await underSpan.EvaluateFunctionAsync<string>("el => el.textContent.trim()") : null;
+
+                                    if (decimal.TryParse(overText?.Replace(".", ","), out var multiplierOver))
+                                    {
+                                        currentBets.Add(new BetInfo
+                                        {
+                                            GamesInfo = gamesInfo,
+                                            TagName = marketTitle,
+                                            OverUnder = "Mais de",
+                                            BetAmount = betAmount,
+                                            Multiplier = multiplierOver,
+                                            GameDate = gamesInfo.GameDate,
+                                            CaptureDate = DateTime.Now,
+                                            Site = gamesInfo.Site,
+                                            TagId = tagId
+                                        });
+                                    }
+
+                                    if (decimal.TryParse(underText?.Replace(".", ","), out var multiplierUnder))
+                                    {
+                                        currentBets.Add(new BetInfo
+                                        {
+                                            GamesInfo = gamesInfo,
+                                            TagName = marketTitle,
+                                            OverUnder = "Menos de",
+                                            BetAmount = betAmount,
+                                            Multiplier = multiplierUnder,
+                                            GameDate = gamesInfo.GameDate,
+                                            CaptureDate = DateTime.Now,
+                                            Site = gamesInfo.Site,
+                                            TagId = tagId
+                                        });
+                                    }
+                                }
+                                catch (Exception exGrid)
+                                {
+                                    Console.WriteLine($"Erro ao processar linha de mercado em grid: {exGrid.Message}");
+                                    _logService.LogError("Erro ao processar linha de mercado em grid", exGrid);
+                                }
+                            }
                         }
                         else
                         {
-                            Console.WriteLine("Botão de expandir mercado não encontrado. Interrompendo tentativa de expansão.");
-                            break;
-                        }
-
-                        retryCount++;
-                    }
-
-                    // Captura novamente as opções de aposta após o loop de tentativas
-                    var finalBetOptions = marketContainer.QuerySelectorAllAsync(betOptionsSelector).GetAwaiter().GetResult();
-
-                    if (finalBetOptions == null || finalBetOptions.Length == 0)
-                    {
-                        Console.WriteLine("Nenhuma opção de aposta encontrada após expandir o mercado. Pulando este mercado.");
-                        return; // Sai da execução deste mercado
-                    }
-
-                    Console.WriteLine($"Opções de aposta encontradas: {finalBetOptions.Length}");
-                    
-                    List<BetInfo> currentBets = new List<BetInfo>();
-
-                    foreach (var betOption in finalBetOptions)
-                    {
-                        
-
-                        try
-                        {
-                            // Captura o nome da aposta (Ex: "Acima (2.5)" ou "Abaixo (2.5)")
-                            var oddNameElement = betOption.QuerySelectorAsync("p.odd-name").GetAwaiter().GetResult();
-                            var oddName = oddNameElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                            // Identifica se é "Mais de" ou "Menos de"
-                            string overUnder = "";
-
-                            if (oddName.StartsWith("Acima") || oddName.StartsWith("Mais de"))
+                            // 🧠 Estrutura tradicional
+                            var oddElements = await marketContainer.QuerySelectorAllAsync("[data-testid^='odd-']");
+                            if (oddElements == null || oddElements.Length == 0)
                             {
-                                overUnder = "Mais de";
-                            }
-                            else if (oddName.StartsWith("Abaixo") || oddName.StartsWith("Menos de"))
-                            {
-                                overUnder = "Menos de";
-                            }
-                            else
-                            {
-                                // Caso venha um valor inesperado, exibe uma mensagem e pula a iteração
-                                Console.WriteLine($"Aposta ignorada: 'oddName' inesperado -> {oddName}");
-                                continue; // Segue para a próxima interação
-                            }
-
-
-                            // Remove "Acima" ou "Abaixo" do nome
-                            string betAmountText = Regex.Match(oddName, @"\((.*?)\)").Groups[1].Value;
-
-                            if (!decimal.TryParse(betAmountText.Replace(".", ","), out decimal betAmount))
-                            {
-                                Console.WriteLine($"Valor de aposta inválido: {betAmountText}");
+                                Console.WriteLine($"Sem odds encontradas para o mercado: {marketTitle}");
                                 continue;
                             }
 
-                            // Captura o multiplicador
-                            var multiplierElement = betOption.QuerySelectorAsync("span.coef").GetAwaiter().GetResult();
-                            string multiplierText = multiplierElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                            if (!decimal.TryParse(multiplierText.Replace(".", ","), out decimal multiplier))
+                            foreach (var oddElement in oddElements)
                             {
-                                Console.WriteLine($"Multiplicador inválido: {multiplierText}");
-                                continue;
-                            }                            
+                                try
+                                {
+                                    var span = await oddElement.QuerySelectorAsync("span");
+                                    if (span == null) continue;
 
-                            // Cria a aposta
-                            currentBets.Add(new BetInfo
-                            {
-                                GamesInfo = gamesInfo,
-                                TagName = marketTitle,
-                                OverUnder = overUnder,
-                                BetAmount = betAmount,
-                                Multiplier = multiplier,
-                                GameDate = gamesInfo.GameDate,
-                                CaptureDate = DateTime.Now,
-                                Site = gamesInfo.Site,
-                                TagId = tagId
-                            });
+                                    var multiplierText = await span.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+                                    if (!decimal.TryParse(multiplierText.Replace(".", ","), out var multiplier))
+                                    {
+                                        Console.WriteLine($"Multiplicador inválido: {multiplierText}");
+                                        continue;
+                                    }
+
+                                    var containerDiv = await oddElement.QuerySelectorAsync("div");
+                                    var fullOddText = containerDiv != null
+                                        ? await containerDiv.EvaluateFunctionAsync<string>("el => el.textContent.trim()")
+                                        : await oddElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+
+                                    string betName = fullOddText.Replace(multiplierText, "").Trim();
+                                    string overUnder = "";
+
+                                    if (betName.StartsWith("Mais de") || betName.StartsWith("Acima"))
+                                        overUnder = "Mais de";
+                                    else if (betName.StartsWith("Menos de") || betName.StartsWith("Abaixo"))
+                                        overUnder = "Menos de";
+
+                                    decimal betAmount = 0;
+                                    var match = Regex.Match(betName, @"(\d+(?:[.,]\d+)?)");
+                                    if (match.Success)
+                                    {
+                                        decimal.TryParse(match.Value.Replace(".", ","), out betAmount);
+                                    }
+
+                                    if ((overUnder == "Mais de" || overUnder == "Menos de") && betAmount == 0)
+                                    {
+                                        Console.WriteLine($"Valor da aposta não identificado: {betName}");
+                                        continue;
+                                    }
+
+                                    currentBets.Add(new BetInfo
+                                    {
+                                        GamesInfo = gamesInfo,
+                                        TagName = marketTitle,
+                                        OverUnder = overUnder,
+                                        BetAmount = betAmount,
+                                        Multiplier = multiplier,
+                                        GameDate = gamesInfo.GameDate,
+                                        CaptureDate = DateTime.Now,
+                                        Site = gamesInfo.Site,
+                                        TagId = tagId
+                                    });
+                                }
+                                catch (Exception exOdd)
+                                {
+                                    Console.WriteLine($"Erro ao processar odd: {exOdd.Message}");
+                                    _logService.LogError("Erro ao processar odd", exOdd);
+                                }
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Erro ao processar opção de aposta: {ex.Message}");
-                            _logService.LogError("Erro ao processar opção de aposta: ", ex);
-                        }                        
 
-                    }
-
-                    // Salva as apostas no banco de dados
-                    if (currentBets.Any())
-                    {
+                        // ✅ Salva apostas extraídas
                         SaveBets(currentBets);
                     }
+                    catch (Exception exMarket)
+                    {
+                        Console.WriteLine($"Erro ao processar mercado: {exMarket.Message}");
+                        _logService.LogError("Erro ao processar mercado", exMarket);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Erro ao processar mercado: {ex.Message}");
-                }
-            }
 
-            
+                Console.WriteLine("Processamento dos mercados finalizado.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro geral no ProcessMarketViews: {ex.Message}");
+                _logService.LogError("Erro no ProcessMarketViews", ex);
+            }
         }
+
+
+
 
         private void SaveBets(List<BetInfo> bets)
         {
