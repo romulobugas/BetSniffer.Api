@@ -15,6 +15,7 @@ using BetSniffer.Api.Core.Sites.Betano;
 using BetSniffer.Api.Configuration;
 using BetSniffer.Api.Core.Sites.Betfast;
 using BetSniffer.Api.Core.Sites.Superbet;
+using BetSniffer.Api.Core.Sites.Betnacional;
 
 namespace BetSniffer.Api
 {
@@ -77,6 +78,7 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<BetfastScraping>();
             builder.Services.AddScoped<PixbetScraping>();
             builder.Services.AddScoped<SuperbetScraping>();
+            builder.Services.AddScoped<BetnacionalScraping>();
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<BatchScrapingController>();
             builder.Services.AddScoped<GamesUpdateController>();            
