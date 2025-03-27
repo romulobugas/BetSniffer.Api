@@ -21,6 +21,12 @@ namespace BetSniffer.Api.Core.Sites.Betano
             { 25, new List<string> { "Total de laterais", "Total de laterais (alternativas)" } },
             { 28, new List<string> { "Total de Desarmes", "Total de Desarmes (alternativas)" } },
             { 37, new List<string> { "Bola na trave", "Bola na trave (alternativas)" } },
+            { 40, new List<string> { "Total de gols Mais/Menos - 1° Tempo", "Total de gols Mais/Menos - 1° Tempo (alternativas)" } },
+            { 43, new List<string> { "Mais/Menos 1.º Tempo Escanteios (alternativas)", "Mais/Menos 1.º Tempo Escanteios" } },
+            { 46, new List<string> { "Total de Cartões (Mais/Menos) 1° Tempo", "Total de Cartões (Mais/Menos) 1° Tempo (alternativas)" } },
+
+            { 65, new List<string> { "Total de gols Mais/Menos - 2º Tempo" } },
+
         };
 
         // Método para obter as tags isoladas por thread
@@ -65,6 +71,14 @@ namespace BetSniffer.Api.Core.Sites.Betano
                 { 27, new List<string> { $"{awayTeam} Total de laterais", $"{awayTeam} Total de laterais (alternativas)" } },
                 { 29, new List<string> { $"{homeTeam} Total de Desarmes", $"{homeTeam} Total de Desarmes (alternativas)" } },
                 { 30, new List<string> { $"{awayTeam} Total de Desarmes", $"{awayTeam} Total de Desarmes (alternativas)" } },
+                { 41, new List<string> { $"Total de gols Mais/Menos - 1° Tempo {homeTeam}", $"Total de gols Mais/Menos - 1° Tempo {homeTeam} (alternativas)" } },
+                { 42, new List<string> { $"Total de gols Mais/Menos - 1° Tempo {awayTeam}", $"Total de gols Mais/Menos - 1° Tempo {awayTeam} (alternativas)" } },
+                { 44, new List<string> { $"Primeiro Tempo {homeTeam} Escanteios Mais/Menos", $"Primeiro Tempo {homeTeam} Escanteios Mais/Menos (alternativas)" } },
+                { 45, new List<string> { $"Primeiro Tempo {awayTeam} Escanteios Mais/Menos", $"Primeiro Tempo {awayTeam} Escanteios Mais/Menos (alternativas)" } },
+                { 47, new List<string> { $"{homeTeam} Total de Cartões 1° Tempo", $"{homeTeam} Total de Cartões 1° Tempo (alternativas)" } },
+                { 48, new List<string> { $"{awayTeam} Total de Cartões 1° Tempo", $"{awayTeam} Total de Cartões 1° Tempo (alternativas)" } },
+                { 66, new List<string> { $"Segundo Tempo - Total de Gols Mais/Menos {homeTeam}", $"Segundo Tempo - Total de Gols Mais/Menos {homeTeam} (alternativas)" } },
+                { 67, new List<string> { $"Segundo Tempo - Total de Gols Mais/Menos {awayTeam}", $"Segundo Tempo - Total de Gols Mais/Menos {awayTeam} (alternativas)" } },
             };
 
             // Adicionar ao dicionário isolado, evitando duplicações

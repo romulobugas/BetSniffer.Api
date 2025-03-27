@@ -13,6 +13,9 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
             { 7, new List<string> { "Impedimentos Acima/Abaixo no Tempo Integral" } },
             { 5, new List<string> { "Faltas Totais na Partida" } },
             { 3, new List<string> { "Total Match Shots O/U" } },
+            { 40, new List<string> { "Primeiro Tempo Total de Gols Acima/Abaixo" } },
+            { 43, new List<string> { "Escanteio 1ª Tempo O/U" } },
+            { 46, new List<string> { "Cartões 1º Tempo Acima/Abaixo" } },
         };
 
         // Isolamento por contexto de thread
@@ -36,10 +39,16 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
                 { 36, new List<string> { $"{awayTeam}: Total de Cartões da Equipe Acima/Abaixo" } },
                 { 12, new List<string> { $"{homeTeam}: Total de Chutes a Gol da Equipe Acima/Abaixo" } },
                 { 13, new List<string> { $"{awayTeam}: Total de Chutes a Gol da Equipe Acima/Abaixo" } },
+                { 16, new List<string> { $"{homeTeam}: Total de impedimentos Acima/Abaixo" } },
+                { 17, new List<string> { $"{awayTeam}: Total de impedimentos Acima/Abaixo" } },
                 { 18, new List<string> { $"{homeTeam}: Total de Faltas da Equipe Acima/Abaixo" } },
                 { 19, new List<string> { $"{awayTeam}: Total de Faltas da Equipe Acima/Abaixo" } },
                 { 14, new List<string> { $"{homeTeam}: Total de Chutes do Time Mais/Menos" } },
                 { 15, new List<string> { $"{awayTeam}: Total de Chutes do Time Mais/Menos" } },
+                { 41, new List<string> { $"{homeTeam}: Total de Gols da Equipe no 1º Tempo Acima/Abaixo" } },
+                { 42, new List<string> { $"{awayTeam}: Total de Gols da Equipe no 1º Tempo Acima/Abaixo" } },
+                { 44, new List<string> { $"{homeTeam}: Total de Escanteios da Equipe no 1º Tempo Acima/Abaixo" } },
+                { 45, new List<string> { $"{awayTeam}: Total de Escanteios da Equipe no 1º Tempo Acima/Abaixo" } },
             };
 
             // Adicionar ao dicionário isolado de tags da thread

@@ -22,6 +22,16 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             { 31, new List<string> { "Total de Tiros de Meta", "Total de Tiros de Meta da Equipe" } },
             { 37, new List<string> { "Total de Chutes na Trave", "Time: Total de Acertos na Trave" } },
             { 3, new List<string> { "Finalizações Totais", "Total de Finalizações da Equipe" } },
+            { 40, new List<string> { "1º Tempo - Total de Gols", "1º Tempo - Total de Gols do Time" } },
+            { 43, new List<string> { "1º Tempo - Total de Escanteios", "1º tempo - Total de Escanteios do Time" } },
+            { 46, new List<string> { "1º Tempo - Total de Cartões", "1º tempo - Total de Cartões do Time" } },
+            { 49, new List<string> { "1º Tempo - Total de Cartões Amarelos", "1º tempo - Total de Cartões Amarelos do Time" } },
+            { 52, new List<string> { "1º tempo - Total de cartões vermelhos" } },
+            { 55, new List<string> { "1º Tempo - Total de Chutes no Gol", "1º Tempo - Chutes no Gol Totais da Equipe" } },
+            { 58, new List<string> { "1º Tempo - Total de Finalizações", "1º Tempo - Finalizações Totais da Equipe" } },
+            { 61, new List<string> { "1º Tempo - Total de Faltas", "1º Tempo - Total de Faltas da Equipe" } },
+            { 64, new List<string> { "1º Tempo - Total de Impedimentos" } },
+            { 65, new List<string> { "2º Tempo - Total de Gols", "2º Tempo - Total de Gols da Equipe" } },
         };
 
         // Isolamento por contexto de thread
@@ -70,6 +80,26 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 { 39, new List<string> { $"Time: Total de Acertos na Trave {awayTeam}" } },
                 { 14, new List<string> { $"Total de Finalizações da Equipe {homeTeam}" } },
                 { 15, new List<string> { $"Total de Finalizações da Equipe {awayTeam}" } },
+                { 41, new List<string> { $"1º Tempo - Total de Gols do Time {homeTeam}" } },
+                { 42, new List<string> { $"1º Tempo - Total de Gols do Time {awayTeam}" } },
+                { 44, new List<string> { $"1º tempo - Total de Escanteios do Time {homeTeam}" } },
+                { 45, new List<string> { $"1º tempo - Total de Escanteios do Time {awayTeam}" } },
+                { 47, new List<string> { $"1º tempo - Total de Cartões do Time {homeTeam}" } },
+                { 48, new List<string> { $"1º tempo - Total de Cartões do Time {awayTeam}" } },
+                { 50, new List<string> { $"1º tempo - Total de Cartões Amarelos do Time {homeTeam}" } },
+                { 51, new List<string> { $"1º tempo - Total de Cartões Amarelos do Time {awayTeam}" } },
+                { 53, new List<string> { $"1º tempo - Total de cartões vermelhos {homeTeam}" } },
+                { 54, new List<string> { $"1º tempo - Total de cartões vermelhos {awayTeam}" } },
+                { 56, new List<string> { $"1º Tempo - Chutes no Gol Totais da Equipe {homeTeam}" } },
+                { 57, new List<string> { $"1º Tempo - Chutes no Gol Totais da Equipe {awayTeam}" } },
+                { 59, new List<string> { $"1º Tempo - Finalizações Totais da Equipe {homeTeam}" } },
+                { 60, new List<string> { $"1º Tempo - Finalizações Totais da Equipe {awayTeam}" } },
+                { 62, new List<string> { $"1º Tempo - Total de Faltas da Equipe {homeTeam}" } },
+                { 63, new List<string> { $"1º Tempo - Total de Faltas da Equipe {awayTeam}" } },
+                { 62, new List<string> { $"1º Tempo - {homeTeam} Impedimentos" } },
+                { 63, new List<string> { $"1º Tempo - {awayTeam} Impedimentos" } },
+                { 66, new List<string> { $"2º Tempo - Total de Gols da Equipe {homeTeam}" } },
+                { 67, new List<string> { $"2º Tempo - Total de Gols da Equipe {awayTeam}" } },
             };
 
             // Adicionar ao dicionário isolado de tags da thread

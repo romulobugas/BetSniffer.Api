@@ -25,6 +25,13 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             { 28, "Total de Desarmes" },
             { 31, "Total de Tiros de Meta" },
             { 37, "Bola na trave" },
+            { 40, "1° Tempo - Total de Gols 🚀" },
+            { 43, "1° Tempo - Total de Escanteios 🚀" },
+            { 44, "1° Tempo - Casa Total de Escanteios" },
+            { 45, "1° Tempo - Visitante Total de Escanteios" },
+            { 49, "1° Tempo - Total de Cartões Amarelos" },
+            { 52, "1° Tempo - Total de Cartões Vermelhos" },
+            { 65, "2° Tempo - Total de Gols" },
         };
 
         // Isolamento por thread usando ThreadLocal
@@ -60,6 +67,10 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 { 33, $"{awayTeam} - Total de Tiros de Meta" },
                 { 38, $"{homeTeam} - Bola na trave" },
                 { 39, $"{awayTeam} - Bola na trave" },
+                { 50, $"1° Tempo - {homeTeam} Total de Cartões Amarelos" },
+                { 51, $"1° Tempo - {awayTeam} Total de Cartões Amarelos" },
+                { 53, $"{homeTeam} Total de Cartões Vermelhos" },
+                { 54, $"{awayTeam} Total de Cartões Vermelhos" },
             };
 
             foreach (var tag in dynamicTags)

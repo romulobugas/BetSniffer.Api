@@ -24,6 +24,10 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             { 25, "Lateral : Total" },
             { 26, "Lateral : Equipe 1 Total" },
             { 27, "Lateral : Equipe 2 Total" },
+            { 40, "Total de Gols do 1º tempo" },
+            { 41, "Total de Gols do Time 1 no 1ºtempo" },
+            { 42, "Total de Gols do Time 2 no 1º tempo" },
+
         };
 
         // Isolamento por thread usando ThreadLocal
