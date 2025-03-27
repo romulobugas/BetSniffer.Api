@@ -24,8 +24,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
             { 40, new List<string> { "Total de gols Mais/Menos - 1° Tempo", "Total de gols Mais/Menos - 1° Tempo (alternativas)" } },
             { 43, new List<string> { "Mais/Menos 1.º Tempo Escanteios (alternativas)", "Mais/Menos 1.º Tempo Escanteios" } },
             { 46, new List<string> { "Total de Cartões (Mais/Menos) 1° Tempo", "Total de Cartões (Mais/Menos) 1° Tempo (alternativas)" } },
-
-            { 65, new List<string> { "Total de gols Mais/Menos - 2º Tempo" } },
+            { 67, new List<string> { "Total de gols Mais/Menos - 2º Tempo" } },
 
         };
 
@@ -77,8 +76,8 @@ namespace BetSniffer.Api.Core.Sites.Betano
                 { 45, new List<string> { $"Primeiro Tempo {awayTeam} Escanteios Mais/Menos", $"Primeiro Tempo {awayTeam} Escanteios Mais/Menos (alternativas)" } },
                 { 47, new List<string> { $"{homeTeam} Total de Cartões 1° Tempo", $"{homeTeam} Total de Cartões 1° Tempo (alternativas)" } },
                 { 48, new List<string> { $"{awayTeam} Total de Cartões 1° Tempo", $"{awayTeam} Total de Cartões 1° Tempo (alternativas)" } },
-                { 66, new List<string> { $"Segundo Tempo - Total de Gols Mais/Menos {homeTeam}", $"Segundo Tempo - Total de Gols Mais/Menos {homeTeam} (alternativas)" } },
-                { 67, new List<string> { $"Segundo Tempo - Total de Gols Mais/Menos {awayTeam}", $"Segundo Tempo - Total de Gols Mais/Menos {awayTeam} (alternativas)" } },
+                { 68, new List<string> { $"Segundo Tempo - Total de Gols Mais/Menos {homeTeam}", $"Segundo Tempo - Total de Gols Mais/Menos {homeTeam} (alternativas)" } },
+                { 69, new List<string> { $"Segundo Tempo - Total de Gols Mais/Menos {awayTeam}", $"Segundo Tempo - Total de Gols Mais/Menos {awayTeam} (alternativas)" } },
             };
 
             // Adicionar ao dicionário isolado, evitando duplicações

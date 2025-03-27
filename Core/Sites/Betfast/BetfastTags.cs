@@ -54,9 +54,9 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             { 58, new List<string> { "1º tempo - Total de finalizações" } },
             { 59, new List<string> { "1º tempo - Total de finalizações do time da casa" } },
             { 60, new List<string> { "1º tempo - Total de finalizações do time de Fora" } },
-            { 65, new List<string> { "2º Tempo - Total de Gols" } },
-            { 66, new List<string> { "2º Tempo - Total do time de Casa" } },
-            { 67, new List<string> { "2º Tempo - Total do time de Fora" } },
+            { 67, new List<string> { "2º Tempo - Total de Gols" } },
+            { 68, new List<string> { "2º Tempo - Total do time de Casa" } },
+            { 69, new List<string> { "2º Tempo - Total do time de Fora" } },
         };
 
         // Isolamento por contexto de thread

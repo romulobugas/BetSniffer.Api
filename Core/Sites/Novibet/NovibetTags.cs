@@ -31,7 +31,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             { 45, "1° Tempo - Visitante Total de Escanteios" },
             { 49, "1° Tempo - Total de Cartões Amarelos" },
             { 52, "1° Tempo - Total de Cartões Vermelhos" },
-            { 65, "2° Tempo - Total de Gols" },
+            { 67, "2° Tempo - Total de Gols" },
         };
 
         // Isolamento por thread usando ThreadLocal

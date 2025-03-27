@@ -31,7 +31,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             { 58, new List<string> { "1º Tempo - Total de Finalizações", "1º Tempo - Finalizações Totais da Equipe" } },
             { 61, new List<string> { "1º Tempo - Total de Faltas", "1º Tempo - Total de Faltas da Equipe" } },
             { 64, new List<string> { "1º Tempo - Total de Impedimentos" } },
-            { 65, new List<string> { "2º Tempo - Total de Gols", "2º Tempo - Total de Gols da Equipe" } },
+            { 67, new List<string> { "2º Tempo - Total de Gols", "2º Tempo - Total de Gols da Equipe" } },
         };
 
         // Isolamento por contexto de thread
@@ -96,10 +96,10 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 { 60, new List<string> { $"1º Tempo - Finalizações Totais da Equipe {awayTeam}" } },
                 { 62, new List<string> { $"1º Tempo - Total de Faltas da Equipe {homeTeam}" } },
                 { 63, new List<string> { $"1º Tempo - Total de Faltas da Equipe {awayTeam}" } },
-                { 62, new List<string> { $"1º Tempo - {homeTeam} Impedimentos" } },
-                { 63, new List<string> { $"1º Tempo - {awayTeam} Impedimentos" } },
-                { 66, new List<string> { $"2º Tempo - Total de Gols da Equipe {homeTeam}" } },
-                { 67, new List<string> { $"2º Tempo - Total de Gols da Equipe {awayTeam}" } },
+                { 65, new List<string> { $"1º Tempo - {homeTeam} Impedimentos" } },
+                { 66, new List<string> { $"1º Tempo - {awayTeam} Impedimentos" } },
+                { 68, new List<string> { $"2º Tempo - Total de Gols da Equipe {homeTeam}" } },
+                { 69, new List<string> { $"2º Tempo - Total de Gols da Equipe {awayTeam}" } },
             };
 
             // Adicionar ao dicionário isolado de tags da thread

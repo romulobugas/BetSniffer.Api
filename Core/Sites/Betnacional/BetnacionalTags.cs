@@ -16,7 +16,7 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             { 40, new List<string> { "1º Tempo - Total" } },
             { 43, new List<string> { "1º Tempo - Total De Escanteios" } },
             { 46, new List<string> { "1º Tempo - Total De Cartões" } },
-            { 65, new List<string> { "2º Tempo - Total" } },
+            { 67, new List<string> { "2º Tempo - Total" } },
         };
 
         // Isolamento por contexto assíncrono (em vez de por thread)
@@ -54,8 +54,8 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
                 { 21, new List<string> { $"{awayTeam} - Total" } },
                 { 41, new List<string> { $"1º Tempo - {homeTeam} Total" } },
                 { 42, new List<string> { $"1º Tempo - {awayTeam} Total" } },
-                { 66, new List<string> { $"2º Tempo - {homeTeam} Total" } },
-                { 67, new List<string> { $"2º Tempo - {awayTeam} Total" } },
+                { 68, new List<string> { $"2º Tempo - {homeTeam} Total" } },
+                { 69, new List<string> { $"2º Tempo - {awayTeam} Total" } },
             };
 
             var tags = TagNames;
