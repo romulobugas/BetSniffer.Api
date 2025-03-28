@@ -11,7 +11,8 @@
             "betfair",
             "superbet",
             "pixbet",
-            "betnacional"
+            "betnacional",
+            "kto"
             // Adicione outros sites conforme necessário
         };
 

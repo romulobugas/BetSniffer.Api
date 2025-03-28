@@ -22,6 +22,7 @@ using System.Reflection;
 using BetSniffer.Api.Core.Sites.Superbet;
 using Microsoft.EntityFrameworkCore;
 using BetSniffer.Api.Core.Sites.Betnacional;
+using BetSniffer.Api.Core.Sites.KTO;
 
 namespace BetSniffer.Api.Controllers
 {
@@ -180,6 +181,7 @@ namespace BetSniffer.Api.Controllers
                 "superbet" => new SuperbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "pixbet" => new PixbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betnacional" => new BetnacionalScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "kto" => new KTOScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
