@@ -242,9 +242,6 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             }
         }
 
-
-
-
         private DateTime ParseCustomDateTime(string dateTimeText)
         {
             try
@@ -266,25 +263,6 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             {
                 throw new Exception($"Erro ao converter a data: {dateTimeText} - {ex.Message}");
             }
-        }
-
-
-        private int MonthNameToNumber(string monthName)
-        {
-            var months = new Dictionary<string, int>
-            {
-                { "janeiro", 1 }, { "fevereiro", 2 }, { "março", 3 }, { "abril", 4 },
-                { "maio", 5 }, { "junho", 6 }, { "julho", 7 }, { "agosto", 8 },
-                { "setembro", 9 }, { "outubro", 10 }, { "novembro", 11 }, { "dezembro", 12 },
-                { "jan", 1 }, { "fev", 2 }, { "mar", 3 }, { "abr", 4 },
-                { "mai", 5 }, { "jun", 6 }, { "jul", 7 }, { "ago", 8 },
-                { "set", 9 }, { "out", 10 }, { "nov", 11 }, { "dez", 12 }
-            };
-
-            if (!months.ContainsKey(monthName))
-                throw new Exception($"Nome do mês inválido: {monthName}");
-
-            return months[monthName];
         }
 
         private void ProcessTabsAndMarketViews()
@@ -378,12 +356,6 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             }
         }
 
-
-
-
-
-
-
         private void ProcessMarketViews()
         {
             // Contêiner principal onde os mercados estão localizados
@@ -466,93 +438,98 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             {
                 // Captura o título do mercado
                 var marketTitleElement = _webScrapingService.FindElementWithin(marketElement, ".//p[contains(@class, '-title-')]");
-                string marketTitle = marketTitleElement?.Text.Trim() ?? string.Empty;
+                string marketTitle = marketTitleElement?.Text?.Trim() ?? string.Empty;
 
-                if (string.IsNullOrEmpty(marketTitle))
+                if (string.IsNullOrWhiteSpace(marketTitle) || marketTitle == "***")
                 {
-                    Console.WriteLine("Título do mercado não encontrado. Pulando...");
+                    Console.WriteLine("❌ Título do mercado inválido. Pulando...");
                     return;
                 }
 
-                Console.WriteLine($"Processando mercado: {marketTitle}");
+                Console.WriteLine($"🔎 Processando mercado: {marketTitle}");
 
-                // Lista de tags cadastradas que queremos buscar
+                // Verifica se o mercado é relevante
                 var tagNames = VbetTags.TagNames;
-
-                // Verifica se a tag encontrada é válida
-                if (!tagNames.Values.Any(tagList => tagList.Contains(marketTitle)))
+                if (!tagNames.Values.Any(list => list.Contains(marketTitle)))
                 {
-                    Console.WriteLine($"Mercado ignorado: {marketTitle}");
+                    Console.WriteLine($"🔕 Mercado ignorado: {marketTitle}");
                     return;
                 }
 
-                // Normaliza o título do mercado
+                // Normaliza e busca a tag correspondente
                 string normalizedMarketTitle = _teamService.NormalizeText(marketTitle).Trim();
-
-                // Encontra a tag correspondente no dicionário
-                var matchingTag = tagNames.Where(x => x.Value.Contains(normalizedMarketTitle)).FirstOrDefault();
-
+                var matchingTag = tagNames.FirstOrDefault(x => x.Value.Contains(normalizedMarketTitle));
 
                 if (matchingTag.Key == 0)
                 {
-                    Console.WriteLine($"Tag não encontrada para o mercado: {normalizedMarketTitle}");
+                    Console.WriteLine($"⚠️ Tag não encontrada para o mercado: {normalizedMarketTitle}");
                     return;
                 }
 
                 int tagId = matchingTag.Key;
 
-
-                // Localiza os contêineres de apostas dentro do mercado
+                // Localiza os containers de apostas
                 var betRows = _webScrapingService.FindElementsWithin(marketElement, ".//div[contains(@class, 'market-bc')]").ToList();
                 if (!betRows.Any())
                 {
-                    Console.WriteLine($"Nenhuma linha de aposta encontrada para o mercado: {normalizedMarketTitle}");
+                    Console.WriteLine($"⚠️ Nenhuma linha de aposta encontrada para o mercado: {normalizedMarketTitle}");
                     return;
                 }
 
-                // Determina os cabeçalhos de "Mais de" e "Menos de"
+                // Cabeçalhos de "Mais de" e "Menos de"
                 var headers = _webScrapingService.FindElementsWithin(marketElement, ".//div[contains(@class, 'm-g-header')]").ToList();
                 if (headers.Count < 2)
                 {
-                    Console.WriteLine("Cabeçalhos 'Mais de' e 'Menos de' não encontrados. Pulando...");
+                    Console.WriteLine("⚠️ Cabeçalhos 'Mais de' e 'Menos de' não encontrados. Pulando...");
                     return;
                 }
 
-                string overHeader = headers[0].Text.Trim();
-                string underHeader = headers[1].Text.Trim();
+                string overHeader = headers[0].Text?.Trim();
+                string underHeader = headers[1].Text?.Trim();
 
-                // Lista para armazenar apostas
+                if (string.IsNullOrWhiteSpace(overHeader) || string.IsNullOrWhiteSpace(underHeader))
+                {
+                    Console.WriteLine("⚠️ Cabeçalhos vazios ou inválidos. Pulando...");
+                    return;
+                }
+
                 var bets = new List<BetInfo>();
 
-                // Processa as linhas de apostas
                 for (int i = 0; i < betRows.Count; i++)
                 {
                     try
                     {
-                        // Alterna entre "Mais de" e "Menos de" com base no índice
                         string overUnder = (i % 2 == 0) ? overHeader : underHeader;
 
-                        // Captura o valor da aposta
-                        var betValueElement = _webScrapingService.FindElementWithin(betRows[i], ".//span[contains(@class, 'market-name')]",1000);
-                        string betValueText = betValueElement?.Text.Trim() ?? string.Empty;
-
-                        if (!decimal.TryParse(betValueText.Replace(".", ","), out decimal betValue))
+                        // Ignora se for cabeçalho genérico ou estranho
+                        if (string.IsNullOrWhiteSpace(overUnder) || overUnder == "***")
                         {
-                            Console.WriteLine($"Valor da aposta inválido: {betValueText}. Pulando...");
+                            Console.WriteLine($"⚠️ Cabeçalho inválido detectado. Índice: {i}. Pulando...");
                             continue;
                         }
 
-                        // Captura o multiplicador da aposta
+                        // Captura valor da aposta
+                        var betValueElement = _webScrapingService.FindElementWithin(betRows[i], ".//span[contains(@class, 'market-name')]", 1000);
+                        string betValueText = betValueElement?.Text?.Trim() ?? string.Empty;
+
+                        if (string.IsNullOrWhiteSpace(betValueText) || betValueText == "***" ||
+                            !decimal.TryParse(betValueText.Replace(".", ","), out decimal betValue))
+                        {
+                            Console.WriteLine($"⚠️ Valor de aposta inválido: '{betValueText}'. Pulando...");
+                            continue;
+                        }
+
+                        // Captura multiplicador
                         var multiplierElement = _webScrapingService.FindElementWithin(betRows[i], ".//span[contains(@class, 'market-odd')]");
-                        string multiplierText = multiplierElement?.Text.Trim() ?? string.Empty;
+                        string multiplierText = multiplierElement?.Text?.Trim() ?? string.Empty;
 
-                        if (!decimal.TryParse(multiplierText.Replace(".", ","), out decimal multiplier))
+                        if (string.IsNullOrWhiteSpace(multiplierText) || multiplierText == "***" ||
+                            !decimal.TryParse(multiplierText.Replace(".", ","), out decimal multiplier))
                         {
-                            Console.WriteLine($"Multiplicador inválido: {multiplierText}. Pulando...");
+                            Console.WriteLine($"⚠️ Multiplicador inválido: '{multiplierText}'. Pulando...");
                             continue;
                         }
 
-                        // Adiciona a aposta à lista
                         bets.Add(new BetInfo
                         {
                             GamesInfo = gamesInfo,
@@ -566,11 +543,11 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                             TagId = tagId
                         });
 
-                        Console.WriteLine($"Aposta adicionada: {overUnder} {betValue} - Mult.: {multiplier}");
+                        Console.WriteLine($"✅ Aposta adicionada: {overUnder} {betValue} - Mult.: {multiplier}");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Erro ao processar linha de aposta: {ex.Message}");
+                        Console.WriteLine($"❌ Erro ao processar linha de aposta: {ex.Message}");
                     }
                 }
 
@@ -578,7 +555,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao processar mercado: {ex.Message}");
+                Console.WriteLine($"❌ Erro ao processar mercado: {ex.Message}");
                 _logService.LogError("Erro ao processar opção de aposta: ", ex);
             }
         }
