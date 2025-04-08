@@ -12,7 +12,7 @@ using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Betfair
 {
-    public class BetfairScraping : IScrapingService
+    public class BetfairScraping : IScrapingService, ILeagueScrapingService
     {
         #region VariaveisGlobais
 
@@ -148,6 +148,166 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             return new List<TagInfo>();
         }
 
+        public void ScrapeLeague(string url, string siteName)
+        {
+            if (string.IsNullOrEmpty(url))
+                throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
+            if (string.IsNullOrEmpty(siteName))
+                throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
+
+            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ?? AddNewSite(siteName);
+
+            _webScrapingService = new WebScrapingServicePuppeteer();
+            _webScrapingService.Initialize();
+
+            using var browser = _webScrapingService;
+            var page = browser.NavigateTo(url);
+
+            System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
+
+            // Remove overlays e cookies
+            RemoveObstruction(page, ".onetrust-pc-dark-filter.ot-fade-in");
+
+            // 🧠 Lê nome da liga
+            var leagueHeader = page.QuerySelectorAsync("h1, h4").GetAwaiter().GetResult();
+            string league = leagueHeader?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult() ?? "Liga Desconhecida";
+            Console.WriteLine($"📌 Liga detectada: {league}");
+
+            // 🔁 Força carregamento de todos os jogos visíveis
+            var elementHandle = page.WaitForSelectorAsync("#scrollable-desktop-container").GetAwaiter().GetResult();
+
+            if (elementHandle != null)
+            {
+                elementHandle.FocusAsync().GetAwaiter().GetResult();
+
+                for (int i = 0; i < 15; i++)
+                {
+                    page.Keyboard.PressAsync("PageDown").GetAwaiter().GetResult();
+                    System.Threading.Thread.Sleep(new Random().Next(398, 575));
+                }
+
+                System.Threading.Thread.Sleep(new Random().Next(821, 1277));
+
+                for (int i = 0; i < 15; i++)
+                {
+                    page.Keyboard.PressAsync("PageUp").GetAwaiter().GetResult();
+                    System.Threading.Thread.Sleep(new Random().Next(357, 578));
+                }
+            }
+            else
+            {
+                Console.WriteLine("⚠️ Elemento '#scrollable-desktop-container' não encontrado.");
+            }
+
+            // 🧠 Captura todos os links de jogos com padrão estável na URL
+            var fixtureNodes = page.QuerySelectorAllAsync("a[class$='-fixtureHeaderContainer']").GetAwaiter().GetResult()
+                                   .Where(node => node.QuerySelectorAsync("time[datetime]").GetAwaiter().GetResult() != null)
+                                   .ToList();
+
+
+            if (fixtureNodes == null || fixtureNodes.Count == 0)
+            {
+                Console.WriteLine("❌ Nenhum jogo encontrado na página.");
+                return;
+            }
+
+            foreach (var fixture in fixtureNodes)
+            {
+                try
+                {
+                    // 🧭 Foca visualmente no jogo para garantir renderização (evita problemas de lazy loading)
+                    fixture.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
+                    System.Threading.Thread.Sleep(new Random().Next(422, 685));
+
+                    var gameInfoRoot = fixture.QuerySelectorAsync("section").GetAwaiter().GetResult();
+                    if (gameInfoRoot == null) continue;
+
+                    // 🏷 Times
+                    var teamLabels = gameInfoRoot.QuerySelectorAllAsync("p").GetAwaiter().GetResult();
+                    if (teamLabels.Length < 2) continue;
+
+                    var home = teamLabels[0].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    var away = teamLabels[1].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+
+                    if (string.IsNullOrWhiteSpace(home) || string.IsNullOrWhiteSpace(away)) continue;
+
+                    // ⏰ Data/hora
+                    var timeElement = gameInfoRoot.QuerySelectorAsync("time").GetAwaiter().GetResult();
+                    string datetimeRaw = timeElement?.EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')").GetAwaiter().GetResult();
+                    if (string.IsNullOrWhiteSpace(datetimeRaw)) continue;
+
+                    DateTime gameDate;
+                    try
+                    {
+                        gameDate = DateTime.Parse(datetimeRaw.Replace("GMT", "").Split('(')[0].Trim(), new CultureInfo("en-US"));
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"⚠️ Data inválida: {datetimeRaw}");
+                        continue;
+                    }
+
+                    // 🔗 URL do jogo
+                    var href = fixture.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").GetAwaiter().GetResult();
+
+                    // Usa o caminho base da URL da liga até "/futebol/"
+                    var baseUri = new Uri(url);
+                    var basePath = baseUri.AbsolutePath;
+                    var baseUrl = url.Substring(0, url.IndexOf("/futebol/", StringComparison.OrdinalIgnoreCase));
+
+                    // Monta o path completo do jogo, mantendo o prefixo correto (ex: "/apostas")
+                    string fullUrl = href.StartsWith("http") ? href : $"{baseUrl}/futebol{href}";
+
+                    // Verifica se os times já existem
+                    var homeId = _teamService.EnsureTeamExists(home);
+                    var awayId = _teamService.EnsureTeamExists(away);
+
+                    // Verifica duplicidade
+                    var existing = _dbContext.GamesInfo.FirstOrDefault(g =>
+                        g.HomeTeamId == homeId &&
+                        g.AwayTeamId == awayId &&
+                        g.GameDate == gameDate &&
+                        g.Site.SiteId == site.SiteId);
+
+                    if (existing != null)
+                    {
+                        existing.Status = 1;
+                        existing.LastUpdated = DateTime.Now;
+                        existing.URL = fullUrl;
+                        existing.League = league;
+                        Console.WriteLine($"🔄 Jogo atualizado: {home} vs {away}");
+                    }
+                    else
+                    {
+                        var game = new GamesInfo
+                        {
+                            HomeTeamId = homeId,
+                            AwayTeamId = awayId,
+                            GameDate = gameDate,
+                            League = league,
+                            Site = site,
+                            URL = fullUrl,
+                            Status = 1,
+                            LastUpdated = DateTime.Now,
+                            GameName = _teamService.NormalizeText(home) + " - " + _teamService.NormalizeText(away)
+                        };
+                        _dbContext.GamesInfo.Add(game);
+                        Console.WriteLine($"🆕 Novo jogo salvo: {home} vs {away}");
+                    }
+
+                    _dbContext.SaveChanges();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Erro ao processar jogo: {ex.Message}");
+                    _logService.LogError("Erro ao salvar jogo da liga Betfair", ex);
+                }
+            }
+
+            _webScrapingService.Dispose();
+            Console.WriteLine("✅ Finalizado salvamento dos jogos da liga.");
+        }
+
         public void RemoveObstruction(IPage page, string obstructionSelector, int timeoutMilliseconds = 10000)
         {
             try
@@ -181,7 +341,6 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 Console.WriteLine($"Erro ao remover o elemento de obstrução: {ex.Message}");
             }
         }
-
 
         public void ClosePopup(IPage page, string popupSelector, int timeoutMilliseconds = 10000)
         {

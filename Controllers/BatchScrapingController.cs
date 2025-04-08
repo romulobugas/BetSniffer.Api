@@ -448,6 +448,81 @@ namespace BetSniffer.Api.Controllers
             }
         }
 
+        [HttpPost("scrape-leagues")]
+        public IActionResult ScrapeLeaguesBatch([FromBody] List<string> leagueUrls)
+        {
+            if (leagueUrls == null || !leagueUrls.Any())
+                return BadRequest(new { message = "A lista de ligas não pode estar vazia." });
+
+            var results = new ConcurrentBag<object>();
+            var errors = new ConcurrentBag<string>();
+
+            int maxThreads = _scrapingSettings.MaxConcurrentThreads;
+            SemaphoreSlim semaphore = new(maxThreads);
+
+            foreach (var url in leagueUrls.Distinct())
+            {
+                if (_runningTasks.ContainsKey(url))
+                {
+                    errors.Add($"URL já está em processamento: {url}");
+                    continue;
+                }
+
+                var task = Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync();
+
+                    try
+                    {
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        var teamService = scope.ServiceProvider.GetRequiredService<TeamService>();
+                        var gamesInfoRepo = scope.ServiceProvider.GetRequiredService<IRepositoryService<GamesInfo>>();
+                        var betInfoRepo = scope.ServiceProvider.GetRequiredService<IRepositoryService<BetInfo>>();
+
+                        string siteName = ExtractSiteName(url);
+
+                        if (!SupportedSites.IsSiteSupported(siteName))
+                        {
+                            errors.Add($"Site não suportado: {siteName}");
+                            return;
+                        }
+
+                        var scraper = GetScrapingService(siteName, dbContext, teamService, gamesInfoRepo, betInfoRepo);
+
+                        // Detecta se é uma função de leitura por liga
+                        if (scraper is ILeagueScrapingService leagueScraper)
+                        {
+                            leagueScraper.ScrapeLeague(url, siteName);
+                            results.Add(new { Url = url, SiteName = siteName, Result = "Liga processada com sucesso" });
+                        }
+                        else
+                        {
+                            errors.Add($"Scraper para {siteName} não suporta raspagem por liga.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Erro ao processar liga '{url}': {ex.Message}");
+                    }
+                    finally
+                    {
+                        _runningTasks.TryRemove(url, out _);
+                        semaphore.Release();
+                    }
+                });
+
+                _runningTasks.TryAdd(url, task);
+            }
+
+            return Ok(new
+            {
+                message = "Processamento de ligas iniciado.",
+                results,
+                errors
+            });
+        }
+
 
     }
 }
