@@ -7,10 +7,11 @@ using BetSniffer.Api.Core.Interfaces;
 using System.Text.RegularExpressions;
 using Microsoft.OpenApi.Services;
 using PuppeteerSharp;
+using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Vbet
 {
-    public class VbetScraping : IScrapingService
+    public class VbetScraping : IScrapingService, ILeagueScrapingService
     {
         #region VariaveisGlobais
 
@@ -137,6 +138,117 @@ namespace BetSniffer.Api.Core.Sites.Vbet
 
             return new List<TagInfo>(); // Substitua com a lógica para retornar as informações processadas
         }
+
+        public void ScrapeLeague(string url, string siteName)
+        {
+            // Validações básicas
+            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("URL inválida.");
+            if (string.IsNullOrWhiteSpace(siteName)) throw new ArgumentException("Nome do site inválido.");
+
+            // Recupera ou cria o site
+            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ?? AddNewSite(siteName);
+
+            // Navega para a página da liga
+            _webScrapingService.NavigateTo(url);
+            System.Threading.Thread.Sleep(new Random().Next(1985, 3312));
+
+            var driver = _webScrapingService.GetWebDriver();
+
+            // Aguarda o carregamento inicial da página
+            _webScrapingService.WaitForElement("div.game-details-section");
+
+            CloseAgeVerificationPopup(driver);
+
+            var leagueNameElement = driver.FindElement(By.CssSelector(".comp-title-w-bc"));
+            string league = leagueNameElement?.Text.Trim() ?? "Liga não identificada";
+
+            // Captura todos os blocos de jogos do dia
+            var dayBlocks = driver.FindElements(By.CssSelector("div.competition-bc"));
+            foreach (var dayBlock in dayBlocks)
+            {
+                try
+                {
+                    // Extrai a data (ex: 12.04.2025)
+                    string dateRaw = dayBlock.FindElement(By.CssSelector("time.c-title-bc")).Text.Trim();
+                    var gameDateOnly = DateTime.ParseExact(dateRaw, "dd.MM.yyyy", CultureInfo.InvariantCulture);
+
+                    // Todos os jogos desse dia
+                    var matches = dayBlock.FindElements(By.CssSelector("ul.multi-column-content"));
+                    foreach (var match in matches)
+                    {
+                        try
+                        {
+                            var teams = match.FindElements(By.CssSelector("div.multi-column-teams p.ellipsis"));
+                            if (teams.Count < 2) continue;
+
+                            var home = teams[0].Text.Trim();
+                            var away = teams[1].Text.Trim();
+
+                            var timeRaw = match.FindElement(By.CssSelector("div.multi-column-time-icon time")).Text.Trim();
+                            DateTime gameDateTime = DateTime.ParseExact($"{dateRaw} {timeRaw}", "dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
+
+                            var homeId = _teamService.EnsureTeamExists(home);
+                            var awayId = _teamService.EnsureTeamExists(away);
+
+                            // Clica no jogo para ativar e obter a URL
+                            ((IJavaScriptExecutor)driver).ExecuteScript("arguments[0].scrollIntoView(true);", match);
+                            match.Click();
+                            Thread.Sleep(new Random().Next(1100, 1800));
+
+                            string currentUrl = driver.Url;
+
+                            var existing = _dbContext.GamesInfo.FirstOrDefault(g =>
+                                g.HomeTeamId == homeId &&
+                                g.AwayTeamId == awayId &&
+                                g.GameDate == gameDateTime &&
+                                g.Site.SiteId == site.SiteId);
+
+                            if (existing != null)
+                            {
+                                existing.Status = 1;
+                                existing.LastUpdated = DateTime.Now;
+                                existing.URL = currentUrl;
+                                existing.League = league;
+                                Console.WriteLine($"🔄 Jogo atualizado: {home} vs {away}");
+                            }
+                            else
+                            {
+                                var game = new GamesInfo
+                                {
+                                    HomeTeamId = homeId,
+                                    AwayTeamId = awayId,
+                                    GameDate = gameDateTime,
+                                    League = league,
+                                    Site = site,
+                                    URL = currentUrl,
+                                    Status = 1,
+                                    LastUpdated = DateTime.Now,
+                                    GameName = _teamService.NormalizeText(home) + " - " + _teamService.NormalizeText(away)
+                                };
+
+                                _dbContext.GamesInfo.Add(game);
+                                Console.WriteLine($"🆕 Novo jogo salvo: {home} vs {away}");
+                            }
+
+                            _dbContext.SaveChanges();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"⚠️ Erro ao processar jogo: {ex.Message}");
+                            _logService.LogError("Erro ao salvar jogo VBet", ex);
+                        }
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao processar bloco de data: {ex.Message}");
+                }
+            }
+
+            _webScrapingService.Dispose();
+        }
+
 
         private Site AddNewSite(string siteName)
         {
