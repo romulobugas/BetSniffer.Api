@@ -7,6 +7,7 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using System.Globalization;
+using System;
 
 namespace BetSniffer.Api.Core.Sites.Novibet
 {
@@ -126,9 +127,36 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
             foreach (var eventPresentationView in eventPresentationViews)
             {
-                // Captura o nome do jogo (GameName) do evento
-                var gameNameElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_caption')]"));
-                gameName = gameNameElement.Text.Trim(); // Captura o texto do evento, por exemplo: "Brasil - Brasileirão - Série A, Rodada 36"
+                try
+                {
+                    // Captura o nome do jogo (GameName) do evento
+                    var gameNameElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_caption')]"));
+                    gameName = gameNameElement.Text.Trim(); // Captura o texto do evento, por exemplo: "Brasil - Brasileirão - Série A, Rodada 36"
+
+                }
+                catch (NoSuchElementException)
+                {
+                    _webScrapingService.Dispose();
+                    // Ignora a iteração se o evento estiver com um timer
+                    throw new Exception("Erro ao capturar nome do jogo");
+                }
+
+
+                try
+                {
+                    // Verifica se é uma estrutura que deve ser ignorada
+                    var timerElement = eventPresentationView.FindElement(By.XPath(".//sb-event-time"));
+                    if (timerElement != null && timerElement.Text.Trim() != "")
+                    {
+                        _webScrapingService.Dispose();
+                        // Ignora a iteração se o evento estiver com um timer
+                        throw new Exception($"Está ao vivo: {timerElement}"); 
+                    }
+                }
+                catch (NoSuchElementException)
+                {
+                    
+                }                
 
                 //Captura os times
                 var teamElements = eventPresentationView.FindElements(By.XPath(".//span[contains(@class, 'eventPresentation_text')]"));
@@ -138,7 +166,14 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
                 // Captura a hora/Data do evento
                 var gameDateElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_time')]"));
-                gameDateText = gameDateElement.Text.Trim(); // Captura o texto da hora ou data                
+                gameDateText = gameDateElement.Text.Trim(); // Captura o texto da hora ou data
+                                                            // 
+                if (gameDateElement != null && gameDateElement.Text.Contains("em"))
+                {
+                    _webScrapingService.Dispose();
+                    // Ignora a iteração se o evento estiver no formato "em xx'"
+                    throw new Exception($"Evento irá comçar em: {gameDateText}");
+                }
 
                 if (gameDateText.Contains(":")) // Certifica-se de que há uma hora no texto
                 {
@@ -182,24 +217,31 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             gameDateTime = gameDateTime.AddYears(1);
                         }
                     }
-                    else // Dia da semana e hora (ex: "qua 19:00")
+                    else // Dia da semana e hora (ex: "ter. 21:30")
                     {
-                        string[] daysOfWeek = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" };
+                        string[] daysOfWeek = { "dom", "seg", "ter", "qua", "qui", "sex", "sáb" }; // Aqui, "sab" ou "sáb" são tratados
                         string todayDay = daysOfWeek[(int)DateTime.Today.DayOfWeek];
 
-                        // Separa o dia da semana e a hora
-                        string[] parts = gameDateText.Split(' ');
-                        string dayOfWeek = parts[0];
-                        string time = parts[1];
+                        // Remove o ponto do nome do dia (ex: "ter." se torna "ter")
+                        string dayOfWeek = gameDateText.Split(' ')[0].TrimEnd('.');
+
+                        // Trata a variação de "sab" ou "sáb"
+                        if (dayOfWeek == "sab")
+                        {
+                            dayOfWeek = "sáb"; // Normaliza para "sáb"
+                        }
+
+                        // Verifica se o dia está correto
+                        if (Array.IndexOf(daysOfWeek, dayOfWeek) == -1)
+                        {
+                            throw new Exception($"Dia da semana inválido: {dayOfWeek}");
+                        }
+
+                        string time = gameDateText.Split(' ')[1];
 
                         // Determina o índice dos dias da semana
                         int currentDayIndex = Array.IndexOf(daysOfWeek, todayDay);
                         int targetDayIndex = Array.IndexOf(daysOfWeek, dayOfWeek);
-
-                        if (targetDayIndex == -1)
-                        {
-                            throw new Exception($"Dia da semana inválido: {dayOfWeek}");
-                        }
 
                         // Ajusta para o próximo dia da semana correspondente, se necessário
                         if (targetDayIndex <= currentDayIndex)
@@ -224,17 +266,18 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     }
                     else
                     {
+                        _webScrapingService.Dispose();
                         throw new Exception("Formato inesperado para gameDateText: " + gameDateText);
                     }
                 }
                 else
                 {
+                    _webScrapingService.Dispose();
                     throw new Exception("Formato inesperado para gameDateText: " + gameDateText);
                 }
 
                 // Exemplo de uso
                 Console.WriteLine("Data e Hora do Jogo: " + gameDateTime);
-
             }
 
 
