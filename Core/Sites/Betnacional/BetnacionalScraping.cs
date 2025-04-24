@@ -144,7 +144,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             return new List<TagInfo>();
         }
 
-
         public void ClosePopup(IPage page, string popupSelector, int timeoutMilliseconds = 10000)
         {
             try
@@ -176,7 +175,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             }
         }
 
-
         public void ConfirmAgeVerification(IPage page, string ageVerificationSelector, int timeoutMilliseconds = 10000)
         {
             try
@@ -207,7 +205,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
                 Console.WriteLine($"Erro ao confirmar verificação de idade: {ex.Message}");
             }
         }
-
 
         private Site AddNewSite(string siteName)
         {
@@ -347,8 +344,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             }
         }
 
-
-
         private async Task ProcessTabsAndMarketViews(IPage page)
         {
             var ignoredTabs = new HashSet<string> { "Criar aposta", "Buscar" };
@@ -463,9 +458,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
                 Console.WriteLine($"Erro geral ao processar as abas: {ex.Message}");
             }
         }
-
-
-
 
         private async Task ProcessMarketViews(IPage page, Dictionary<int, List<string>> tagNames, string tabName = null)
         {
@@ -660,9 +652,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             }
         }
 
-
-
-
         private void SaveBets(List<BetInfo> bets)
         {
             if (bets == null || !bets.Any())
@@ -697,8 +686,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
 
             Console.WriteLine($"Salvas {bets.Count} novas apostas.");
         }
-
-
 
     }
 }

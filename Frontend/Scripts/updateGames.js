@@ -55,8 +55,8 @@
         const endDate = document.getElementById("endDate").value;
 
         // Validação: deve selecionar pelo menos 2 casas
-        if (selectedSites.length < 2) {
-            alert("Você deve selecionar pelo menos 2 casas para iniciar a raspagem.");
+        if (selectedSites.length < 1) {
+            alert("Você deve selecionar pelo menos 1 casas para iniciar a raspagem.");
             return;
         }
 

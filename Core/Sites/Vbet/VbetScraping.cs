@@ -249,7 +249,6 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             _webScrapingService.Dispose();
         }
 
-
         private Site AddNewSite(string siteName)
         {
             var site = new Site { Name = siteName };
@@ -309,8 +308,11 @@ namespace BetSniffer.Api.Core.Sites.Vbet
 
                 // Captura o contêiner principal fixo
                 var matchInfoElement = _webScrapingService.WaitForElement("div.game-details-container-bc");
-                if (matchInfoElement == null)
+                if (matchInfoElement == null) 
+                {
+                    _webScrapingService.Dispose();
                     throw new Exception("O contêiner principal 'game-details-container-bc' não foi encontrado.");
+                }                    
 
                 // Captura o nome da liga (gameName) pelo primeiro elemento <span> encontrado no título
                 var leagueElement = _webScrapingService.FindElementWithin(matchInfoElement, ".//div[1]/div[1]/span");
@@ -319,8 +321,11 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                 // Captura a data e hora do jogo pelo <time>
                 var dateTimeElement = _webScrapingService.FindElementWithin(matchInfoElement, ".//div[1]/div[1]/div/p/time");
                 var dateTimeText = dateTimeElement?.Text.Trim();
-                if (string.IsNullOrWhiteSpace(dateTimeText))
+                if (string.IsNullOrWhiteSpace(dateTimeText)) 
+                {
+                    _webScrapingService.Dispose();
                     throw new Exception("Data e hora do jogo não foram encontradas.");
+                }                    
 
                 gameDateTime = ParseCustomDateTime(dateTimeText);
                 Console.WriteLine($"Data e Hora do Jogo: {gameDateTime}");
@@ -337,6 +342,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                     }
                     else
                     {
+                        _webScrapingService.Dispose();
                         throw new Exception("A estrutura esperada para os times não corresponde.");
                     }
 
@@ -344,6 +350,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                 }
                 else
                 {
+                    _webScrapingService.Dispose();
                     throw new Exception("Não foi possível encontrar os dois times.");
                 }
 
@@ -373,6 +380,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
             }
             catch (Exception ex)
             {
+                _webScrapingService.Dispose();
                 throw new Exception($"Erro ao converter a data: {dateTimeText} - {ex.Message}");
             }
         }
@@ -671,7 +679,6 @@ namespace BetSniffer.Api.Core.Sites.Vbet
                 _logService.LogError("Erro ao processar opção de aposta: ", ex);
             }
         }
-
 
         private void SaveBets(List<BetInfo> bets)
         {

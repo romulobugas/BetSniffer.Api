@@ -69,6 +69,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             // Verifica se o _dbContext foi inicializado corretamente
             if (_dbContext == null)
             {
+                _webScrapingService.Dispose();
                 throw new InvalidOperationException("O contexto do banco de dados não foi inicializado corretamente.");
             }
 
@@ -205,6 +206,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
                         if (!meses.TryGetValue(monthText, out int month))
                         {
+                            _webScrapingService.Dispose();
                             throw new Exception($"Mês inválido: {monthText}");
                         }
 
@@ -234,6 +236,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                         // Verifica se o dia está correto
                         if (Array.IndexOf(daysOfWeek, dayOfWeek) == -1)
                         {
+                            _webScrapingService.Dispose();
                             throw new Exception($"Dia da semana inválido: {dayOfWeek}");
                         }
 
@@ -349,8 +352,11 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             int totalCategories = categoryElements.Count; // Total inicial de categorias
 
             // Verifica se algum elemento foi encontrado
-            if (categoryElements == null || !categoryElements.Any())
+            if (categoryElements == null || !categoryElements.Any()) 
+            {
+                _webScrapingService.Dispose();
                 throw new Exception("Nenhuma categoria encontrada no carrossel.");
+            }                
 
             // Configuração de número máximo de retentativas
             const int maxRetries = 3;
@@ -377,8 +383,11 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     {
                         // Verifica se o elemento da categoria está disponível antes de interagir
                         var categoryElement = _webScrapingService.FindElementsWithin(categoriesCarousel, ".swiper-slide .marketCategories_carouselItem", 5000).ElementAtOrDefault(i);
-                        if (categoryElement == null)
+                        if (categoryElement == null) 
+                        {
+                            _webScrapingService.Dispose();
                             throw new Exception($"Categoria {i} não encontrada no carrossel.");
+                        }                            
 
                         // Tenta clicar na categoria
                         categoryElement.Click();
@@ -413,8 +422,12 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             }
                         }
 
-                        if (!elementFound)
+                        if (!elementFound) 
+                        {
+                            _webScrapingService.Dispose();
                             throw new Exception("Falha ao encontrar 'app-event-marketview' após múltiplas tentativas.");
+
+                        }                           
 
                         Console.WriteLine($"Processando a Categoria: {categoryElement.Text} {i + 1}");
 

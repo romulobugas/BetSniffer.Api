@@ -259,7 +259,7 @@ namespace BetSniffer.Api.Controllers
 
                 var games = query.AsEnumerable()
                                  .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                                 .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
+                                 //.Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
                                  .Select(group => new
                                  {
                                      GameDate = group.Key.GameDate,
