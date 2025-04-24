@@ -130,34 +130,36 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             {
                 try
                 {
-                    // Captura o nome do jogo (GameName) do evento
-                    var gameNameElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_caption')]"));
-                    gameName = gameNameElement.Text.Trim(); // Captura o texto do evento, por exemplo: "Brasil - Brasileirão - Série A, Rodada 36"
-
-                }
-                catch (NoSuchElementException)
-                {
-                    _webScrapingService.Dispose();
-                    // Ignora a iteração se o evento estiver com um timer
-                    throw new Exception("Erro ao capturar nome do jogo");
-                }
-
-
-                try
-                {
-                    // Verifica se é uma estrutura que deve ser ignorada
+                    // Primeiro tenta encontrar sb-event-time (estrutura antiga)
                     var timerElement = eventPresentationView.FindElement(By.XPath(".//sb-event-time"));
-                    if (timerElement != null && timerElement.Text.Trim() != "")
+                    if (!string.IsNullOrWhiteSpace(timerElement?.Text))
                     {
                         _webScrapingService.Dispose();
-                        // Ignora a iteração se o evento estiver com um timer
-                        throw new Exception($"Está ao vivo: {timerElement}"); 
+                        throw new Exception($"Está ao vivo (sb-event-time): {timerElement.Text}");
                     }
                 }
                 catch (NoSuchElementException)
                 {
-                    
-                }                
+                    try
+                    {
+                        // Tenta a nova estrutura: div com classe eventPresentation_time
+                        var timeElement = eventPresentationView.FindElement(By.XPath(".//div[contains(@class, 'eventPresentation_time')]"));
+                        var timeText = timeElement?.Text?.Trim().ToLower();
+
+                        // Detecta se o texto indica que está ao vivo ou em andamento
+                        if (!string.IsNullOrEmpty(timeText) &&
+                            (timeText.Contains("’") || timeText.Contains("ao vivo") || timeText.Contains("live")))
+                        {
+                            _webScrapingService.Dispose();
+                            throw new Exception($"Está ao vivo (eventPresentation_time): {timeText}");
+                        }
+                    }
+                    catch (NoSuchElementException)
+                    {
+                        _webScrapingService.Dispose();
+                        throw new Exception("Erro ao encontrar estrutura do jogo");
+                    }
+                }
 
                 //Captura os times
                 var teamElements = eventPresentationView.FindElements(By.XPath(".//span[contains(@class, 'eventPresentation_text')]"));

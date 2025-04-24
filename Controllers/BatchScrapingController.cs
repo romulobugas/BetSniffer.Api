@@ -247,9 +247,7 @@ namespace BetSniffer.Api.Controllers
                 using var scope = _serviceScopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                
-
-                // Filtra os jogos com base nos sites selecionados (se fornecidos)
+                // Query principal com filtro de site
                 var query = dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay);
 
                 if (siteIdList != null && siteIdList.Any())
@@ -257,24 +255,36 @@ namespace BetSniffer.Api.Controllers
                     query = query.Where(g => siteIdList.Contains(g.SiteId.Value));
                 }
 
-                var games = query.AsEnumerable()
-                                 .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                                 //.Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
-                                 .Select(group => new
-                                 {
-                                     GameDate = group.Key.GameDate,
-                                     HomeTeam = group.Key.HomeTeamId,
-                                     AwayTeam = group.Key.AwayTeamId,
-                                     URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
-                                                 .Select(g => g.URL)
-                                                 .Distinct()
-                                                 .ToList()
-                                 })
-                                 .Where(g => g.URLs.Count > 0)
-                                 .OrderBy(g => g.GameDate) // Ordenar por data do jogo
-                                 .ThenBy(g => g.HomeTeam) // Ordenar por time da casa
-                                 .ThenBy(g => g.AwayTeam) // Ordenar por time visitante
-                                 .ToList();
+                // Nova query SEM filtro de site, para pegar jogos de outros sites
+                var otherSitesQuery = dbContext.GamesInfo
+                    .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
+                    .Where(g => !siteIdList.Contains(g.SiteId ?? -1));
+
+                // Cria o conjunto com os jogos de outros sites
+                var otherGamesSet = otherSitesQuery
+                    .Select(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                    .Distinct()
+                    .ToList()
+                    .ToHashSet();
+
+                // Agora, segue com a query principal para pegar jogos com URL e que também existem em outras casas
+                var games = query
+                    .Where(g => g.URL != null && g.URL != "")
+                    .AsEnumerable()
+                    .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                    .Where(group =>
+                        otherGamesSet.Contains(new { group.Key.GameDate, group.Key.HomeTeamId, group.Key.AwayTeamId }))
+                    .Select(group => new
+                    {
+                        GameDate = group.Key.GameDate,
+                        HomeTeam = group.Key.HomeTeamId,
+                        AwayTeam = group.Key.AwayTeamId,
+                        URLs = group.Select(g => g.URL).Distinct().ToList()
+                    })
+                    .OrderBy(g => g.GameDate)
+                    .ThenBy(g => g.HomeTeam)
+                    .ThenBy(g => g.AwayTeam)
+                    .ToList();
 
 
                 // Seleciona e organiza as URLs com base nos critérios especificados
