@@ -77,5 +77,38 @@ namespace BetSniffer.Api.Core.Services
 
             return newTeam.TeamId;
         }
+
+        // ✅ NOVO - Assíncrono
+        public async Task<int> EnsureTeamExistsAsync(string teamName)
+        {
+            var normalizedTeamName = NormalizeText(teamName);
+
+            var teams = await _context.Teams
+                .Select(t => new { t.TeamId, t.Aliases })
+                .ToListAsync();
+
+            var aliases = teams
+                .SelectMany(t => t.Aliases.Split(';')
+                    .Select(alias => new { t.TeamId, Alias = NormalizeText(alias.Trim()) }))
+                .ToList();
+
+            var matchingAlias = aliases.FirstOrDefault(a => a.Alias.Equals(normalizedTeamName, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingAlias != null)
+            {
+                return matchingAlias.TeamId;
+            }
+
+            var newTeam = new Team
+            {
+                NormalizedName = normalizedTeamName,
+                Aliases = normalizedTeamName
+            };
+
+            await _context.Teams.AddAsync(newTeam);
+            await _context.SaveChangesAsync();
+
+            return newTeam.TeamId;
+        }
     }
 }

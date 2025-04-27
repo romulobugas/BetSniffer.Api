@@ -91,6 +91,11 @@ namespace BetSniffer.Api.Core.Services
             return _page.GetContentAsync().GetAwaiter().GetResult();
         }
 
+        public Page GetPage()
+        {
+            return (Page)_page;
+        }
+
         public IElementHandle WaitForElement(string selector, int timeoutMilliseconds = 10000)
         {
             try
@@ -157,8 +162,6 @@ namespace BetSniffer.Api.Core.Services
             }", element).GetAwaiter().GetResult();
         }
 
-
-
         public void ClickWithJavaScript(IFrame frame, IElementHandle element)
         {
             if (frame == null)
@@ -198,7 +201,6 @@ namespace BetSniffer.Api.Core.Services
                 throw;
             }
         }
-
 
         public List<IFrame> GetAllFrames()
         {
@@ -262,10 +264,6 @@ namespace BetSniffer.Api.Core.Services
                 throw;
             }
         }
-
-
-
-
 
         public void Dispose()
         {

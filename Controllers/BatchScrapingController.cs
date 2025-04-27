@@ -173,7 +173,7 @@ namespace BetSniffer.Api.Controllers
         {
             return siteName.ToLower() switch
             {
-                "novibet" => new NovibetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "novibet" => new NovibetScraping(dbContext, gamesInfoRepository, betInfoRepository, teamService),
                 "vbet" => new VbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betano" => new BetanoScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betfast" => new BetfastScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
