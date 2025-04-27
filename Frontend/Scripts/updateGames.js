@@ -54,13 +54,13 @@
         const startDate = document.getElementById("startDate").value;
         const endDate = document.getElementById("endDate").value;
 
-        // Validação: deve selecionar pelo menos 2 casas
-        if (selectedSites.length < 1) {
+        // Validação: deve selecionar pelo menos 1 casas
+        if (selectedSites.length < 0) {
             alert("Você deve selecionar pelo menos 1 casas para iniciar a raspagem.");
             return;
         }
 
-        // Validação: deve selecionar pelo menos 2 casas
+        // Validação: deve selecionar pelo menos 2 datas
         if (startDate == "" || endDate == "") {
             alert("Você deve escolher as datas para iniciar a raspagem.");
             return;
