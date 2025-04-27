@@ -37,12 +37,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
 
         #endregion
 
-        public NovibetScraping(
-            ApplicationDbContext dbContext,
-            IRepositoryService<GamesInfo> gamesInfoRepository,
-            IRepositoryService<BetInfo> betInfoRepository,
-            TeamService teamService
-        )
+        public NovibetScraping(ApplicationDbContext dbContext, IRepositoryService<GamesInfo> gamesInfoRepository, IRepositoryService<BetInfo> betInfoRepository, TeamService teamService)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
             _gamesInfoRepository = gamesInfoRepository ?? throw new ArgumentNullException(nameof(gamesInfoRepository));
@@ -50,10 +45,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
             _teamService = teamService ?? throw new ArgumentNullException(nameof(teamService));
             _gameService = new GameService(dbContext);
 
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
+            var configuration = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory).AddJsonFile("appsettings.json", optional: true, reloadOnChange: true).Build();
 
             _logService = new LogService(configuration);
 
@@ -725,6 +717,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             throw new Exception($"Categoria {i} não encontrada no carrossel.");
                         }
 
+                        await Task.Delay(new Random().Next(522, 833));
                         await page.EvaluateFunctionAsync("(el) => el.click()", currentCategory);
 
                         processedCategories.Add(i);

@@ -40,7 +40,6 @@ namespace BetSniffer.Api.Controllers
 
         private readonly ScrapingSettings _scrapingSettings;
 
-
         #endregion
 
         public BatchScrapingController(IServiceScopeFactory serviceScopeFactory, IOptions<ScrapingSettings> scrapingSettings)
@@ -209,7 +208,7 @@ namespace BetSniffer.Api.Controllers
         {
             try
             {
-                string[] validFormats = { "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy" }; // Inclua formatos adicionais, se necessário.
+                string[] validFormats = { "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy" };
 
                 if (!DateTime.TryParseExact(startDate, validFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime startGameDate))
                 {
@@ -221,93 +220,92 @@ namespace BetSniffer.Api.Controllers
                     return BadRequest(new { message = "Data final inválida. O formato correto é dd/MM/yyyy." });
                 }
 
-
                 DateTime startOfDay = startGameDate.Date;
                 DateTime endOfDay = endGameDate.Date.AddDays(1).AddSeconds(-1);
 
                 if (startGameDate.Date == DateTime.Today)
                 {
-                    startOfDay = DateTime.Today.AddHours(DateTime.Now.Hour)
-                                               .AddMinutes(DateTime.Now.Minute)
-                                               .AddSeconds(DateTime.Now.Second)
-                                               .AddHours(1).AddMinutes(15);
+                    startOfDay = DateTime.Today
+                        .AddHours(DateTime.Now.Hour)
+                        .AddMinutes(DateTime.Now.Minute)
+                        .AddSeconds(DateTime.Now.Second)
+                        .AddHours(1).AddMinutes(15);
                 }
 
-                // Parse siteIds as a list of integers
                 List<int> siteIdList = new List<int>();
                 if (!string.IsNullOrEmpty(siteIds))
                 {
                     siteIdList = siteIds.Split(',')
-                                        .Select(id => int.TryParse(id, out int parsedId) ? parsedId : (int?)null)
-                                        .Where(id => id.HasValue)
-                                        .Select(id => id.Value)
-                                        .ToList();
+                        .Select(id => int.TryParse(id, out int parsedId) ? parsedId : (int?)null)
+                        .Where(id => id.HasValue)
+                        .Select(id => id.Value)
+                        .ToList();
                 }
 
                 using var scope = _serviceScopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                // Query principal com filtro de site
-                var query = dbContext.GamesInfo.Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay);
+                var baseQuery = dbContext.GamesInfo
+                    .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay);
 
-                if (siteIdList != null && siteIdList.Any())
+                if (siteIdList.Any())
                 {
-                    query = query.Where(g => siteIdList.Contains(g.SiteId.Value));
+                    baseQuery = baseQuery.Where(g => siteIdList.Contains(g.SiteId.Value));
                 }
 
-                // Nova query SEM filtro de site, para pegar jogos de outros sites
-                var otherSitesQuery = dbContext.GamesInfo
-                    .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay)
-                    .Where(g => !siteIdList.Contains(g.SiteId ?? -1));
+                var games = siteIdList.Count == 1
+                    ? baseQuery
+                        .Where(g => !string.IsNullOrEmpty(g.URL))
+                        .Select(g => new
+                        {
+                            g.GameDate,
+                            HomeTeam = g.HomeTeamId,
+                            AwayTeam = g.AwayTeamId,
+                            URLs = new List<string> { g.URL }
+                        })
+                        .OrderBy(g => g.GameDate)
+                        .ThenBy(g => g.HomeTeam)
+                        .ThenBy(g => g.AwayTeam)
+                        .ToList()
+                    : baseQuery
+                        .AsEnumerable()
+                        .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
+                        .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
+                        .Select(group => new
+                        {
+                            GameDate = group.Key.GameDate,
+                            HomeTeam = group.Key.HomeTeamId,
+                            AwayTeam = group.Key.AwayTeamId,
+                            URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
+                                        .Select(g => g.URL)
+                                        .Distinct()
+                                        .ToList()
+                        })
+                        .Where(g => g.URLs.Count > 0)
+                        .OrderBy(g => g.GameDate)
+                        .ThenBy(g => g.HomeTeam)
+                        .ThenBy(g => g.AwayTeam)
+                        .ToList();
 
-                // Cria o conjunto com os jogos de outros sites
-                var otherGamesSet = otherSitesQuery
-                    .Select(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                    .Distinct()
-                    .ToList()
-                    .ToHashSet();
-
-                // Agora, segue com a query principal para pegar jogos com URL e que também existem em outras casas
-                var games = query
-                    .Where(g => g.URL != null && g.URL != "")
-                    .AsEnumerable()
-                    .GroupBy(g => new { g.GameDate, g.HomeTeamId, g.AwayTeamId })
-                    .Where(group =>
-                        otherGamesSet.Contains(new { group.Key.GameDate, group.Key.HomeTeamId, group.Key.AwayTeamId }))
-                    .Select(group => new
+                var requests = games
+                    .SelectMany(g => g.URLs.Select(url => new ScrapeRequest
                     {
-                        GameDate = group.Key.GameDate,
-                        HomeTeam = group.Key.HomeTeamId,
-                        AwayTeam = group.Key.AwayTeamId,
-                        URLs = group.Select(g => g.URL).Distinct().ToList()
-                    })
-                    .OrderBy(g => g.GameDate)
-                    .ThenBy(g => g.HomeTeam)
-                    .ThenBy(g => g.AwayTeam)
+                        URL = url,
+                        GameDate = g.GameDate,
+                        HomeTeam = g.HomeTeam,
+                        AwayTeam = g.AwayTeam
+                    }))
+                    .Distinct()
+                    .OrderBy(r => r.GameDate)
+                    .ThenBy(r => r.HomeTeam)
+                    .ThenBy(r => r.AwayTeam)
                     .ToList();
-
-
-                // Seleciona e organiza as URLs com base nos critérios especificados
-                var requests = games.SelectMany(g => g.URLs.Select(url => new ScrapeRequest
-                {
-                    URL = url,
-                    GameDate = g.GameDate,
-                    HomeTeam = g.HomeTeam,
-                    AwayTeam = g.AwayTeam
-                }))
-                .Distinct()
-                .OrderBy(req => req.GameDate) // Ordena pela data do jogo
-                .ThenBy(req => req.HomeTeam)  // Ordena pelo ID do time da casa
-                .ThenBy(req => req.AwayTeam)  // Ordena pelo ID do time visitante
-                .ToList();
-
 
                 if (!requests.Any())
                 {
                     return Ok(new { message = "Nenhum jogo com URL para scraping foi encontrado." });
                 }
 
-                // Enviar as URLs e datas para o ScrapeTagsBatch
                 var scrapingResult = ScrapeTagsBatch(requests) as OkObjectResult;
 
                 return Ok(new
@@ -315,7 +313,6 @@ namespace BetSniffer.Api.Controllers
                     message = $"Jogos para o intervalo de datas informado foram enviados para scraping. Total de URLs: {requests.Count}",
                     scrapingResult?.Value
                 });
-
             }
             catch (Exception ex)
             {
