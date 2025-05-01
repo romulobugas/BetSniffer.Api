@@ -70,7 +70,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             using var browser = _webScrapingService;
             var page = browser.NavigateTo(url);
 
-            System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
+            System.Threading.Thread.Sleep(new Random().Next(7873, 8405));
 
             var visitedGames = new HashSet<string>(); // Armazena IDs ou texto identificador dos jogos
 
@@ -83,9 +83,9 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 throw new Exception("Iframe inicial não foi encontrado.");
             }
 
-            string popupSelector = ".overlay.new-message.visible .popup span.close";
+            ConfirmAgePopupAsync(page).GetAwaiter().GetResult();
 
-            _gameService.ClosePopup(page,popupSelector);
+            System.Threading.Thread.Sleep(new Random().Next(873, 1405));
 
             // Captura a lista de jogos dentro do iframe
             var gameListSelector = "ul.match-list > li";
@@ -243,38 +243,46 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             }
         }
 
-
-        public void ConfirmAgeVerification(IPage page, string ageVerificationSelector, int timeoutMilliseconds = 10000)
+        public async Task ConfirmAgePopupAsync(IPage page, int timeoutMilliseconds = 10000)
         {
             try
             {
-                System.Threading.Thread.Sleep(new Random().Next(1511, 3522)); // Espera aleatória
-
-                var element = page.WaitForSelectorAsync(ageVerificationSelector, new WaitForSelectorOptions
+                // Espera o elemento raiz do pop-up de idade (com classe completa)
+                var popupHandle = await page.WaitForSelectorAsync("div.overlay._age-restriction.visible", new WaitForSelectorOptions
                 {
                     Timeout = timeoutMilliseconds
-                }).GetAwaiter().GetResult();
+                });
 
-                if (element != null)
+                if (popupHandle != null)
                 {
-                    element.ClickAsync().GetAwaiter().GetResult();
-                    Console.WriteLine("Botão 'Sim' clicado com sucesso.");
+                    Console.WriteLine("Pop-up de verificação de idade detectado.");
+
+                    // Aguarda o botão "Sim"
+                    var yesButton = await popupHandle.QuerySelectorAsync("div.yes._button");
+                    if (yesButton != null)
+                    {
+                        await page.EvaluateFunctionAsync("element => element.click()", yesButton);
+                        Console.WriteLine("Botão 'Sim' clicado com sucesso via JS.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Botão 'Sim' não encontrado dentro do pop-up.");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("Botão 'Sim' não encontrado.");
+                    Console.WriteLine("Pop-up de idade não encontrado.");
                 }
             }
-            catch (TimeoutException)
+            catch (PuppeteerSharp.WaitTaskTimeoutException)
             {
-                Console.WriteLine("Tempo de espera para o botão 'Sim' expirou.");
+                Console.WriteLine("Tempo de espera para o pop-up de idade expirou.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao confirmar verificação de idade: {ex.Message}");
+                Console.WriteLine($"Erro ao confirmar idade: {ex.Message}");
             }
         }
-
 
         private Site AddNewSite(string siteName)
         {

@@ -211,12 +211,6 @@ namespace BetSniffer.Api.Core.Services
             }
         }
 
-
-
-
-
-
-
         // Método para verificar se um jogo já existe
         public GamesInfo GameExists(int homeTeamDb, int awayTeamDb, DateTime gameDateTime, Models.Site site, string gameLink, string leagueName)
         {
