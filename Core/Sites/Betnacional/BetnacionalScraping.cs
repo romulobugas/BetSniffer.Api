@@ -275,7 +275,6 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             }
         }
 
-
         private DateTime ParseGameDateTime(string text)
         {
             var now = DateTime.Now;

@@ -2,11 +2,18 @@
 using System.Collections.Generic;
 using PuppeteerSharp;
 using System.Linq;
+using PuppeteerSharp.Mobile;
 
 namespace BetSniffer.Api.Core.Services
 {
     public class WebScrapingServicePuppeteer : IDisposable
     {
+        public WebScrapingServicePuppeteer(bool isMobile = false)
+        {
+            _isMobile = isMobile;
+        }
+
+        private readonly bool _isMobile;
         private IBrowser _browser;
         private IPage _page;
 
@@ -45,6 +52,11 @@ namespace BetSniffer.Api.Core.Services
             var pages = _browser.PagesAsync().GetAwaiter().GetResult();
             _page = pages.FirstOrDefault() ?? _browser.NewPageAsync().GetAwaiter().GetResult(); // Usa a aba existente ou cria uma nova
 
+            if (_isMobile)
+            {
+                EmulateMobileAsync().GetAwaiter().GetResult();
+            }
+
             // Injeta scripts de mascaramento desde o início
             InjectAntiAutomationScripts();
         }
@@ -66,6 +78,27 @@ namespace BetSniffer.Api.Core.Services
             ";
 
             _page.EvaluateExpressionAsync(script).GetAwaiter().GetResult();
+        }
+
+        private async Task EmulateMobileAsync()
+        {
+            Console.WriteLine("Ativando emulação mobile via CDP...");
+
+            await _page.Client.SendAsync("Emulation.setDeviceMetricsOverride", new
+            {
+                width = 414,
+                height = 896,
+                deviceScaleFactor = 2,
+                mobile = true,
+                screenOrientation = new { angle = 0, type = "portraitPrimary" }
+            });
+
+            await _page.Client.SendAsync("Emulation.setUserAgentOverride", new
+            {
+                userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+            });
+
+            Console.WriteLine("Emulação mobile completa aplicada.");
         }
 
         public IPage NavigateTo(string url)

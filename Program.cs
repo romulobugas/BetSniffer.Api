@@ -82,7 +82,10 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<KTOScraping>();
             builder.Services.AddScoped<TeamService>();
             builder.Services.AddScoped<BatchScrapingController>();
-            builder.Services.AddScoped<GamesUpdateController>();            
+            builder.Services.AddScoped<GamesUpdateController>();
+            builder.Services.AddScoped<DeviceService>();
+            builder.Services.AddScoped<DevToolsService>();
+
 
             // Configuração de CORS (liberação total)
             builder.Services.AddCors(options =>

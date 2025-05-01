@@ -28,6 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Appium.WebDriver" Version="7.2.0" />
+    <PackageReference Include="Managed.Adb" Version="2.0.131.13916" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.3">
@@ -35,14 +37,36 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="PuppeteerSharp" Version="20.1.3" />
-    <PackageReference Include="Selenium.WebDriver" Version="4.30.0" />
-    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="135.0.7049.4200" />
+    <PackageReference Include="Selenium.WebDriver" Version="4.31.0" />
+    <PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="135.0.7049.11400" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Frontend\Assets\images\" />
     <Folder Include="Frontend\Assets\fonts\" />
+    <Folder Include="Drivers\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Drivers\adb.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Drivers\AdbWinApi.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Drivers\AdbWinUsbApi.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Drivers\chromedriver.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Drivers\LICENSE.chromedriver">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Drivers\THIRD_PARTY_NOTICES.chromedriver">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

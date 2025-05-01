@@ -89,6 +89,8 @@ namespace BetSniffer.Api.Controllers
                         var teamService = scope.ServiceProvider.GetRequiredService<TeamService>();
                         var gamesInfoRepo = scope.ServiceProvider.GetRequiredService<IRepositoryService<GamesInfo>>();
                         var betInfoRepo = scope.ServiceProvider.GetRequiredService<IRepositoryService<BetInfo>>();
+                        var deviceService = scope.ServiceProvider.GetRequiredService<DeviceService>();
+
 
                         try
                         {
@@ -170,6 +172,8 @@ namespace BetSniffer.Api.Controllers
 
         private IScrapingService GetScrapingService(string siteName, ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository,IRepositoryService<BetInfo> betInfoRepository)
         {
+            var deviceService = _serviceScopeFactory.CreateScope().ServiceProvider.GetRequiredService<DeviceService>();
+
             return siteName.ToLower() switch
             {
                 "novibet" => new NovibetScraping(dbContext, gamesInfoRepository, betInfoRepository, teamService),
@@ -181,6 +185,7 @@ namespace BetSniffer.Api.Controllers
                 "pixbet" => new PixbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "betnacional" => new BetnacionalScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
                 "kto" => new KTOScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
+                "bet365" => new Bet365Scraping(dbContext, gamesInfoRepository, betInfoRepository, teamService, deviceService),
                 _ => throw new Exception($"Serviço de scraping não encontrado para o site: {siteName}")
             };
         }
