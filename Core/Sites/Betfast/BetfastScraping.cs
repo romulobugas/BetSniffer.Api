@@ -81,9 +81,13 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             if (iframe == null)
             {
                 throw new Exception("Iframe inicial não foi encontrado.");
-            }
+            }            
 
             ConfirmAgePopupAsync(page).GetAwaiter().GetResult();
+
+            System.Threading.Thread.Sleep(new Random().Next(873, 1405));
+
+            CloseGenericPopupAsync(page).GetAwaiter().GetResult();
 
             System.Threading.Thread.Sleep(new Random().Next(873, 1405));
 
@@ -211,35 +215,37 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             return new List<TagInfo>();
         }
 
-
-        public void ClosePopup(IPage page, string popupSelector, int timeoutMilliseconds = 10000)
+        public async Task CloseGenericPopupAsync(IPage page, int timeoutMilliseconds = 10000)
         {
             try
             {
-                System.Threading.Thread.Sleep(new Random().Next(1855, 3626)); // Espera aleatória
+                // Tenta localizar o elemento diretamente com `QuerySelectorAsync` em vez de `WaitForSelectorAsync`
+                var popupHandle = await page.QuerySelectorAsync("div.popup");
 
-                var element = page.WaitForSelectorAsync(popupSelector, new WaitForSelectorOptions
+                if (popupHandle != null)
                 {
-                    Timeout = timeoutMilliseconds
-                }).GetAwaiter().GetResult();
+                    Console.WriteLine("Pop-up genérico detectado.");
 
-                if (element != null)
-                {
-                    element.ClickAsync().GetAwaiter().GetResult();
-                    Console.WriteLine("Pop-up fechado com sucesso.");
+                    // Procura o botão de fechar
+                    var closeButton = await page.QuerySelectorAsync("div.popup > span.material-icons.close");
+                    if (closeButton != null)
+                    {
+                        await page.EvaluateFunctionAsync("el => el.click()", closeButton);
+                        Console.WriteLine("Pop-up fechado com sucesso via JS.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Botão 'close' não encontrado dentro do pop-up.");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("Pop-up não encontrado.");
+                    Console.WriteLine("Nenhum pop-up genérico visível no momento.");
                 }
-            }
-            catch (TimeoutException)
-            {
-                Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao fechar o pop-up: {ex.Message}");
+                Console.WriteLine($"Erro ao tentar fechar pop-up genérico: {ex.Message}");
             }
         }
 
