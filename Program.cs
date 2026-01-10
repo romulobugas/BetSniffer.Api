@@ -3,7 +3,7 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Sites.Novibet;
 using BetSniffer.Api.Core.Sites.Vbet;
-using BetSniffer.Api.Core.Sites.Bet365; // Importado Bet365
+using BetSniffer.Api.Core.Sites.Bet365;
 using BetSniffer.Api.Core.Interfaces;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium;
@@ -17,6 +17,7 @@ using BetSniffer.Api.Core.Sites.Betfast;
 using BetSniffer.Api.Core.Sites.Superbet;
 using BetSniffer.Api.Core.Sites.Betnacional;
 using BetSniffer.Api.Core.Sites.KTO;
+
 namespace BetSniffer.Api
 {
     public class Program
@@ -27,6 +28,21 @@ namespace BetSniffer.Api
 
             // Identificar o ambiente atual
             var environment = builder.Environment.EnvironmentName;
+            Console.WriteLine($"?? Ambiente: {environment}");
+
+            // ? Configurar DatabaseSettings
+            builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
+            
+            // ? Registrar o serviço de conexão de banco de dados
+            builder.Services.AddScoped<DatabaseConnectionService>();
+            
+            // ? Registrar o LogService
+            builder.Services.AddScoped<ILogService, LogService>();
+
+            // ? Registrar serviços de consolidação (FASE 1)
+            builder.Services.AddScoped<PuppeteerPageService>();
+            builder.Services.AddScoped<DateTimeParsingService>();
+            builder.Services.AddScoped<BetSavingService>();
 
             // Configuração do Kestrel para HTTP/HTTPS com base no ambiente
             builder.WebHost.ConfigureKestrel(serverOptions =>

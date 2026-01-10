@@ -5,7 +5,6 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Betano;
-using Microsoft.OpenApi.Services;
 using System.Globalization;
 using System.Net;
 

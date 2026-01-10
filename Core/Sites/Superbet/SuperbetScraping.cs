@@ -5,9 +5,6 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Betano;
-using Microsoft.OpenApi.Services;
-using System.Reflection.Metadata;
-using BetSniffer.Api.Core.Sites.Betfast;
 using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Superbet

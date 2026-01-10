@@ -13,19 +13,19 @@ namespace BetSniffer.Api.Core.Services
         public void Initialize()
         {
             // Caminho para o executável do Chrome/Chromium instalado no sistema
-            string customChromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe"; // Atualize o caminho conforme necessário
+            string customChromePath = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
 
             if (!System.IO.File.Exists(customChromePath))
             {
                 throw new InvalidOperationException($"O navegador Chrome não foi encontrado no caminho especificado: {customChromePath}");
             }
 
-            // Configuração do navegador
+            // Configuração do navegador com argumentos que evitam problemas de referrerPolicy
             _browser = Puppeteer.LaunchAsync(new LaunchOptions
             {
-                Headless = false, // Permite visualizar o navegador
+                Headless = false,
                 ExecutablePath = customChromePath,
-                DefaultViewport = null, // Desativa o viewport padrão do Puppeteer
+                DefaultViewport = null,
                 Args = new[]
                 {
                     "--no-sandbox",
@@ -33,19 +33,24 @@ namespace BetSniffer.Api.Core.Services
                     "--disable-blink-features=AutomationControlled",
                     "--disable-extensions",
                     "--ignore-certificate-errors",
-                    "--start-maximized", // Abre o navegador em tela cheia
-                    "--disable-infobars", // Remove a barra de informações do navegador
+                    "--start-maximized",
+                    "--disable-infobars",
                     "--enable-accelerated-2d-canvas",
                     "--use-gl=desktop",
-                    "--force-device-scale-factor=0.7" // Define o zoom global do navegador para 70%
+                    "--force-device-scale-factor=0.7",
+                    "--disable-features=VizDisplayCompositor",
+                    "--disable-web-resources", // Evita validações rigorosas de recursos
+                    "--disable-extensions-file-access-check"
                 }
             }).GetAwaiter().GetResult();
 
-            // Obtém a primeira aba existente
             var pages = _browser.PagesAsync().GetAwaiter().GetResult();
-            _page = pages.FirstOrDefault() ?? _browser.NewPageAsync().GetAwaiter().GetResult(); // Usa a aba existente ou cria uma nova
+            _page = pages.FirstOrDefault() ?? _browser.NewPageAsync().GetAwaiter().GetResult();
 
-            // Injeta scripts de mascaramento desde o início
+            // Define o User-Agent para parecer um navegador normal
+            _page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").GetAwaiter().GetResult();
+
+            // Injeta scripts de mascaramento
             InjectAntiAutomationScripts();
         }
 
@@ -62,6 +67,8 @@ namespace BetSniffer.Api.Core.Services
                 Object.defineProperty(navigator, 'userAgent', {
                     get: () => originalUserAgent.replace('HeadlessChrome', 'Chrome')
                 });
+                // Define referrerPolicy para evitar erros de navegação
+                document.referrerPolicy = 'no-referrer-when-downgrade';
                 console.log('Scripts de mascaramento aplicados.');
             ";
 
@@ -72,16 +79,40 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                _page.GoToAsync(url, new NavigationOptions
-                {
-                    WaitUntil = new[] { WaitUntilNavigation.Load }, // Aguarda apenas o carregamento básico
-                    Timeout = 60000 // Ajusta o timeout para 60 segundos (ou o valor que desejar)
+                // Tenta navegação com timeout reduzido e sem esperar a rede ficar completamente ociosa
+                _page.GoToAsync(url, new NavigationOptions 
+                { 
+                    Timeout = 30000,
+                    WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                 }).GetAwaiter().GetResult();
+                return _page;
+            }
+            catch (PuppeteerException ex) when (ex.Message.Contains("Invalid referrerPolicy") || ex.Message.Contains("Protocol error"))
+            {
+                Console.WriteLine($"⚠️ Erro de navegação com WaitUntil, tentando sem aguardar rede...");
+                try
+                {
+                    // Fallback: sem nenhuma opção de wait
+                    _page.GoToAsync(url, new NavigationOptions { Timeout = 30000 }).GetAwaiter().GetResult();
+                    System.Threading.Thread.Sleep(2000); // Aguarda manualmente por segurança
+                    return _page;
+                }
+                catch (Exception retryEx)
+                {
+                    Console.WriteLine($"❌ Falha em ambas as tentativas: {retryEx.Message}");
+                    throw;
+                }
+            }
+            catch (PuppeteerException ex) when (ex.Message.Contains("Timeout"))
+            {
+                Console.WriteLine($"⚠️ Timeout na navegação, mas tentando continuar mesmo assim...");
+                // Se a página carregou parcialmente, tenta continuar
+                System.Threading.Thread.Sleep(2000);
                 return _page;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao navegar para URL '{url}': {ex.Message}");
+                Console.WriteLine($"❌ Erro ao navegar para URL '{url}': {ex.Message}");
                 throw;
             }
         }

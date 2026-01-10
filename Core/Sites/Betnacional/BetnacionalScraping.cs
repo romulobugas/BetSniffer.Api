@@ -5,7 +5,6 @@ using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Betano;
-using Microsoft.OpenApi.Services;
 using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Betnacional
@@ -71,7 +70,7 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             using var browser = _webScrapingService;
             var page = browser.NavigateTo(url);
 
-            System.Threading.Thread.Sleep(new Random().Next(6873, 7405));
+            System.Threading.Thread.Sleep(new Random().Next(9873, 11405));
 
             ExtractGameInfo(page).GetAwaiter().GetResult();
 

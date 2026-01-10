@@ -1,16 +1,10 @@
 ﻿using BetSniffer.Api.Models;
-using Microsoft.EntityFrameworkCore;
 using PuppeteerSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
-using OpenQA.Selenium.Support.UI;
-using OpenQA.Selenium;
-using Microsoft.OpenApi.Services;
+using BetSniffer.Api.Core.Sites.Betano;
 using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Betano
