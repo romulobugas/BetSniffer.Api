@@ -1,13 +1,13 @@
 ﻿using OpenQA.Selenium;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace BetSniffer.Api.Core.Sites.Betano
 {
     public static class BetanoTags
     {
-        // ThreadLocal para isolar o TagNames por execução
-        private static readonly ThreadLocal<Dictionary<int, List<string>>> ThreadTagNames =
-            new(() => new Dictionary<int, List<string>>(BaseTagNames));
-
         // Dicionário base de tags fixas que você quer rastrear
         private static readonly Dictionary<int, List<string>> BaseTagNames = new()
         {
@@ -28,26 +28,48 @@ namespace BetSniffer.Api.Core.Sites.Betano
 
         };
 
+        // ThreadLocal para isolar o TagNames por execução
+        private static readonly ThreadLocal<Dictionary<int, List<string>>?> ThreadTagNames =
+            new(CloneBaseTagNames);
+
         // Método para obter as tags isoladas por thread
-        public static Dictionary<int, List<string>> GetThreadTagNames()
+        public static Dictionary<int, List<string>> TagNames
         {
-            return ThreadTagNames.Value!;
+            get
+            {
+                var tags = ThreadTagNames.Value;
+
+                if (tags is null)
+                {
+                    tags = CloneBaseTagNames();
+                    ThreadTagNames.Value = tags;
+                }
+
+                return tags;
+            }
         }
+
+        private static Dictionary<int, List<string>> CloneBaseTagNames() =>
+            BaseTagNames.ToDictionary(entry => entry.Key, entry => new List<string>(entry.Value));
 
         // Método para capturar o código dinâmico do elemento
         public static string CaptureElementCode(IWebElement element)
         {
+            ArgumentNullException.ThrowIfNull(element);
+
             // Captura o código dinâmico a partir do atributo 'class' ou qualquer outra lógica necessária
-            string classAttribute = element.GetAttribute("class");
-            string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
-            return elementCode;
+            string classAttribute = element.GetAttribute("class") ?? string.Empty;
+            return classAttribute.Split('-', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
         }
 
         // Método para adicionar tags dinâmicas com nomes de times
         public static void AddDynamicTags(string homeTeam, string awayTeam)
         {
+            homeTeam ??= string.Empty;
+            awayTeam ??= string.Empty;
+
             // Obter o dicionário isolado da thread atual
-            var tagNames = GetThreadTagNames();
+            var tagNames = TagNames;
 
             // Lista de padrões de tags dinâmicas
             var dynamicTags = new Dictionary<int, List<string>>

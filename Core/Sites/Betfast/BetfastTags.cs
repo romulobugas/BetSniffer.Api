@@ -1,4 +1,5 @@
 ﻿using OpenQA.Selenium;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -16,7 +17,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             { 1, new List<string> { "Total de escanteios" } },
             { 8, new List<string> { "Total de escanteios time da casa" } },
             { 9, new List<string> { "Total de escanteios time de fora" } },
-            { 34, new List<string> { "Total de cartões" } },
+            { 34, new List<string> { "Total de cartões", "Mais/Menos cartões" } },
             { 3, new List<string> { "Total de chutes", "Total de finalizações" } },
             { 4, new List<string> { "Chutes a gol total" } },
             { 7, new List<string> { "Total de impedimentos" } },
@@ -60,24 +61,45 @@ namespace BetSniffer.Api.Core.Sites.Betfast
         };
 
         // Isolamento por contexto de thread
-        private static readonly ThreadLocal<Dictionary<int, List<string>>> ThreadTagNames =
-            new(() => BaseTagNames.ToDictionary(entry => entry.Key, entry => new List<string>(entry.Value)));
+        private static readonly ThreadLocal<Dictionary<int, List<string>>?> ThreadTagNames =
+            new(CloneBaseTagNames);
 
         // Propriedade para acessar as tags isoladas da thread
-        public static Dictionary<int, List<string>> TagNames => ThreadTagNames.Value;
+        public static Dictionary<int, List<string>> TagNames
+        {
+            get
+            {
+                var tags = ThreadTagNames.Value;
+
+                if (tags is null)
+                {
+                    tags = CloneBaseTagNames();
+                    ThreadTagNames.Value = tags;
+                }
+
+                return tags;
+            }
+        }
+
+        private static Dictionary<int, List<string>> CloneBaseTagNames() =>
+            BaseTagNames.ToDictionary(entry => entry.Key, entry => new List<string>(entry.Value));
 
         // Método para capturar o código dinâmico do elemento
         public static string CaptureElementCode(IWebElement element)
         {
             // Captura o código dinâmico a partir do atributo 'class' ou qualquer outra lógica necessária
-            string classAttribute = element.GetAttribute("class");
-            string elementCode = classAttribute.Split('-').Last(); // Supondo que o código seja o último segmento da classe
-            return elementCode;
+            ArgumentNullException.ThrowIfNull(element);
+
+            string classAttribute = element.GetAttribute("class") ?? string.Empty;
+            return classAttribute.Split('-', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
         }
 
         // Método para adicionar tags dinâmicas com nomes de times
         public static void AddDynamicTags(string homeTeam, string awayTeam)
         {
+            homeTeam ??= string.Empty;
+            awayTeam ??= string.Empty;
+
             // Lista de padrões de tags dinâmicas
             var dynamicTags = new Dictionary<int, List<string>>
             {
@@ -92,7 +114,7 @@ namespace BetSniffer.Api.Core.Sites.Betfast
             };
 
             // Adicionar ao dicionário isolado de tags da thread
-            var threadTags = ThreadTagNames.Value;
+            var threadTags = TagNames;
 
             foreach (var tag in dynamicTags)
             {

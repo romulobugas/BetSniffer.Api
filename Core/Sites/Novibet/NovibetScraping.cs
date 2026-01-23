@@ -14,12 +14,12 @@ namespace BetSniffer.Api.Core.Sites.Novibet
     {
         #region VariaveisGlobais
 
-        private string leagueName;
-        private string homeTeam;
-        private string awayTeam;
+        private string leagueName = string.Empty;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
@@ -27,7 +27,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
         private readonly GameService _gameService;
         private readonly ILogService _logService;
-        private WebScrapingServicePuppeteer _webScrapingService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
 
         #endregion
 
@@ -164,15 +164,20 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                 if (leagueElement == null)
                     throw new Exception("Nome da liga não encontrado.");
 
-                leagueName = (await (await leagueElement.GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim();
+                leagueName = (await (await leagueElement.GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(leagueName))
+                    throw new Exception("Nome da liga não encontrado.");
                 Console.WriteLine($"🏆 Liga detectada: {leagueName}");
 
                 var teamElements = await eventPresentation.QuerySelectorAllAsync("span.eventPresentation_text");
                 if (teamElements == null || teamElements.Length < 2)
                     throw new Exception("Nomes dos times não encontrados.");
 
-                homeTeam = (await (await teamElements[0].GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim();
-                awayTeam = (await (await teamElements[1].GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim();
+                homeTeam = (await (await teamElements[0].GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim() ?? string.Empty;
+                awayTeam = (await (await teamElements[1].GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(homeTeam) || string.IsNullOrWhiteSpace(awayTeam))
+                    throw new Exception("Nomes dos times não encontrados.");
                 Console.WriteLine($"🏟 Times detectados: {homeTeam} vs {awayTeam}");
 
                 var gameDateElement = await eventPresentation.QuerySelectorAsync("div.eventPresentation_time");
@@ -180,6 +185,9 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                     throw new Exception("Data/hora do evento não encontrada.");
 
                 var gameDateText = (await (await gameDateElement.GetPropertyAsync("textContent")).JsonValueAsync<string>())?.Trim();
+                if (string.IsNullOrWhiteSpace(gameDateText))
+                    throw new Exception("Data/hora do evento não encontrada.");
+
                 gameDateTime = ParseGameDateTime(gameDateText);
                 Console.WriteLine($"✅ Data/Hora interpretada: {gameDateTime}");
             }
@@ -253,7 +261,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
         /// Busca um jogo existente com datas próximas (±1 dia)
         /// Isso evita duplicatas quando páginas mostram apenas horário de início
         /// </summary>
-        private GamesInfo FindExistingGameByNearbyDate(int homeTeamId, int awayTeamId, DateTime gameDateTime, int siteId)
+        private GamesInfo? FindExistingGameByNearbyDate(int homeTeamId, int awayTeamId, DateTime gameDateTime, int siteId)
         {
             // Define range de busca: ±1 dia
             var dateRangeStart = gameDateTime.Date.AddDays(-1);
@@ -573,7 +581,7 @@ namespace BetSniffer.Api.Core.Sites.Novibet
                             continue;
                         }
 
-                        string overUnder = null;
+                        string? overUnder = null;
                         decimal? betAmount = null;
 
                         betNameRaw = betNameRaw.ToLowerInvariant();

@@ -3,20 +3,14 @@ using BetSniffer.Api.Models;
 
 namespace BetSniffer.Api.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {
-        public DbSet<GamesInfo> GamesInfo { get; set; }
-        public DbSet<BetInfo> BetInfo { get; set; }
-        public DbSet<Site> Site { get; set; }
-        public DbSet<Team> Teams { get; set; }
-        public DbSet<BetArbitrage> BetArbitrage { get; set; }
-        public DbSet<ArbitrageResults> ArbitrageResults { get; set; } // Adicionada nova DbSet
-
-
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
+        public DbSet<GamesInfo> GamesInfo { get; set; } = null!;
+        public DbSet<BetInfo> BetInfo { get; set; } = null!;
+        public DbSet<Site> Site { get; set; } = null!;
+        public DbSet<Team> Teams { get; set; } = null!;
+        public DbSet<BetArbitrage> BetArbitrage { get; set; } = null!;
+        public DbSet<ArbitrageResults> ArbitrageResults { get; set; } = null!; // Adicionada nova DbSet
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

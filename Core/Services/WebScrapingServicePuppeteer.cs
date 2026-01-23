@@ -7,8 +7,8 @@ namespace BetSniffer.Api.Core.Services
 {
     public class WebScrapingServicePuppeteer : IDisposable
     {
-        private IBrowser _browser;
-        private IPage _page;
+        private IBrowser? _browser;
+        private IPage? _page;
 
         public void Initialize()
         {
@@ -54,6 +54,32 @@ namespace BetSniffer.Api.Core.Services
             InjectAntiAutomationScripts();
         }
 
+        private void EnsureInitialized()
+        {
+            if (_browser is null || _page is null)
+            {
+                throw new InvalidOperationException("WebScrapingServicePuppeteer não foi inicializado. Chame Initialize() antes de usar outras operações.");
+            }
+        }
+
+        private IBrowser Browser
+        {
+            get
+            {
+                EnsureInitialized();
+                return _browser!;
+            }
+        }
+
+        private IPage Page
+        {
+            get
+            {
+                EnsureInitialized();
+                return _page!;
+            }
+        }
+
         private void InjectAntiAutomationScripts()
         {
             const string script = @"
@@ -72,7 +98,7 @@ namespace BetSniffer.Api.Core.Services
                 console.log('Scripts de mascaramento aplicados.');
             ";
 
-            _page.EvaluateExpressionAsync(script).GetAwaiter().GetResult();
+            Page.EvaluateExpressionAsync(script).GetAwaiter().GetResult();
         }
 
         public IPage NavigateTo(string url)
@@ -80,12 +106,12 @@ namespace BetSniffer.Api.Core.Services
             try
             {
                 // Tenta navegação com timeout reduzido e sem esperar a rede ficar completamente ociosa
-                _page.GoToAsync(url, new NavigationOptions 
+                Page.GoToAsync(url, new NavigationOptions 
                 { 
                     Timeout = 30000,
                     WaitUntil = new[] { WaitUntilNavigation.DOMContentLoaded }
                 }).GetAwaiter().GetResult();
-                return _page;
+                return Page;
             }
             catch (PuppeteerException ex) when (ex.Message.Contains("Invalid referrerPolicy") || ex.Message.Contains("Protocol error"))
             {
@@ -93,9 +119,9 @@ namespace BetSniffer.Api.Core.Services
                 try
                 {
                     // Fallback: sem nenhuma opção de wait
-                    _page.GoToAsync(url, new NavigationOptions { Timeout = 30000 }).GetAwaiter().GetResult();
+                    Page.GoToAsync(url, new NavigationOptions { Timeout = 30000 }).GetAwaiter().GetResult();
                     System.Threading.Thread.Sleep(2000); // Aguarda manualmente por segurança
-                    return _page;
+                    return Page;
                 }
                 catch (Exception retryEx)
                 {
@@ -108,7 +134,7 @@ namespace BetSniffer.Api.Core.Services
                 Console.WriteLine($"⚠️ Timeout na navegação, mas tentando continuar mesmo assim...");
                 // Se a página carregou parcialmente, tenta continuar
                 System.Threading.Thread.Sleep(2000);
-                return _page;
+                return Page;
             }
             catch (Exception ex)
             {
@@ -119,19 +145,19 @@ namespace BetSniffer.Api.Core.Services
 
         public string GetPageSource()
         {
-            return _page.GetContentAsync().GetAwaiter().GetResult();
+            return Page.GetContentAsync().GetAwaiter().GetResult();
         }
 
         public Page GetPage()
         {
-            return (Page)_page;
+            return (Page)Page;
         }
 
         public IElementHandle WaitForElement(string selector, int timeoutMilliseconds = 10000)
         {
             try
             {
-                return _page.WaitForSelectorAsync(selector, new WaitForSelectorOptions { Timeout = timeoutMilliseconds }).GetAwaiter().GetResult();
+                return Page.WaitForSelectorAsync(selector, new WaitForSelectorOptions { Timeout = timeoutMilliseconds }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -145,7 +171,13 @@ namespace BetSniffer.Api.Core.Services
             try
             {
                 var frameElement = WaitForElement(selector, timeoutMilliseconds);
-                return frameElement.ContentFrameAsync().GetAwaiter().GetResult();
+                var frame = frameElement.ContentFrameAsync().GetAwaiter().GetResult();
+                if (frame is null)
+                {
+                    throw new InvalidOperationException($"Frame não encontrado para o seletor '{selector}'.");
+                }
+
+                return frame;
             }
             catch (Exception ex)
             {
@@ -158,7 +190,7 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                return _page.EvaluateFunctionAsync<T>(script, args).GetAwaiter().GetResult();
+                return Page.EvaluateFunctionAsync<T>(script, args).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -235,7 +267,7 @@ namespace BetSniffer.Api.Core.Services
 
         public List<IFrame> GetAllFrames()
         {
-            return _page.Frames.ToList();
+            return Page.Frames.ToList();
         }
 
         public string GetFrameContent(IFrame frame)
@@ -286,7 +318,7 @@ namespace BetSniffer.Api.Core.Services
             try
             {
                 Console.WriteLine("Voltando no histórico da página principal...");
-                _page.GoBackAsync().GetAwaiter().GetResult();
+                Page.GoBackAsync().GetAwaiter().GetResult();
                 System.Threading.Thread.Sleep(2000); // Pausa para garantir o carregamento
             }
             catch (Exception ex)
@@ -300,6 +332,8 @@ namespace BetSniffer.Api.Core.Services
         {
             _page?.CloseAsync().GetAwaiter().GetResult();
             _browser?.CloseAsync().GetAwaiter().GetResult();
+            _page = null;
+            _browser = null;
         }
     }
 }

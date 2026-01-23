@@ -31,11 +31,28 @@ namespace BetSniffer.Api.Core.Sites.Vbet
         };
 
         // Isolamento por thread usando ThreadLocal
-        private static readonly ThreadLocal<ConcurrentDictionary<int, string>> ThreadLocalTagNames =
-            new(() => new ConcurrentDictionary<int, string>(BaseTagNames));
+        private static readonly ThreadLocal<ConcurrentDictionary<int, string>?> ThreadLocalTagNames =
+            new(() => CloneBaseTagNames());
 
         // Propriedade para acessar as tags isoladas por contexto
-        public static ConcurrentDictionary<int, string> TagNames => ThreadLocalTagNames.Value;
+        public static ConcurrentDictionary<int, string> TagNames
+        {
+            get
+            {
+                var tags = ThreadLocalTagNames.Value;
+
+                if (tags is null)
+                {
+                    tags = CloneBaseTagNames();
+                    ThreadLocalTagNames.Value = tags;
+                }
+
+                return tags;
+            }
+        }
+
+        private static ConcurrentDictionary<int, string> CloneBaseTagNames() =>
+            new ConcurrentDictionary<int, string>(BaseTagNames);
 
         // Método para adicionar tags dinâmicas com nomes de times
         public static void AddDynamicTags(string homeTeam, string awayTeam)
@@ -68,7 +85,7 @@ namespace BetSniffer.Api.Core.Sites.Vbet
         // Método para resetar o contexto das tags (opcional, usado em finalizações ou depurações)
         public static void ResetTags()
         {
-            ThreadLocalTagNames.Value = new ConcurrentDictionary<int, string>(BaseTagNames);
+            ThreadLocalTagNames.Value = CloneBaseTagNames();
         }
     }
 }

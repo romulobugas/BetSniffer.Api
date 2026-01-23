@@ -19,16 +19,20 @@ namespace BetSniffer.Api.Core.Interfaces
 
         public LogService(IConfiguration configuration)
         {
-            // Obtém o diretório de logs do appsettings.json
-            _logDirectory = configuration["LogSettings:Directory"];
-            if (string.IsNullOrWhiteSpace(_logDirectory))
-            {
-                _logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-            }
+            ArgumentNullException.ThrowIfNull(configuration);
 
-            // Cria o diretório se não existir
-            if (!Directory.Exists(_logDirectory))
+            // Obtém o diretório de logs do appsettings.json com fallback seguro
+            _logDirectory = configuration["LogSettings:Directory"] ??
+                            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+
+            try
             {
+                Directory.CreateDirectory(_logDirectory);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Falha ao garantir diretório de logs '{_logDirectory}': {ex.Message}");
+                _logDirectory = Path.Combine(Path.GetTempPath(), "BetSnifferLogs");
                 Directory.CreateDirectory(_logDirectory);
             }
         }

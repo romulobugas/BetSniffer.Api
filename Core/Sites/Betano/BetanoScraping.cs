@@ -13,22 +13,22 @@ namespace BetSniffer.Api.Core.Sites.Betano
     {
         #region VariaveisGlobais
 
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string gameName = string.Empty;
+        private string gameDayText = string.Empty;
+        private string gameHourText = string.Empty;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
         private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
-        private WebScrapingServicePuppeteer _webScrapingService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
 
         private readonly ILogService _logService;
 
@@ -428,7 +428,7 @@ namespace BetSniffer.Api.Core.Sites.Betano
             var eventMarketViews = page.QuerySelectorAllAsync("div.markets div[data-marketid]").GetAwaiter().GetResult();
 
             // Lista de tags cadastradas que queremos buscar
-            var tagNames = BetanoTags.GetThreadTagNames();
+            var tagNames = BetanoTags.TagNames;
 
             // Lista para armazenar as apostas
             List<BetInfo> bets = new List<BetInfo>();
@@ -448,11 +448,11 @@ namespace BetSniffer.Api.Core.Sites.Betano
                     string tagName = tagElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
 
                     // Verifica se a tag encontrada contém o nome da tag desejada
-                    if (BetanoTags.GetThreadTagNames().Values.Any(tagList => tagList.Contains(tagName)))
+                    if (tagNames.Values.Any(tagList => tagList.Contains(tagName)))
                     {
                         string normalizedTagName = _teamService.NormalizeText(tagName);
 
-                        var matchingTag = BetanoTags.GetThreadTagNames()
+                        var matchingTag = tagNames
                             .FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == normalizedTagName));
 
                         if (matchingTag.Key == 0)

@@ -13,22 +13,22 @@ namespace BetSniffer.Api.Core.Sites.Betfast
     {
         #region VariaveisGlobais
 
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string gameName = string.Empty;
+        private string gameDayText = string.Empty;
+        private string gameHourText = string.Empty;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
         private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
-        private WebScrapingServicePuppeteer _webScrapingService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
         private readonly ILogService _logService;
 
         #endregion
@@ -379,8 +379,8 @@ namespace BetSniffer.Api.Core.Sites.Betfast
                 if (string.IsNullOrEmpty(_teamService.NormalizeText(homeTeam)) || string.IsNullOrEmpty(_teamService.NormalizeText(awayTeam)))
                 {
                     Console.WriteLine("Nomes dos times inválidos. Pulando para o próximo jogo.");
-                    homeTeam = null; // Zera para evitar propagação errada
-                    awayTeam = null; // Zera para evitar propagação errada
+                    homeTeam = string.Empty; // Zera para evitar propagação errada
+                    awayTeam = string.Empty; // Zera para evitar propagação errada
                     return;
                 }
 

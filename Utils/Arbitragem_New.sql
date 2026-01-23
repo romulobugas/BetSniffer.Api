@@ -7,7 +7,6 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Create a temporary table to store intermediate results
     CREATE TABLE #TempArbitrageResults (
         Arbitrage_Lucro_Percent DECIMAL(18,2),
         TagName_X NVARCHAR(255),
@@ -33,7 +32,6 @@ BEGIN
         Url_Y NVARCHAR(MAX)
     );
 
-    -- Insert arbitrage calculation results into the temporary table
     INSERT INTO #TempArbitrageResults
     SELECT
         ROUND(
@@ -66,7 +64,7 @@ BEGIN
         (SELECT DISTINCT Name, SiteId FROM Site) s1
     JOIN 
         (SELECT DISTINCT Name, SiteId FROM Site) s2
-        ON s1.SiteId < s2.SiteId -- Ensure unique combinations without inversions
+        ON s1.SiteId < s2.SiteId
     JOIN 
         BetInfo b1 ON b1.SiteId = s1.SiteId
     JOIN 
@@ -82,22 +80,37 @@ BEGIN
         Teams t1 ON g1.HomeTeamId = t1.TeamId
     JOIN 
         Teams t2 ON g1.AwayTeamId = t2.TeamId
+    CROSS APPLY (
+        SELECT
+            OverUnderNorm_X =
+                CASE
+                    WHEN UPPER(LTRIM(RTRIM(b1.OverUnder))) LIKE 'MAIS%' THEN 'MAIS'
+                    WHEN UPPER(LTRIM(RTRIM(b1.OverUnder))) LIKE 'MENOS%' THEN 'MENOS'
+                    ELSE UPPER(LTRIM(RTRIM(b1.OverUnder)))
+                END,
+            OverUnderNorm_Y =
+                CASE
+                    WHEN UPPER(LTRIM(RTRIM(b2.OverUnder))) LIKE 'MAIS%' THEN 'MAIS'
+                    WHEN UPPER(LTRIM(RTRIM(b2.OverUnder))) LIKE 'MENOS%' THEN 'MENOS'
+                    ELSE UPPER(LTRIM(RTRIM(b2.OverUnder)))
+                END
+    ) ou
     WHERE 
-        ((b1.OverUnder <> b2.OverUnder AND b1.BetAmount = b2.BetAmount)
-        or (b1.OverUnder = 'Mais de' AND b2.OverUnder = 'Menos de' AND b1.BetAmount <= b2.BetAmount)
-        or (b1.OverUnder = 'Menos de' AND b2.OverUnder = 'Mais de' AND b1.BetAmount >= b2.BetAmount))
+        (
+            (ou.OverUnderNorm_X <> ou.OverUnderNorm_Y AND b1.BetAmount = b2.BetAmount)
+            OR (ou.OverUnderNorm_X = 'MAIS'  AND ou.OverUnderNorm_Y = 'MENOS' AND b1.BetAmount <= b2.BetAmount)
+            OR (ou.OverUnderNorm_X = 'MENOS' AND ou.OverUnderNorm_Y = 'MAIS'  AND b1.BetAmount >= b2.BetAmount)
+        )
         AND g1.GameDate >= GETDATE()
         AND b1.TagId = b2.TagId
-        and (ROUND(
+        AND (ROUND(
             (((ROUND((1500 * b2.Multiplier) / (b1.Multiplier + b2.Multiplier), 2) * b1.Multiplier + 
                ROUND((1500 * b1.Multiplier) / (b1.Multiplier + b2.Multiplier), 2) * b2.Multiplier) / 2) - 1500) / 1500 * 100,
             2
         )) > 1;
 
-    -- Replace data in the final table
     BEGIN TRANSACTION;
 
-    -- Ensure data consistency during the replacement
     TRUNCATE TABLE ArbitrageResults;
 
     INSERT INTO ArbitrageResults
@@ -105,12 +118,9 @@ BEGIN
 
     COMMIT TRANSACTION;
 
-    -- Drop the temporary table
     DROP TABLE #TempArbitrageResults;
 
--- Select the final results
-SELECT * FROM ArbitrageResults
-ORDER BY Arbitrage_Lucro_Percent DESC;
-
+    SELECT * FROM ArbitrageResults
+    ORDER BY Arbitrage_Lucro_Percent DESC;
 END;
 GO

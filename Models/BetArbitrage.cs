@@ -10,15 +10,15 @@ namespace BetSniffer.Api.Models
     {
         public int Id { get; set; }
 
-        public string Game { get; set; }
+        public string Game { get; set; } = string.Empty;
 
-        public string TagName { get; set; }
+        public string TagName { get; set; } = string.Empty;
 
-        public string BetMoreThan { get; set; }
+        public string BetMoreThan { get; set; } = string.Empty;
 
         public decimal BetMoreThanMultiplier { get; set; }
 
-        public string BetLessThan { get; set; }
+        public string BetLessThan { get; set; } = string.Empty;
 
         public decimal BetLessThanMultiplier { get; set; }
 
@@ -36,9 +36,9 @@ namespace BetSniffer.Api.Models
         [ForeignKey("GamesInfo")] // Chave estrangeira para GamesInfo
         public virtual int? GameId { get; set; } // Referência para GamesInfo
 
-        public virtual string TagName { get; set; }
+        public virtual string TagName { get; set; } = string.Empty;
 
-        public virtual string OverUnder { get; set; }
+        public virtual string OverUnder { get; set; } = string.Empty;
 
         [Column(TypeName = "decimal(10, 2)")] // Define o tipo no banco
         public virtual decimal BetAmount { get; set; }
@@ -52,14 +52,14 @@ namespace BetSniffer.Api.Models
 
         // Propriedade de navegação para GamesInfo
         [JsonIgnore]
-        public virtual GamesInfo GamesInfo { get; set; }
+        public virtual GamesInfo GamesInfo { get; set; } = null!;
 
         // Chave estrangeira para Site
         [ForeignKey("Site")] // Relacionamento com a tabela Site
         public virtual int SiteId { get; set; }  // Chave estrangeira
 
         // Propriedade de navegação para Site
-        public virtual Site Site { get; set; }
+        public virtual Site Site { get; set; } = null!;
         public virtual int? TagId { get; set; }
 
 
@@ -72,7 +72,7 @@ namespace BetSniffer.Api.Models
 
         // Chave estrangeira para o Site
         [ForeignKey("SiteId")]
-        public virtual Site Site { get; set; }  // Marcar como virtual para Lazy Loading
+        public virtual Site Site { get; set; } = null!;  // Marcar como virtual para Lazy Loading
 
         public int HomeTeamId { get; set; }
         public int AwayTeamId { get; set; }
@@ -84,10 +84,10 @@ namespace BetSniffer.Api.Models
         public DateTime GameDate { get; set; }
 
         [StringLength(100)]
-        public string League { get; set; }
+        public string League { get; set; } = string.Empty;
 
         [Url]
-        public string URL { get; set; }
+        public string URL { get; set; } = string.Empty;
 
         [Range(0, 255)]
         public byte Status { get; set; } = 0;
@@ -96,14 +96,14 @@ namespace BetSniffer.Api.Models
         public DateTime? LastUpdated { get; set; }
 
         // Propriedades de navegação
-        public virtual Team HomeTeam { get; set; } // Relacionamento com o time da casa
-        public virtual Team AwayTeam { get; set; } // Relacionamento com o time visitante
+        public virtual Team HomeTeam { get; set; } = null!; // Relacionamento com o time da casa
+        public virtual Team AwayTeam { get; set; } = null!; // Relacionamento com o time visitante
 
         // Relacionamento com BetInfo (um para muitos)
-        public virtual ICollection<BetInfo> Bets { get; set; }  // Adicionando a coleção de Bets
+        public virtual ICollection<BetInfo> Bets { get; set; } = new List<BetInfo>();  // Adicionando a coleção de Bets
 
         [StringLength(255)]
-        public string GameName { get; set; } // Adicionando o campo GameName (pode ser nulo)
+        public string? GameName { get; set; } // Adicionando o campo GameName (pode ser nulo)
     }
 
 
@@ -111,7 +111,7 @@ namespace BetSniffer.Api.Models
     {
         public int SiteId { get; set; }
 
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         // Navegação de volta para as entidades GamesInfo e BetInfo
         public ICollection<GamesInfo> GamesInfo { get; set; } = new List<GamesInfo>();
@@ -121,12 +121,12 @@ namespace BetSniffer.Api.Models
     public class Team
     {
         public int TeamId { get; set; }
-        public string NormalizedName { get; set; } // Nome padronizado
-        public string Aliases { get; set; } // Lista de nomes alternativos (JSON)
+        public string NormalizedName { get; set; } = string.Empty; // Nome padronizado
+        public string Aliases { get; set; } = string.Empty; // Lista de nomes alternativos (JSON)
 
         // Relacionamento com GamesInfo
-        public ICollection<GamesInfo> HomeGames { get; set; }
-        public ICollection<GamesInfo> AwayGames { get; set; }
+        public ICollection<GamesInfo> HomeGames { get; set; } = new List<GamesInfo>();
+        public ICollection<GamesInfo> AwayGames { get; set; } = new List<GamesInfo>();
     }
 
 }

@@ -13,24 +13,20 @@ namespace BetSniffer.Api.Core.Sites.KTO
     public class KTOScraping : IScrapingService, ILeagueScrapingService
     {
         #region VariaveisGlobais
-
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
         private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
-        private WebScrapingServicePuppeteer _webScrapingService;
-        private readonly ILogService _logService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
+        private readonly LogService _logService;
 
         #endregion
 
@@ -61,7 +57,8 @@ namespace BetSniffer.Api.Core.Sites.KTO
             if (string.IsNullOrEmpty(url)) throw new ArgumentException("URL não pode ser nula ou vazia.", nameof(url));
             if (string.IsNullOrEmpty(siteName)) throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
 
-            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ?? AddNewSite(siteName);
+            site = _dbContext.Site.FirstOrDefault(s => string.Equals(s.Name, siteName, StringComparison.OrdinalIgnoreCase))
+                ?? AddNewSite(siteName);
 
             _webScrapingService = new WebScrapingServicePuppeteer();
             _webScrapingService.Initialize();
@@ -85,12 +82,12 @@ namespace BetSniffer.Api.Core.Sites.KTO
                 page = browser.NavigateTo(startUrl);
                 Thread.Sleep(new Random().Next(9873, 10405));
 
-                var aToZButtonHandle = page.XPathAsync("//div[contains(@class,'KambiBC-filter-menu__option') and normalize-space(text())='A-Z Futebol']")
-                                           .GetAwaiter().GetResult()
-                                           .FirstOrDefault();
-
-                if (aToZButtonHandle == null)
-                    throw new Exception("❌ Botão 'A-Z Futebol' não encontrado.");
+                var options = page.QuerySelectorAllAsync("div.KambiBC-filter-menu__option").GetAwaiter().GetResult();
+                var aToZButtonHandle = options.FirstOrDefault(el =>
+                {
+                    var text = el.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    return string.Equals(text, "A-Z Futebol", StringComparison.OrdinalIgnoreCase);
+                }) ?? throw new Exception("❌ Botão 'A-Z Futebol' não encontrado.");
 
                 page.EvaluateFunctionAsync("el => el.click()", aToZButtonHandle).GetAwaiter().GetResult();
                 Thread.Sleep(new Random().Next(4111, 6222));
@@ -100,25 +97,25 @@ namespace BetSniffer.Api.Core.Sites.KTO
                 var convertedLeagueSegment = leagueSegments.Last().Replace("-", "_");
 
                 var leagueButton = page.QuerySelectorAllAsync("a[href]").GetAwaiter().GetResult()
-                    .FirstOrDefault(el => el.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").Result.Contains(convertedLeagueSegment));
-
-                if (leagueButton == null) throw new Exception($"❌ Liga com slug '{convertedLeagueSegment}' não encontrada.");
+                    .FirstOrDefault(el => el.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").Result.Contains(convertedLeagueSegment))
+                    ?? throw new Exception($"❌ Liga com slug '{convertedLeagueSegment}' não encontrada.");
 
                 page.EvaluateFunctionAsync("el => el.click()", leagueButton).GetAwaiter().GetResult();
                 Thread.Sleep(new Random().Next(9873, 10405));
 
-                var listReady = page.WaitForSelectorAsync("ul.KambiBC-sandwich-filter__list", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
-                if (listReady == null) throw new Exception("❌ Lista de jogos da liga não carregou.");
+                var listReady = page.WaitForSelectorAsync("ul.KambiBC-sandwich-filter__list", new WaitForSelectorOptions { Timeout = 10000 })
+                    .GetAwaiter().GetResult()
+                    ?? throw new Exception("❌ Lista de jogos da liga não carregou.");
 
                 var matchLink = page.QuerySelectorAllAsync("a.KambiBC-sandwich-filter__event-list-info").GetAwaiter().GetResult()
-                    .FirstOrDefault(el => el.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").Result.Contains(matchSegment));
-
-                if (matchLink == null) throw new Exception($"❌ Jogo com slug '{matchSegment}' não encontrado.");
+                    .FirstOrDefault(el => el.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").Result.Contains(matchSegment))
+                    ?? throw new Exception($"❌ Jogo com slug '{matchSegment}' não encontrado.");
 
                 page.EvaluateFunctionAsync("el => el.click()", matchLink).GetAwaiter().GetResult();
 
-                var gameLoaded = page.WaitForSelectorAsync("div.KambiBC-event-page-component__expandable-container", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
-                if (gameLoaded == null) throw new Exception("❌ Página do jogo não carregou após o clique.");
+                var gameLoaded = page.WaitForSelectorAsync("div.KambiBC-event-page-component__expandable-container", new WaitForSelectorOptions { Timeout = 10000 })
+                    .GetAwaiter().GetResult()
+                    ?? throw new Exception("❌ Página do jogo não carregou após o clique.");
 
                 Thread.Sleep(new Random().Next(9873, 10405));
 
@@ -137,9 +134,9 @@ namespace BetSniffer.Api.Core.Sites.KTO
 
                 Thread.Sleep(new Random().Next(9873, 10405));
 
-                var gameLoadedDirect = page.WaitForSelectorAsync("div.KambiBC-event-page-component__expandable-container", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
-                if (gameLoadedDirect == null)
-                    throw new Exception("❌ Página do jogo não carregou nem mesmo acessando o link diretamente.");
+                var gameLoadedDirect = page.WaitForSelectorAsync("div.KambiBC-event-page-component__expandable-container", new WaitForSelectorOptions { Timeout = 10000 })
+                    .GetAwaiter().GetResult()
+                    ?? throw new Exception("❌ Página do jogo não carregou nem mesmo acessando o link diretamente.");
 
             }
 
@@ -165,7 +162,7 @@ namespace BetSniffer.Api.Core.Sites.KTO
                 gamesInfo.GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam);
 
                 var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
-                if (existingBets.Any())
+                if (existingBets.Count > 0)
                 {
                     Console.WriteLine($"Encontradas {existingBets.Count} apostas associadas ao jogo: {gamesInfo.GameName}");
                     _dbContext.BetInfo.RemoveRange(existingBets);
@@ -199,261 +196,11 @@ namespace BetSniffer.Api.Core.Sites.KTO
             Console.WriteLine("🏁 Processo de raspagem concluído.");
             _webScrapingService.Dispose();
 
-            return new List<TagInfo>();
+            return [];
         }
-
-        //public void ClosePopup(IPage page, string popupSelector, int timeoutMilliseconds = 10000)
-        //{
-        //    try
-        //    {
-        //        System.Threading.Thread.Sleep(new Random().Next(1855, 3626)); // Espera aleatória
-
-        //        var element = page.WaitForSelectorAsync(popupSelector, new WaitForSelectorOptions
-        //        {
-        //            Timeout = timeoutMilliseconds
-        //        }).GetAwaiter().GetResult();
-
-        //        if (element != null)
-        //        {
-        //            element.ClickAsync().GetAwaiter().GetResult();
-        //            Console.WriteLine("Pop-up fechado com sucesso.");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine("Pop-up não encontrado.");
-        //        }
-        //    }
-        //    catch (TimeoutException)
-        //    {
-        //        Console.WriteLine("Tempo de espera para fechar o pop-up expirou.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Erro ao fechar o pop-up: {ex.Message}");
-        //    }
-        //}
-
-        //public void ConfirmAgeVerification(IPage page, string ageVerificationSelector, int timeoutMilliseconds = 10000)
-        //{
-        //    try
-        //    {
-        //        System.Threading.Thread.Sleep(new Random().Next(1511, 3522)); // Espera aleatória
-
-        //        var element = page.WaitForSelectorAsync(ageVerificationSelector, new WaitForSelectorOptions
-        //        {
-        //            Timeout = timeoutMilliseconds
-        //        }).GetAwaiter().GetResult();
-
-        //        if (element != null)
-        //        {
-        //            element.ClickAsync().GetAwaiter().GetResult();
-        //            Console.WriteLine("Botão 'Sim' clicado com sucesso.");
-        //        }
-        //        else
-        //        {
-        //            Console.WriteLine("Botão 'Sim' não encontrado.");
-        //        }
-        //    }
-        //    catch (TimeoutException)
-        //    {
-        //        Console.WriteLine("Tempo de espera para o botão 'Sim' expirou.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Erro ao confirmar verificação de idade: {ex.Message}");
-        //    }
-        //}
-
         public void ScrapeLeague(string leagueUrl, string siteName)
         {
-            if (string.IsNullOrEmpty(leagueUrl) || string.IsNullOrEmpty(siteName))
-                throw new ArgumentException("Parâmetros inválidos.");
-
-            var site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ?? AddNewSite(siteName);
-
-            using var browser = new WebScrapingServicePuppeteer();
-            browser.Initialize();
-
-            bool success = false;
-
-            try
-            {
-                // 🧠 Extrai os caminhos da URL
-                var uri = new Uri(leagueUrl);
-                var segments = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-                if (segments.Length < 3) throw new Exception("❌ URL inválida para liga.");
-
-                var esporteBase = string.Join('/', segments.Take(2));
-                var startUrl = $"https://www.kto.bet.br/{esporteBase}";
-
-                var page = browser.NavigateTo(startUrl);
-                Thread.Sleep(new Random().Next(9873, 10405));
-
-                // 🖱️ Clica no botão "A-Z Futebol"
-                var aToZButtonHandle = page.XPathAsync("//div[contains(@class,'KambiBC-filter-menu__option') and normalize-space(text())='A-Z Futebol']")
-                    .GetAwaiter().GetResult().FirstOrDefault();
-
-                if (aToZButtonHandle == null)
-                    throw new Exception("❌ Botão 'A-Z Futebol' não encontrado.");
-
-                page.EvaluateFunctionAsync("el => el.click()", aToZButtonHandle).GetAwaiter().GetResult();
-                Thread.Sleep(new Random().Next(4111, 6222));
-
-                // 🎯 Liga
-                var matchSlug = segments.Last();
-                var convertedLeagueSlug = matchSlug.Replace("-", "_");
-
-                var leagueButton = page.WaitForSelectorAsync($"a[href*='{convertedLeagueSlug}']", new WaitForSelectorOptions { Timeout = 10000 })
-                    .GetAwaiter().GetResult();
-
-                if (leagueButton == null)
-                    throw new Exception($"❌ Liga com href '{convertedLeagueSlug}' não encontrada.");
-
-                page.EvaluateFunctionAsync("el => el.click()", leagueButton).GetAwaiter().GetResult();
-                Thread.Sleep(new Random().Next(4111, 6222));
-
-                // ✅ Aguarda a lista de jogos
-                var listReady = page.WaitForSelectorAsync("ul.KambiBC-sandwich-filter__list", new WaitForSelectorOptions { Timeout = 10000 })
-                    .GetAwaiter().GetResult();
-
-                if (listReady == null)
-                    throw new Exception("❌ Lista de jogos da liga não carregou.");
-
-                // Se chegou até aqui, marca sucesso
-                success = true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"⚠️ Navegação inicial falhou: {ex.Message}");
-            }
-
-            try
-            {
-                if (!success)
-                {
-                    Console.WriteLine("🔁 Tentando abrir o link da liga diretamente...");
-
-                    var page = browser.NavigateTo(leagueUrl);
-                    Thread.Sleep(new Random().Next(4877, 6222));
-
-                    // Pequena validação para garantir que estamos na página certa
-                    var confirmation = page.WaitForSelectorAsync("ul.KambiBC-sandwich-filter__list", new WaitForSelectorOptions { Timeout = 10000 })
-                        .GetAwaiter().GetResult();
-
-                    if (confirmation == null)
-                        throw new Exception("❌ Página da liga direta também não carregou a lista de jogos.");
-                }
-
-                var page2 = browser.GetPage(); // Usa a mesma página que já estava aberta
-                var leagueNode = page2.QuerySelectorAsync("span.KambiBC-sandwich-filter__group-header-title a:last-of-type")
-                    .GetAwaiter().GetResult();
-                var leagueName = leagueNode?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult()
-                                 ?? "Liga Desconhecida";
-
-                Console.WriteLine($"📌 Liga: {leagueName}");
-
-                var matchNodes = page2.QuerySelectorAllAsync("li.KambiBC-sandwich-filter__event-list-item")
-                    .GetAwaiter().GetResult();
-
-                foreach (var node in matchNodes)
-                {
-                    try
-                    {
-                        var clockNode = node.QuerySelectorAsync("div.KambiBC-match-clock__inner span:nth-child(2)")
-                            .GetAwaiter().GetResult();
-                        if (clockNode != null)
-                        {
-                            var clockText = clockNode.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                            if (!string.IsNullOrWhiteSpace(clockText) && Regex.IsMatch(clockText, @"^\d+[:.]\d+$"))
-                            {
-                                Console.WriteLine("⏱️ Jogo ao vivo ignorado.");
-                                continue;
-                            }
-                        }
-
-                        var teamNodes = node.QuerySelectorAllAsync("div.KambiBC-event-participants__name-participant-name")
-                            .GetAwaiter().GetResult();
-                        if (teamNodes.Length < 2) continue;
-
-                        var home = teamNodes[0].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                        var away = teamNodes[1].EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                        var timeText = node.QuerySelectorAsync("span.KambiBC-event-item__start-time--time")
-                            ?.GetAwaiter().GetResult()
-                            ?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                        var dateText = node.QuerySelectorAsync("span.KambiBC-event-item__start-time--date")
-                            ?.GetAwaiter().GetResult()
-                            ?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                        if (string.IsNullOrWhiteSpace(home) || string.IsNullOrWhiteSpace(away) ||
-                            string.IsNullOrWhiteSpace(timeText) || string.IsNullOrWhiteSpace(dateText))
-                            continue;
-
-                        var baseDate = ParseKtoDate(dateText);
-                        if (!TimeSpan.TryParse(timeText, out var time))
-                        {
-                            Console.WriteLine($"❌ Horário inválido: {timeText}");
-                            continue;
-                        }
-
-                        var gameDate = baseDate.Add(time);
-
-                        var href = node.QuerySelectorAsync("a.KambiBC-sandwich-filter__event-list-info")
-                            ?.GetAwaiter().GetResult()
-                            ?.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").GetAwaiter().GetResult();
-
-                        if (string.IsNullOrWhiteSpace(href)) continue;
-                        var fullUrl = href.StartsWith("http") ? href : $"https://www.kto.bet.br{href}";
-
-                        var homeId = _teamService.EnsureTeamExists(home);
-                        var awayId = _teamService.EnsureTeamExists(away);
-
-                        var existing = _dbContext.GamesInfo.FirstOrDefault(g =>
-                            g.HomeTeamId == homeId &&
-                            g.AwayTeamId == awayId &&
-                            g.GameDate == gameDate &&
-                            g.Site.SiteId == site.SiteId);
-
-                        if (existing != null)
-                        {
-                            existing.Status = 1;
-                            existing.LastUpdated = DateTime.Now;
-                            existing.URL = fullUrl;
-                            existing.League = leagueName;
-                            Console.WriteLine($"🔄 Jogo atualizado: {home} vs {away}");
-                        }
-                        else
-                        {
-                            var game = new GamesInfo
-                            {
-                                HomeTeamId = homeId,
-                                AwayTeamId = awayId,
-                                GameDate = gameDate,
-                                League = leagueName,
-                                Site = site,
-                                URL = fullUrl,
-                                Status = 1,
-                                LastUpdated = DateTime.Now,
-                                GameName = _teamService.NormalizeText(home) + " - " + _teamService.NormalizeText(away)
-                            };
-                            _dbContext.GamesInfo.Add(game);
-                            Console.WriteLine($"🆕 Novo jogo salvo: {home} vs {away}");
-                        }
-
-                        _dbContext.SaveChanges();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"⚠️ Erro ao processar jogo: {ex.Message}");
-                        _logService.LogError("Erro ao processar jogo da liga KTO", ex);
-                    }
-                }
-            }
-            finally
-            {
-                browser.Dispose();
-            }
+            ScrapeTags(leagueUrl, siteName);
         }
 
         public static DateTime ParseKtoDate(string dateText)
@@ -568,9 +315,8 @@ namespace BetSniffer.Api.Core.Sites.KTO
                 Console.WriteLine($"✅ Times identificados: {homeTeam} vs {awayTeam}");
 
                 // 🌍 Liga — Captura baseada em posição na estrutura
-                var headerWrapper = await page.QuerySelectorAsync("div#KambiBC-contentWrapper__top");
-                if (headerWrapper == null)
-                    throw new Exception("Elemento com informações de liga não encontrado.");
+                var headerWrapper = await page.QuerySelectorAsync("div#KambiBC-contentWrapper__top")
+                    ?? throw new Exception("Elemento com informações de liga não encontrado.");
 
                 var h1Elements = await headerWrapper.QuerySelectorAllAsync("h1");
                 if (h1Elements.Length == 0)
@@ -597,7 +343,7 @@ namespace BetSniffer.Api.Core.Sites.KTO
 
             var tabSelector = "ul.KambiBC-filter-menu > li > div[data-touch-feedback='true']";
             var arrowRightSelector = "button.KambiBC-scroller__arrow-right";
-            var marketContainerSelector = "section[data-testid='market-outcome-list']";
+            // section[...)] usado diretamente abaixo
 
             await Task.Delay(new Random().Next(825, 1684));
             var tagNames = KTOTags.TagNames;
@@ -714,7 +460,7 @@ namespace BetSniffer.Api.Core.Sites.KTO
                                 processedTabs.Add(tabName);
 
                                 // Processa os mercados normalmente
-                                await ProcessMarketViews(page, tagNames, tabName);
+                                await ProcessMarketViews(page, tagNames);
 
                             }
                             catch (Exception ex)
@@ -741,7 +487,7 @@ namespace BetSniffer.Api.Core.Sites.KTO
             }
         }
 
-        private async Task ProcessMarketViews(IPage page, Dictionary<int, List<string>> tagNames, string tabName = null)
+        private async Task ProcessMarketViews(IPage page, Dictionary<int, List<string>> tagNames)
         {
             try
             {
@@ -749,7 +495,7 @@ namespace BetSniffer.Api.Core.Sites.KTO
                 await Task.Delay(new Random().Next(851, 1132));
 
                 var marketContainers = await page.QuerySelectorAllAsync("li.KambiBC-bet-offer-subcategory");
-                if (marketContainers == null || !marketContainers.Any())
+                if (marketContainers == null || marketContainers.Length == 0)
                 {
                     Console.WriteLine("Nenhum mercado encontrado.");
                     return;
@@ -806,9 +552,9 @@ namespace BetSniffer.Api.Core.Sites.KTO
 
 
                         // 👉 Tenta encontrar estrutura expandida OU padrão
-                        var outcomesList = await marketContainer.QuerySelectorAsync("div.KambiBC-outcomes-list--layout-grouped-betoffers-with-headers") ??
-                                           await marketContainer.QuerySelectorAsync("div.KambiBC-outcomes-list--layout-toggler") ??
-                                           await marketContainer.QuerySelectorAsync("div.KambiBC-outcomes-list--layout-grid");
+                        var outcomesList = await marketContainer.QuerySelectorAsync("div.KambiBC-outcomes-list--layout-grouped-betoffers-with-headers")
+                            ?? await marketContainer.QuerySelectorAsync("div.KambiBC-outcomes-list--layout-toggler")
+                            ?? await marketContainer.QuerySelectorAsync("div.KambiBC-outcomes-list--layout-grid");
 
                         if (outcomesList == null)
                         {
@@ -891,7 +637,7 @@ namespace BetSniffer.Api.Core.Sites.KTO
 
         private void SaveBets(List<BetInfo> bets)
         {
-            if (bets == null || !bets.Any())
+            if (bets == null || bets.Count == 0)
                 return;
 
             // Cria um HashSet com combinações únicas dos critérios relevantes

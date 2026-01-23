@@ -1,5 +1,6 @@
 ﻿using BetSniffer.Api.Models;
 using PuppeteerSharp;
+using System.Text;
 using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
 using BetSniffer.Api.Data;
@@ -9,27 +10,25 @@ using System.Globalization;
 
 namespace BetSniffer.Api.Core.Sites.Superbet
 {
-    public class SuperbetScraping : IScrapingService
+    public partial class SuperbetScraping : IScrapingService
     {
         #region VariaveisGlobais
-
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
         private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
-        private WebScrapingServicePuppeteer _webScrapingService;
-        private readonly ILogService _logService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
+        private readonly LogService _logService;
+
+        private static readonly char[] DateSplitSeparators = [ ' ', '.', ',' ];
 
         #endregion
 
@@ -100,7 +99,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 // Verifica se existem apostas associadas ao jogo
                 var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
 
-                if (existingBets.Any())
+                if (existingBets.Count > 0)
                 {
                     Console.WriteLine($"Encontradas {existingBets.Count} apostas associadas ao jogo: {gamesInfo.GameName}");
 
@@ -138,14 +137,13 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
 
 
-
             Console.WriteLine("Processo de raspagem concluído.");
             _webScrapingService.Dispose();
 
-            return new List<TagInfo>();
+            return [];
         }
 
-        public void HandleCookies(IPage page, string cookieAcceptButtonSelector, int timeoutMilliseconds = 10000)
+        public static void HandleCookies(IPage page, string cookieAcceptButtonSelector, int timeoutMilliseconds = 10000)
         {
             try
             {
@@ -201,7 +199,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 if (breadcrumbElements.Length >= 2)
                 {
                     // A liga geralmente está na penúltima posição antes do nome dos times
-                    leagueName = breadcrumbElements[breadcrumbElements.Length - 2]
+                    leagueName = breadcrumbElements[^2]
                         .EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
                     Console.WriteLine($"Liga: {leagueName}");
                 }
@@ -269,7 +267,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             }
         }
 
-        private DateTime ParseGameDateTime(string dateTimeText)
+        private static DateTime ParseGameDateTime(string dateTimeText)
         {
             if (string.IsNullOrWhiteSpace(dateTimeText))
                 throw new ArgumentException("O parâmetro 'dateTimeText' está vazio ou nulo.");
@@ -304,7 +302,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 }
 
                 // Divide o texto para formatos do tipo "Fri 10. Jan, 16:45"
-                var parts = dateTimeText.Split(new[] { ' ', '.', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                var parts = dateTimeText.Split(DateSplitSeparators, StringSplitOptions.RemoveEmptyEntries);
 
                 if (parts.Length >= 4)
                 {
@@ -372,7 +370,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                     return;
                 }
 
-                IElementHandle allTabButton = null;
+                IElementHandle? allTabButton = null;
 
                 // Itera pelos botões e procura pela aba "Todos"
                 foreach (var button in tabButtons)
@@ -418,7 +416,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 // Captura todos os mercados dentro do contêiner
                 var marketContainers = marketGroupsContainer.QuerySelectorAllAsync("div.event-grid__expanded-market").GetAwaiter().GetResult();
 
-                if (marketContainers == null || !marketContainers.Any())
+                if (marketContainers == null || marketContainers.Length == 0)
                 {
                     Console.WriteLine("Nenhum mercado encontrado dentro do contêiner fornecido.");
                     return;
@@ -530,8 +528,8 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                         }
 
                         // Processa submercados (times ou categorias)
-                        var subMarketButtons = market.QuerySelectorAllAsync("div.market-layout-card__team").GetAwaiter().GetResult();
-                        if (subMarketButtons != null && subMarketButtons.Length > 0)
+                        var subMarketButtons = market.QuerySelectorAllAsync("button.segmented-control-tab").GetAwaiter().GetResult();
+                        if (subMarketButtons is { Length: > 0 })
                         {
                             foreach (var subMarketButton in subMarketButtons)
                             {
@@ -561,8 +559,8 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                                 // Aguarda um curto intervalo para verificar se o botão foi clicado
                                                 Thread.Sleep(new Random().Next(511, 822));
 
-                                                // Verifica se o botão foi marcado como clicado
-                                                var isSelected = subMarketButton.EvaluateFunctionAsync<bool>("el => el.hasAttribute('data-is-team-selected')").GetAwaiter().GetResult();
+                                                // Verifica se o botão foi marcado como clicado (classe active)
+                                                var isSelected = subMarketButton.EvaluateFunctionAsync<bool>("el => el.classList.contains('segmented-control-tab--active')").GetAwaiter().GetResult();
                                                 if (isSelected)
                                                 {
                                                     Console.WriteLine($"Submercado '{subMarketName}' clicado com sucesso na tentativa {attempt}.");
@@ -584,7 +582,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                                         if (!isClicked)
                                         {
                                             Console.WriteLine($"Falha ao clicar no submercado '{subMarketName}' após 3 tentativas. Ignorando este submercado.");
-                                            return;
+                                            continue;
                                         }
 
                                         // Processa o mercado expandido com o submercado
@@ -624,12 +622,31 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             {
                 // Verifica se o mercado está registrado nas tags
                 var tagNames = SuperbetTags.TagNames;
-                var matchingTag = tagNames.FirstOrDefault(tag => tag.Value.Any(tagValue => _teamService.NormalizeText(tagValue) == _teamService.NormalizeText(marketTitle)));
+                var normalizedMarketTitle = NormalizeForTagMatching(marketTitle);
 
+                // Tentativa direta de correspondência exata (case insensitive)
+                var matchingTag = tagNames.FirstOrDefault(tag =>
+                    tag.Value.Any(tagValue => NormalizeForTagMatching(tagValue) == normalizedMarketTitle));
+
+                // Fallback: tenta correspondência por conteúdo (quando o título incluir o time ou sufixos)
                 if (matchingTag.Key == 0)
                 {
-                    Console.WriteLine($"Tag não encontrada para o mercado: {marketTitle}");
-                    return;
+                    matchingTag = tagNames.FirstOrDefault(tag => tag.Value.Any(tagValue =>
+                    {
+                        var normalizedTagValue = NormalizeForTagMatching(tagValue);
+                        return normalizedMarketTitle.Contains(normalizedTagValue) ||
+                               normalizedTagValue.Contains(normalizedMarketTitle);
+                    }));
+
+                    if (matchingTag.Key != 0)
+                    {
+                        Console.WriteLine($"Fallback de tag aplicado para o mercado: {marketTitle} -> TagId {matchingTag.Key}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Tag não encontrada para o mercado: {marketTitle}");
+                        return;
+                    }
                 }
 
                 int tagId = matchingTag.Key;
@@ -637,13 +654,58 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 // Captura todas as linhas de apostas do mercado
                 var betRows = market.QuerySelectorAllAsync("div.market-layout-card__row").GetAwaiter().GetResult();
 
-                if (betRows == null || !betRows.Any())
+                if (betRows == null || betRows.Length == 0)
                 {
                     Console.WriteLine($"Nenhuma linha de aposta encontrada no mercado: {marketTitle}");
                     return;
                 }
 
-                List<BetInfo> currentBets = new List<BetInfo>();
+                // Captura os labels das colunas a partir do header do card (uma vez por mercado)
+                // Observação: alguns mercados usam `market-layout-card__market > div.market-layout-card__header`
+                // enquanto outros podem ter a estrutura diretamente em `market-layout-card__header`. Tentamos ambos.
+                var columnHeaderElements = market.QuerySelectorAllAsync("div.market-layout-card__header div.market-layout-card__column-header").GetAwaiter().GetResult();
+                if (columnHeaderElements == null || columnHeaderElements.Length == 0)
+                {
+                    columnHeaderElements = market.QuerySelectorAllAsync("div.market-layout-card__market div.market-layout-card__column-header").GetAwaiter().GetResult();
+                }
+                List<string> headerLabels = [];
+                if (columnHeaderElements != null && columnHeaderElements.Length > 0)
+                {
+                    foreach (var el in columnHeaderElements)
+                    {
+                        try
+                        {
+                            // Ignora header principal (por exemplo, 'Gols' ou 'Chutes no gol')
+                            var className = el.EvaluateFunctionAsync<string>("e => e.className").GetAwaiter().GetResult() ?? string.Empty;
+                            if (className.Contains("--main"))
+                                continue;
+
+                            var inner = el.QuerySelectorAsync("div").GetAwaiter().GetResult();
+                            var txt = inner != null
+                                ? inner.EvaluateFunctionAsync<string>("n => n.textContent.trim()").GetAwaiter().GetResult()
+                                : el.EvaluateFunctionAsync<string>("n => n.textContent.trim()").GetAwaiter().GetResult();
+                            headerLabels.Add(txt ?? string.Empty);
+                        }
+                        catch
+                        {
+                            headerLabels.Add(string.Empty);
+                        }
+                    }
+                }
+
+                int maisIndex = headerLabels.FindIndex(lbl => !string.IsNullOrWhiteSpace(lbl) && lbl.Trim().Equals("MAIS", StringComparison.OrdinalIgnoreCase));
+                int menosIndex = headerLabels.FindIndex(lbl => !string.IsNullOrWhiteSpace(lbl) && lbl.Trim().Equals("MENOS", StringComparison.OrdinalIgnoreCase));
+
+                Console.WriteLine($"Headers detectados (market): [{string.Join(", ", headerLabels)}] => MAIS idx: {maisIndex}, MENOS idx: {menosIndex}");
+
+                // Se nenhum estiver presente, ignora o mercado (comportamento anterior)
+                if (maisIndex < 0 && menosIndex < 0)
+                {
+                    Console.WriteLine($"Headers 'MAIS' e 'MENOS' não encontrados para o mercado: {marketTitle}. Ignorando este mercado.");
+                    return;
+                }
+
+                var currentBets = new List<BetInfo>();
 
                 foreach (var betRow in betRows)
                 {
@@ -659,19 +721,39 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                             continue;
                         }
 
-                        // Captura os botões de odds
-                        var oddButtons = betRow.QuerySelectorAllAsync("div.market-layout-card__odd-container button").GetAwaiter().GetResult();
+                        // Captura os contêineres de odds na ordem das colunas e seleciona o botão dentro deles
+                        var oddContainers = betRow.QuerySelectorAllAsync("div.market-layout-card__odd-container").GetAwaiter().GetResult();
 
-                        if (oddButtons.Length == 2)
+                        // Processa cada container na mesma ordem, associando-o ao header correspondente (por índice)
+                        for (int i = 0; i < oddContainers.Length; i++)
                         {
-                            // "Mais de" e "Menos de"
-                            ProcessBetOdds(oddButtons[0], "Mais de", betName, marketTitle, tagId, currentBets);
-                            ProcessBetOdds(oddButtons[1], "Menos de", betName, marketTitle, tagId, currentBets);
-                        }
-                        else if (oddButtons.Length == 1)
-                        {
-                            // Apenas "Mais de"
-                            ProcessBetOdds(oddButtons[0], "Mais de", betName, marketTitle, tagId, currentBets);
+                            try
+                            {
+                                var container = oddContainers[i];
+                                var btn = container.QuerySelectorAsync("button").GetAwaiter().GetResult();
+                                if (btn == null) continue;
+
+                                var label = headerLabels.ElementAtOrDefault(i) ?? string.Empty;
+                                label = label.Trim();
+
+                                if (label.Equals("MAIS", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    ProcessBetOdds(btn, "MAIS", betName, marketTitle, tagId, currentBets);
+                                }
+                                else if (label.Equals("MENOS", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    ProcessBetOdds(btn, "MENOS", betName, marketTitle, tagId, currentBets);
+                                }
+                                else
+                                {
+                                    // Se label vazio ou diferente, ignora para evitar mapeamento incorreto
+                                    Console.WriteLine($"Coluna de odds na posição {i + 1} não identificada como MAIS/MENOS (label='{label}'). Ignorando.");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Erro ao processar container de odds na posição {i}: {ex.Message}");
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -681,7 +763,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 }
 
                 // Salva as apostas no banco de dados
-                if (currentBets.Any())
+                if (currentBets.Count > 0)
                 {
                     SaveBets(currentBets);
                 }
@@ -696,10 +778,24 @@ namespace BetSniffer.Api.Core.Sites.Superbet
         {
             try
             {
-                var multiplierElement = button.QuerySelectorAsync("span.odd-button__odd-value-placeholder").GetAwaiter().GetResult();
+                // Novo seletor para a estrutura atualizada: span dentro de div.actionable
+                var multiplierElement = button.QuerySelectorAsync("span.odd-button__odd-value span").GetAwaiter().GetResult();
                 var multiplierText = multiplierElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                if (decimal.TryParse(multiplierText?.Replace('.', ','), out var multiplier))
+                
+                if (string.IsNullOrEmpty(multiplierText))
                 {
+                    Console.WriteLine($"Multiplicador não encontrado para a aposta: {betName}");
+                    return;
+                }
+
+                if (decimal.TryParse(multiplierText.Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture, out var multiplier))
+                {
+                    // Ignora odds inválidas ou zeradas
+                    if (multiplier <= 0)
+                    {
+                        Console.WriteLine($"Multiplicador inválido ou zerado ('{multiplierText}') para a aposta: {betName}. Ignorando.");
+                        return;
+                    }
                     currentBets.Add(new BetInfo
                     {
                         GamesInfo = gamesInfo,
@@ -712,6 +808,12 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                         Site = gamesInfo.Site,
                         TagId = tagId
                     });
+                    
+                    Console.WriteLine($"Aposta capturada: {betName} - {overUnder} - {multiplier}");
+                }
+                else
+                {
+                    Console.WriteLine($"Erro ao converter multiplicador '{multiplierText}' para decimal na aposta: {betName}");
                 }
             }
             catch (Exception ex)
@@ -720,10 +822,39 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             }
         }
 
-        private decimal ParseBetAmount(string betName)
+        private string NormalizeForTagMatching(string text)
+        {
+            var cleaned = _teamService.NormalizeText(text ?? string.Empty);
+            cleaned = RemoveDiacritics(cleaned);
+            cleaned = Regex.Replace(cleaned, "\\s+", " ");
+            return cleaned.Trim().ToLowerInvariant();
+        }
+
+        private static string RemoveDiacritics(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var normalizedString = text.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder(normalizedString.Length);
+
+            foreach (var c in normalizedString)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
+        }
+
+        private static decimal ParseBetAmount(string betName)
         {
             // Usa Regex para encontrar valores decimais corretamente
-            var match = Regex.Match(betName, @"[+-]?\d+[.,]?\d*");
+            var match = BetAmountRegex().Match(betName);
             if (match.Success)
             {
                 // Tenta converter o valor diretamente para decimal, garantindo o formato correto
@@ -738,7 +869,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
         private void SaveBets(List<BetInfo> bets)
         {
-            if (bets == null || !bets.Any())
+            if (bets == null || bets.Count == 0)
                 return;
 
             // Cria um HashSet com combinações únicas dos critérios relevantes
@@ -746,7 +877,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
                 .Select(bet => new { bet.TagName, bet.OverUnder, bet.TagId, bet.Site, bet.GamesInfo })
                 .ToHashSet();
 
-            foreach(var betKey in betKeys) 
+            foreach (var betKey in betKeys)
             {
                 var existingBets = _dbContext.BetInfo.Where(b =>
                                     b.GamesInfo.GameId == betKey.GamesInfo.GameId &&
@@ -771,5 +902,7 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             Console.WriteLine($"Salvas {bets.Count} novas apostas.");
         }
 
+        [GeneratedRegex("[+-]?\\d+[.,]?\\d*", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        private static partial Regex BetAmountRegex();
     }
 }

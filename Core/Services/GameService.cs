@@ -36,7 +36,7 @@ namespace BetSniffer.Api.Core.Services
         }
 
         // Método para encontrar um jogo pelo ID externo
-        private GamesInfo FindGameByExternalId(int externalId)
+        private GamesInfo? FindGameByExternalId(int externalId)
         {
             return _context.GamesInfo
                 .FirstOrDefault(g => g.GameId == externalId);

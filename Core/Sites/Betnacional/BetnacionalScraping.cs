@@ -12,23 +12,19 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
     public class BetnacionalScraping : IScrapingService
     {
         #region VariaveisGlobais
-
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
         private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
-        private WebScrapingServicePuppeteer _webScrapingService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
         private readonly ILogService _logService;
 
         #endregion
@@ -458,7 +454,7 @@ namespace BetSniffer.Api.Core.Sites.Betnacional
             }
         }
 
-        private async Task ProcessMarketViews(IPage page, Dictionary<int, List<string>> tagNames, string tabName = null)
+        private async Task ProcessMarketViews(IPage page, Dictionary<int, List<string>> tagNames, string? tabName = null)
         {
             try
             {

@@ -13,12 +13,12 @@ namespace BetSniffer.Api.Core.Sites.Bet365
     {
         #region VariaveisGlobais
 
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
@@ -26,7 +26,7 @@ namespace BetSniffer.Api.Core.Sites.Bet365
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
         private readonly GameService _gameService;
         private readonly ILogService _logService;
-        private WebScrapingServicePuppeteer _webScrapingService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
 
         #endregion
 
@@ -129,22 +129,32 @@ namespace BetSniffer.Api.Core.Sites.Bet365
                 if (gameContainer == null)
                     throw new Exception("Container do jogo não encontrado.");
 
-                var homeTeamElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_homeTeam > span").GetAwaiter().GetResult();
-                homeTeam = homeTeamElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var homeTeamElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_homeTeam > span").GetAwaiter().GetResult()
+                    ?? throw new Exception("Elemento do time da casa não encontrado.");
+                homeTeam = homeTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(homeTeam))
+                    throw new Exception("Nome do time da casa não encontrado.");
 
-                var awayTeamElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_awayTeam > span").GetAwaiter().GetResult();
-                awayTeam = awayTeamElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var awayTeamElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_awayTeam > span").GetAwaiter().GetResult()
+                    ?? throw new Exception("Elemento do time visitante não encontrado.");
+                awayTeam = awayTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(awayTeam))
+                    throw new Exception("Nome do time visitante não encontrado.");
 
-                var leagueElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_leagueName > span").GetAwaiter().GetResult();
-                leagueName = leagueElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var leagueElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_leagueName > span").GetAwaiter().GetResult()
+                    ?? throw new Exception("Elemento da liga não encontrado.");
+                leagueName = leagueElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(leagueName))
+                    throw new Exception("Nome da liga não encontrado.");
 
-                var gameDateElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_startDate").GetAwaiter().GetResult();
-                var gameDateText = gameDateElement?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                var gameDateElement = gameContainer.QuerySelectorAsync("div.eventpage_fe_UpcomingScoreboard_startDate").GetAwaiter().GetResult()
+                    ?? throw new Exception("Elemento de data/hora não encontrado.");
+                var gameDateText = gameDateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
 
-                if (!string.IsNullOrEmpty(gameDateText))
-                {
-                    gameDateTime = ParseGameDateTime(gameDateText);
-                }
+                if (string.IsNullOrWhiteSpace(gameDateText))
+                    throw new Exception("Data/hora do jogo não encontrada.");
+
+                gameDateTime = ParseGameDateTime(gameDateText);
 
                 Console.WriteLine($"🏆 Liga: {leagueName}");
                 Console.WriteLine($"🏟 Times: {homeTeam} vs {awayTeam}");

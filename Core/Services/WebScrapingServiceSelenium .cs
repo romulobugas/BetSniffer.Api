@@ -9,7 +9,20 @@ namespace BetSniffer.Api.Core.Services
 {
     public class WebScrapingServiceSelenium : IDisposable
     {
-        private IWebDriver _driver;
+        private IWebDriver? _driver;
+
+        private IWebDriver Driver
+        {
+            get
+            {
+                if (_driver is null)
+                {
+                    throw new InvalidOperationException("WebScrapingServiceSelenium não foi inicializado. Chame Initialize() antes de usar outras operações.");
+                }
+
+                return _driver;
+            }
+        }
 
         public void Initialize()
         {
@@ -58,7 +71,7 @@ namespace BetSniffer.Api.Core.Services
 
             try
             {
-                ((IJavaScriptExecutor)_driver).ExecuteScript(script);
+                ((IJavaScriptExecutor)Driver).ExecuteScript(script);
             }
             catch (Exception ex)
             {
@@ -70,9 +83,20 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                _driver.Navigate().GoToUrl(url);
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
-                wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState").Equals("complete"));
+                var driver = Driver;
+                driver.Navigate().GoToUrl(url);
+                WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+
+                if (driver is not IJavaScriptExecutor executor)
+                {
+                    throw new InvalidOperationException("O driver atual não suporta execução de JavaScript.");
+                }
+
+                wait.Until(_ =>
+                {
+                    var state = executor.ExecuteScript("return document.readyState") as string;
+                    return string.Equals(state, "complete", StringComparison.OrdinalIgnoreCase);
+                });
             }
             catch (Exception ex)
             {
@@ -85,7 +109,8 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                return _driver.PageSource;
+                return Driver.PageSource;
+
             }
             catch (Exception ex)
             {
@@ -98,7 +123,8 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                WebDriverWait wait = new WebDriverWait(Driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+
                 return wait.Until(d =>
                 {
                     if (selector.StartsWith("//") || selector.StartsWith(".//"))
@@ -125,7 +151,7 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                WebDriverWait wait = new WebDriverWait(Driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
                 return wait.Until(d =>
                 {
                     if (selector.StartsWith("//") || selector.StartsWith(".//"))
@@ -151,7 +177,7 @@ namespace BetSniffer.Api.Core.Services
         {
             try
             {
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                WebDriverWait wait = new WebDriverWait(Driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
                 return wait.Until(d =>
                 {
                     if (selector.StartsWith("//") || selector.StartsWith(".//"))
@@ -173,11 +199,11 @@ namespace BetSniffer.Api.Core.Services
             }
         }
 
-        public IWebElement TryWaitForElement(string selector, int timeoutMilliseconds = 10000)
+        public IWebElement? TryWaitForElement(string selector, int timeoutMilliseconds = 10000)
         {
             try
             {
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                WebDriverWait wait = new WebDriverWait(Driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
                 return wait.Until(d =>
                 {
                     if (selector.StartsWith("//") || selector.StartsWith(".//"))
@@ -204,11 +230,11 @@ namespace BetSniffer.Api.Core.Services
             }
         }
 
-        public IWebElement FindElementWithin(IWebElement container, string selector, int timeoutMilliseconds = 10000)
+        public IWebElement? FindElementWithin(IWebElement container, string selector, int timeoutMilliseconds = 10000)
         {
             try
             {
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                WebDriverWait wait = new WebDriverWait(Driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
                 return wait.Until(_ =>
                 {
                     if (selector.StartsWith("//") || selector.StartsWith(".//"))
@@ -230,11 +256,11 @@ namespace BetSniffer.Api.Core.Services
             }
         }
 
-        public IWebElement TryFindElementWithin(IWebElement container, string selector, int timeoutMilliseconds = 10000)
+        public IWebElement? TryFindElementWithin(IWebElement container, string selector, int timeoutMilliseconds = 10000)
         {
             try
             {
-                WebDriverWait wait = new WebDriverWait(_driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
+                WebDriverWait wait = new WebDriverWait(Driver, TimeSpan.FromMilliseconds(timeoutMilliseconds));
                 return wait.Until(_ =>
                 {
                     if (selector.StartsWith("//") || selector.StartsWith(".//"))
@@ -264,7 +290,8 @@ namespace BetSniffer.Api.Core.Services
 
         public IWebDriver GetWebDriver()
         {
-            return _driver;
+            return Driver;
+
         }
 
 
@@ -278,6 +305,10 @@ namespace BetSniffer.Api.Core.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao finalizar o WebDriver: {ex.Message}");
+            }
+            finally
+            {
+                _driver = null;
             }
         }
     }

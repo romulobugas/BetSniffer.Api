@@ -28,26 +28,19 @@ namespace BetSniffer.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class BatchScrapingController : ControllerBase
+    public class BatchScrapingController(IServiceScopeFactory serviceScopeFactory, IOptions<ScrapingSettings> scrapingSettings) : ControllerBase
     {
         #region Globais
 
-        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IServiceScopeFactory _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
 
-        private static readonly ConcurrentBag<Thread> _scrapingThreads = new();
+        private static readonly ConcurrentBag<Thread> _scrapingThreads = [];
 
         private static readonly ConcurrentDictionary<string, Task> _runningTasks = new();
 
-        private readonly ScrapingSettings _scrapingSettings;
+        private readonly ScrapingSettings _scrapingSettings = (scrapingSettings ?? throw new ArgumentNullException(nameof(scrapingSettings))).Value ?? throw new ArgumentNullException(nameof(scrapingSettings));
 
         #endregion
-
-        public BatchScrapingController(IServiceScopeFactory serviceScopeFactory, IOptions<ScrapingSettings> scrapingSettings)
-        {
-            _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
-
-            _scrapingSettings = scrapingSettings.Value ?? throw new ArgumentNullException(nameof(scrapingSettings));
-        }
 
         [HttpPost("scrape")]
         public IActionResult ScrapeTagsBatch([FromBody] List<ScrapeRequest> requests)
@@ -65,7 +58,7 @@ namespace BetSniffer.Api.Controllers
                 .ToList();
 
             int maxThreads = _scrapingSettings.MaxConcurrentThreads;
-            SemaphoreSlim semaphore = new SemaphoreSlim(maxThreads);
+            SemaphoreSlim semaphore = new(maxThreads);
 
             var results = new ConcurrentBag<object>();
             var errors = new ConcurrentBag<string>();
@@ -106,12 +99,12 @@ namespace BetSniffer.Api.Controllers
 
                             results.Add(new
                             {
-                                Url = request.URL,
-                                SiteName = siteName,
+                                request.URL,
+                                siteName,
                                 Result = "Sucesso",
-                                GameDate = request.GameDate,
-                                HomeTeam = request.HomeTeam,
-                                AwayTeam = request.AwayTeam
+                                request.GameDate,
+                                request.HomeTeam,
+                                request.AwayTeam
                             });
                         }
                         catch (Exception ex)
@@ -141,7 +134,7 @@ namespace BetSniffer.Api.Controllers
             });
         }
 
-        private string ExtractSiteName(string url)
+        private static string ExtractSiteName(string url)
         {
             var uri = new Uri(url);
             string host = uri.Host;
@@ -153,12 +146,12 @@ namespace BetSniffer.Api.Controllers
                 return "pixbet";
             }
 
-            string[] parts = host.Split('.');
+            var parts = host.Split('.');
 
             // Se houver mais de dois componentes e o último for um domínio de nível superior (.br, .com, etc.), pega o penúltimo
             if (parts.Length >= 3)
             {
-                return parts[parts.Length - 3]; // Ex: betfast.bet.br -> "betfast"
+                return parts[^3]; // Ex: betfast.bet.br -> "betfast"
             }
             else if (parts.Length == 2)
             {
@@ -168,9 +161,9 @@ namespace BetSniffer.Api.Controllers
             return host;
         }
 
-        private IScrapingService GetScrapingService(string siteName, ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository,IRepositoryService<BetInfo> betInfoRepository)
+        private static IScrapingService GetScrapingService(string siteName, ApplicationDbContext dbContext, TeamService teamService, IRepositoryService<GamesInfo> gamesInfoRepository, IRepositoryService<BetInfo> betInfoRepository)
         {
-            return siteName.ToLower() switch
+            return siteName.ToLowerInvariant() switch
             {
                 "novibet" => new NovibetScraping(dbContext, gamesInfoRepository, betInfoRepository, teamService),
                 "vbet" => new VbetScraping(dbContext, teamService, gamesInfoRepository, betInfoRepository),
@@ -208,7 +201,7 @@ namespace BetSniffer.Api.Controllers
         {
             try
             {
-                string[] validFormats = { "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy" };
+                string[] validFormats = ["dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy"];
 
                 if (!DateTime.TryParseExact(startDate, validFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime startGameDate))
                 {
@@ -232,13 +225,12 @@ namespace BetSniffer.Api.Controllers
                         .AddHours(1).AddMinutes(15);
                 }
 
-                List<int> siteIdList = new List<int>();
+                List<int> siteIdList = [];
                 if (!string.IsNullOrEmpty(siteIds))
                 {
                     siteIdList = siteIds.Split(',')
-                        .Select(id => int.TryParse(id, out int parsedId) ? parsedId : (int?)null)
-                        .Where(id => id.HasValue)
-                        .Select(id => id.Value)
+                        .Select(id => int.TryParse(id, out var parsedId) ? parsedId : (int?)null)
+                        .OfType<int>()
                         .ToList();
                 }
 
@@ -248,9 +240,9 @@ namespace BetSniffer.Api.Controllers
                 var baseQuery = dbContext.GamesInfo
                     .Where(g => g.GameDate >= startOfDay && g.GameDate <= endOfDay);
 
-                if (siteIdList.Any())
+                if (siteIdList.Count > 0)
                 {
-                    baseQuery = baseQuery.Where(g => siteIdList.Contains(g.SiteId.Value));
+                    baseQuery = baseQuery.Where(g => g.SiteId.HasValue && siteIdList.Contains(g.SiteId.Value));
                 }
 
                 var games = siteIdList.Count == 1
@@ -261,7 +253,7 @@ namespace BetSniffer.Api.Controllers
                             g.GameDate,
                             HomeTeam = g.HomeTeamId,
                             AwayTeam = g.AwayTeamId,
-                            URLs = new List<string> { g.URL }
+                            URLs = new List<string> { g.URL! }
                         })
                         .OrderBy(g => g.GameDate)
                         .ThenBy(g => g.HomeTeam)
@@ -273,11 +265,11 @@ namespace BetSniffer.Api.Controllers
                         .Where(group => group.Select(g => g.SiteId).Distinct().Count() > 1)
                         .Select(group => new
                         {
-                            GameDate = group.Key.GameDate,
+                            group.Key.GameDate,
                             HomeTeam = group.Key.HomeTeamId,
                             AwayTeam = group.Key.AwayTeamId,
                             URLs = group.Where(g => !string.IsNullOrEmpty(g.URL))
-                                        .Select(g => g.URL)
+                                        .Select(g => g.URL!)
                                         .Distinct()
                                         .ToList()
                         })
@@ -301,7 +293,7 @@ namespace BetSniffer.Api.Controllers
                     .ThenBy(r => r.AwayTeam)
                     .ToList();
 
-                if (!requests.Any())
+                if (requests.Count == 0)
                 {
                     return Ok(new { message = "Nenhum jogo com URL para scraping foi encontrado." });
                 }
@@ -331,12 +323,12 @@ namespace BetSniffer.Api.Controllers
                 var sites = dbContext.Site
                     .Select(s => new
                     {
-                        SiteId = s.SiteId,
-                        Name = s.Name
+                        s.SiteId,
+                        s.Name
                     })
                     .ToList();
 
-                if (!sites.Any())
+                if (sites.Count == 0)
                 {
                     return NotFound(new { message = "Nenhum site encontrado." });
                 }
@@ -408,7 +400,7 @@ namespace BetSniffer.Api.Controllers
                     .OrderByDescending(ar => ar.ArbitrageLucroPercent)
                     .ToList();
 
-                if (!results.Any())
+                if (results.Count == 0)
                 {
                     return NotFound(new { message = "Nenhum resultado de arbitragem encontrado." });
                 }
@@ -458,7 +450,7 @@ namespace BetSniffer.Api.Controllers
         [HttpPost("scrape-leagues")]
         public IActionResult ScrapeLeaguesBatch([FromBody] List<string> leagueUrls)
         {
-            if (leagueUrls == null || !leagueUrls.Any())
+            if (leagueUrls == null || leagueUrls.Count == 0)
                 return BadRequest(new { message = "A lista de ligas não pode estar vazia." });
 
             var results = new ConcurrentBag<object>();
@@ -501,7 +493,7 @@ namespace BetSniffer.Api.Controllers
                         if (scraper is ILeagueScrapingService leagueScraper)
                         {
                             leagueScraper.ScrapeLeague(url, siteName);
-                            results.Add(new { Url = url, SiteName = siteName, Result = "Liga processada com sucesso" });
+                            results.Add(new { url, siteName, Result = "Liga processada com sucesso" });
                         }
                         else
                         {

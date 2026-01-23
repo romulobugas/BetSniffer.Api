@@ -33,18 +33,17 @@ namespace BetSniffer.Api
             // ? Configurar DatabaseSettings
             builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
             
-            // ? Registrar o serviço de conexão de banco de dados
+            // ? Registrar o serviï¿½o de conexï¿½o de banco de dados
             builder.Services.AddScoped<DatabaseConnectionService>();
             
             // ? Registrar o LogService
             builder.Services.AddScoped<ILogService, LogService>();
 
-            // ? Registrar serviços de consolidação (FASE 1)
-            builder.Services.AddScoped<PuppeteerPageService>();
+            // ? Registrar serviï¿½os de consolidaï¿½ï¿½o (FASE 1)
             builder.Services.AddScoped<DateTimeParsingService>();
             builder.Services.AddScoped<BetSavingService>();
 
-            // Configuração do Kestrel para HTTP/HTTPS com base no ambiente
+            // Configuraï¿½ï¿½o do Kestrel para HTTP/HTTPS com base no ambiente
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
                 if (environment != "Production")
@@ -56,17 +55,17 @@ namespace BetSniffer.Api
                 }
                 else
                 {
-                    serverOptions.ListenAnyIP(5000); // Apenas HTTP em produção
+                    serverOptions.ListenAnyIP(5000); // Apenas HTTP em produï¿½ï¿½o
                 }
             });
 
-            // Configuração do WebDriver como Singleton
+            // Configuraï¿½ï¿½o do WebDriver como Singleton
             builder.Services.AddSingleton<IWebDriver>(serviceProvider =>
             {
                 var options = new ChromeOptions();
                 options.AddArgument("--disable-gpu");
                 options.AddArgument("--no-sandbox");
-                options.AddArgument("--headless"); // Remova esta linha para depuração visual
+                options.AddArgument("--headless"); // Remova esta linha para depuraï¿½ï¿½o visual
                 return new ChromeDriver(options);
             });
 
@@ -77,17 +76,17 @@ namespace BetSniffer.Api
                     sqlOptions => sqlOptions.CommandTimeout(180) // Timeout configurado
                 ));
 
-            // Adiciona ScrapingSettings como uma configuração injetável
+            // Adiciona ScrapingSettings como uma configuraï¿½ï¿½o injetï¿½vel
             builder.Services.Configure<ScrapingSettings>(builder.Configuration.GetSection("ScrapingSettings"));
 
 
-            // Registra a fábrica para uso em serviços ou controladores
+            // Registra a fï¿½brica para uso em serviï¿½os ou controladores
             builder.Services.AddScoped<ApplicationDbContextFactory>();
 
-            // Registro de repositórios genéricos
+            // Registro de repositï¿½rios genï¿½ricos
             builder.Services.AddScoped(typeof(IRepositoryService<>), typeof(RepositoryService<>));
 
-            // Registro de serviços específicos
+            // Registro de serviï¿½os especï¿½ficos
             builder.Services.AddScoped<NovibetScraping>();
             builder.Services.AddScoped<VbetScraping>();
             builder.Services.AddScoped<BetanoScraping>();
@@ -100,7 +99,7 @@ namespace BetSniffer.Api
             builder.Services.AddScoped<BatchScrapingController>();
             builder.Services.AddScoped<GamesUpdateController>();            
 
-            // Configuração de CORS (liberação total)
+            // Configuraï¿½ï¿½o de CORS (liberaï¿½ï¿½o total)
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -111,32 +110,32 @@ namespace BetSniffer.Api
                 });
             });
 
-            // Registro de serviços básicos
+            // Registro de serviï¿½os bï¿½sicos
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddControllers();
 
             var app = builder.Build();
 
-            // Configuração de CORS
+            // Configuraï¿½ï¿½o de CORS
             app.UseCors("AllowAll");
 
-            // Configuração para servir arquivos estáticos do front
+            // Configuraï¿½ï¿½o para servir arquivos estï¿½ticos do front
             app.UseStaticFiles(new StaticFileOptions
             {
                 FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
                     Path.Combine(builder.Environment.ContentRootPath, "Frontend")),
                 RequestPath = "",
-                ServeUnknownFileTypes = true, // Permite servir qualquer tipo de arquivo estático
+                ServeUnknownFileTypes = true, // Permite servir qualquer tipo de arquivo estï¿½tico
                 DefaultContentType = "text/html"
             });
 
-            // Configuração do Swagger
+            // Configuraï¿½ï¿½o do Swagger
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "BetSniffer API V1");
-                c.RoutePrefix = "swagger"; // Swagger acessível em /swagger
+                c.RoutePrefix = "swagger"; // Swagger acessï¿½vel em /swagger
             });
 
             // Redirecionamento da raiz para o front
@@ -152,7 +151,7 @@ namespace BetSniffer.Api
             // Mapear controladores
             app.MapControllers();
 
-            // Finalização do WebDriver
+            // Finalizaï¿½ï¿½o do WebDriver
             using (var scope = app.Services.CreateScope())
             {
                 var driver = scope.ServiceProvider.GetRequiredService<IWebDriver>();

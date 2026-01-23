@@ -16,14 +16,14 @@ namespace BetSniffer.Api.Core.Sites.Vbet
         #region VariaveisGlobais
 
         private readonly WebScrapingServiceSelenium _webScrapingService;
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
+        private string gameName = string.Empty;
+        private string gameDayText = string.Empty;
+        private string gameHourText = string.Empty;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;

@@ -6,30 +6,29 @@ using BetSniffer.Api.Data;
 using BetSniffer.Api.Core.Interfaces;
 using BetSniffer.Api.Core.Sites.Betano;
 using System.Globalization;
+using System.Threading.Tasks;
 
 namespace BetSniffer.Api.Core.Sites.Betfair
 {
-    public class BetfairScraping : IScrapingService, ILeagueScrapingService
+    public partial class BetfairScraping : IScrapingService, ILeagueScrapingService
     {
         #region VariaveisGlobais
-
-        private string gameName;
-        private string gameDayText;
-        private string gameHourText;
-        private string homeTeam;
-        private string awayTeam;
-        private string leagueName;
+        private string homeTeam = string.Empty;
+        private string awayTeam = string.Empty;
+        private string leagueName = string.Empty;
         private DateTime gameDateTime;
-        private Site site;
-        private GamesInfo gamesInfo;
+        private Site site = null!;
+        private GamesInfo gamesInfo = null!;
         private readonly GameService _gameService;
 
         private readonly ApplicationDbContext _dbContext;
         private readonly TeamService _teamService;
         private readonly IRepositoryService<GamesInfo> _gamesInfoRepository;
         private readonly IRepositoryService<BetInfo> _betInfoRepository;
-        private WebScrapingServicePuppeteer _webScrapingService;
-        private readonly ILogService _logService;
+        private WebScrapingServicePuppeteer _webScrapingService = null!;
+        private readonly LogService _logService;
+
+        private static readonly char[] DateSplitSeparators = [' ', ',', '.'];
 
         #endregion
 
@@ -57,8 +56,9 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             if (string.IsNullOrEmpty(siteName))
                 throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
 
-            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ??
-                       AddNewSite(siteName);
+            var siteSet = _dbContext.Site ?? throw new InvalidOperationException("DbSet<Site> não configurado no contexto.");
+            site = siteSet.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ??
+                   AddNewSite(siteName);
 
             _webScrapingService = new WebScrapingServicePuppeteer();
             _webScrapingService.Initialize();
@@ -75,7 +75,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             //_gameService.ClosePopup(page,popupSelector);
 
-            ExtractGameInfo(page);
+            ExtractGameInfo(page).GetAwaiter().GetResult();
 
             // Inicializa informações do jogo
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
@@ -83,7 +83,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             BetfairTags.AddDynamicTags(_teamService.NormalizeText(homeTeam), _teamService.NormalizeText(awayTeam));
 
-            var existingGame = _dbContext.GamesInfo
+            var gamesInfoSet = _dbContext.GamesInfo ?? throw new InvalidOperationException("DbSet<GamesInfo> não configurado no contexto.");
+            var existingGame = gamesInfoSet
             .FirstOrDefault(g =>
                 g.HomeTeamId == homeTeamDb &&
                 g.AwayTeamId == awayTeamDb &&
@@ -98,14 +99,15 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 gamesInfo.GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam);
 
                 // Verifica se existem apostas associadas ao jogo
-                var existingBets = _dbContext.BetInfo.Where(b => b.GameId == gamesInfo.GameId).ToList();
+                var betInfoSet = _dbContext.BetInfo ?? throw new InvalidOperationException("DbSet<BetInfo> não configurado no contexto.");
+                var existingBets = betInfoSet.Where(b => b.GameId == gamesInfo.GameId).ToList();
 
-                if (existingBets.Any())
+                if (existingBets.Count > 0)
                 {
                     Console.WriteLine($"Encontradas {existingBets.Count} apostas associadas ao jogo: {gamesInfo.GameName}");
 
                     // Remove todas as apostas associadas ao jogo
-                    _dbContext.BetInfo.RemoveRange(existingBets);
+                    betInfoSet.RemoveRange(existingBets);
                     Console.WriteLine($"Apostas associadas ao jogo {gamesInfo.GameName} da casa {gamesInfo.Site.Name} foram removidas.");
                 }
             }
@@ -123,7 +125,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     LastUpdated = DateTime.Now,
                     GameName = _teamService.NormalizeText(homeTeam) + " - " + _teamService.NormalizeText(awayTeam)
                 };
-                _dbContext.GamesInfo.Add(gamesInfo);
+                gamesInfoSet.Add(gamesInfo);
 
                 // Como o jogo é novo, nenhuma aposta estará associada a ele ainda.
                 Console.WriteLine($"Nenhuma aposta associada ao jogo: {gamesInfo.GameName} (novo jogo adicionado).");
@@ -142,7 +144,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             Console.WriteLine("Processo de raspagem concluído.");
             _webScrapingService.Dispose();
 
-            return new List<TagInfo>();
+            return [];
         }
 
         public void ScrapeLeague(string url, string siteName)
@@ -152,7 +154,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             if (string.IsNullOrEmpty(siteName))
                 throw new ArgumentException("Nome do site não pode ser nulo ou vazio.", nameof(siteName));
 
-            site = _dbContext.Site.FirstOrDefault(s => s.Name.ToLower() == siteName.ToLower()) ?? AddNewSite(siteName);
+            var siteSet = _dbContext.Site ?? throw new InvalidOperationException("DbSet<Site> não configurado no contexto.");
+            site = siteSet.FirstOrDefault(s => string.Equals(s.Name, siteName, StringComparison.OrdinalIgnoreCase)) ?? AddNewSite(siteName);
 
             _webScrapingService = new WebScrapingServicePuppeteer();
             _webScrapingService.Initialize();
@@ -165,12 +168,12 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             // Remove overlays e cookies
             RemoveObstruction(page, ".onetrust-pc-dark-filter.ot-fade-in");
 
-            // 🧠 Lê nome da liga
+            // Lê nome da liga
             var leagueHeader = page.QuerySelectorAsync("h1, h4").GetAwaiter().GetResult();
             string league = leagueHeader?.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult() ?? "Liga Desconhecida";
-            Console.WriteLine($"📌 Liga detectada: {league}");
+            Console.WriteLine($" Liga detectada: {league}");
 
-            // 🔁 Força carregamento de todos os jogos visíveis
+            // Força carregamento de todos os jogos visíveis
             var elementHandle = page.WaitForSelectorAsync("#scrollable-desktop-container").GetAwaiter().GetResult();
 
             if (elementHandle != null)
@@ -193,10 +196,10 @@ namespace BetSniffer.Api.Core.Sites.Betfair
             }
             else
             {
-                Console.WriteLine("⚠️ Elemento '#scrollable-desktop-container' não encontrado.");
+                Console.WriteLine(" Elemento '#scrollable-desktop-container' não encontrado.");
             }
 
-            // 🧠 Captura todos os links de jogos com padrão estável na URL
+            // Captura todos os links de jogos com padrão estável na URL
             var fixtureNodes = page.QuerySelectorAllAsync("a[class$='-fixtureHeaderContainer']").GetAwaiter().GetResult()
                                    .Where(node => node.QuerySelectorAsync("time[datetime]").GetAwaiter().GetResult() != null)
                                    .ToList();
@@ -204,22 +207,24 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
             if (fixtureNodes == null || fixtureNodes.Count == 0)
             {
-                Console.WriteLine("❌ Nenhum jogo encontrado na página.");
+                Console.WriteLine(" Nenhum jogo encontrado na página.");
                 return;
             }
+
+            var gamesInfoSet = _dbContext.GamesInfo ?? throw new InvalidOperationException("DbSet<GamesInfo> não configurado no contexto.");
 
             foreach (var fixture in fixtureNodes)
             {
                 try
                 {
-                    // 🧭 Foca visualmente no jogo para garantir renderização (evita problemas de lazy loading)
+                    // Foca visualmente no jogo para garantir renderização (evita problemas de lazy loading)
                     fixture.EvaluateFunctionAsync("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })").GetAwaiter().GetResult();
                     System.Threading.Thread.Sleep(new Random().Next(422, 685));
 
                     var gameInfoRoot = fixture.QuerySelectorAsync("section").GetAwaiter().GetResult();
                     if (gameInfoRoot == null) continue;
 
-                    // 🏷 Times
+                    // Times
                     var teamLabels = gameInfoRoot.QuerySelectorAllAsync("p").GetAwaiter().GetResult();
                     if (teamLabels.Length < 2) continue;
 
@@ -228,29 +233,48 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                     if (string.IsNullOrWhiteSpace(home) || string.IsNullOrWhiteSpace(away)) continue;
 
-                    // ⏰ Data/hora
-                    var timeElement = gameInfoRoot.QuerySelectorAsync("time").GetAwaiter().GetResult();
-                    string datetimeRaw = timeElement?.EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')").GetAwaiter().GetResult();
+                    // Data/hora
+                    var timeElement = gameInfoRoot?.QuerySelectorAsync("time").GetAwaiter().GetResult();
+                    if (timeElement == null) continue;
+
+                    var datetimeRaw = timeElement
+                        .EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')")
+                        .GetAwaiter()
+                        .GetResult();
+
                     if (string.IsNullOrWhiteSpace(datetimeRaw)) continue;
 
                     DateTime gameDate;
                     try
                     {
-                        gameDate = DateTime.Parse(datetimeRaw.Replace("GMT", "").Split('(')[0].Trim(), new CultureInfo("en-US"));
+                        var cleanDateString = datetimeRaw
+                            .Replace("GMT", string.Empty, StringComparison.OrdinalIgnoreCase)
+                            .Split('(')[0]
+                            .Trim();
+
+                        if (string.IsNullOrWhiteSpace(cleanDateString))
+                        {
+                            Console.WriteLine($" Data inválida (vazia após limpeza): {datetimeRaw}");
+                            continue;
+                        }
+
+                        if (!DateTime.TryParse(cleanDateString, new CultureInfo("en-US"), out gameDate))
+                        {
+                            Console.WriteLine($" Falha ao converter data: {cleanDateString}");
+                            continue;
+                        }
                     }
                     catch
                     {
-                        Console.WriteLine($"⚠️ Data inválida: {datetimeRaw}");
+                        Console.WriteLine($" Data inválida: {datetimeRaw}");
                         continue;
                     }
 
-                    // 🔗 URL do jogo
+                    // URL do jogo
                     var href = fixture.EvaluateFunctionAsync<string>("el => el.getAttribute('href')").GetAwaiter().GetResult();
 
-                    // Usa o caminho base da URL da liga até "/futebol/"
-                    var baseUri = new Uri(url);
-                    var basePath = baseUri.AbsolutePath;
-                    var baseUrl = url.Substring(0, url.IndexOf("/futebol/", StringComparison.OrdinalIgnoreCase));
+                    var futebolIndex = url.IndexOf("/futebol/", StringComparison.OrdinalIgnoreCase);
+                    var baseUrl = futebolIndex >= 0 ? url[..futebolIndex] : url;
 
                     // Monta o path completo do jogo, mantendo o prefixo correto (ex: "/apostas")
                     string fullUrl = href.StartsWith("http") ? href : $"{baseUrl}/futebol{href}";
@@ -260,10 +284,11 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     var awayId = _teamService.EnsureTeamExists(away);
 
                     // Verifica duplicidade
-                    var existing = _dbContext.GamesInfo.FirstOrDefault(g =>
+                    var existing = gamesInfoSet.FirstOrDefault(g =>
                         g.HomeTeamId == homeId &&
                         g.AwayTeamId == awayId &&
                         g.GameDate == gameDate &&
+                        g.Site != null &&
                         g.Site.SiteId == site.SiteId);
 
                     if (existing != null)
@@ -272,7 +297,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         existing.LastUpdated = DateTime.Now;
                         existing.URL = fullUrl;
                         existing.League = league;
-                        Console.WriteLine($"🔄 Jogo atualizado: {home} vs {away}");
+                        Console.WriteLine($" Jogo atualizado: {home} vs {away}");
                     }
                     else
                     {
@@ -288,21 +313,21 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                             LastUpdated = DateTime.Now,
                             GameName = _teamService.NormalizeText(home) + " - " + _teamService.NormalizeText(away)
                         };
-                        _dbContext.GamesInfo.Add(game);
-                        Console.WriteLine($"🆕 Novo jogo salvo: {home} vs {away}");
+                        gamesInfoSet.Add(game);
+                        Console.WriteLine($" Novo jogo salvo: {home} vs {away}");
                     }
 
                     _dbContext.SaveChanges();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ Erro ao processar jogo: {ex.Message}");
-                    _logService.LogError("Erro ao salvar jogo da liga Betfair", ex);
+                    Console.WriteLine($" Erro ao processar jogo: {ex.Message}");
+                    _logService.LogError("Erro ao salvar jogo da liga", ex);
                 }
             }
 
             _webScrapingService.Dispose();
-            Console.WriteLine("✅ Finalizado salvamento dos jogos da liga.");
+            Console.WriteLine(" Finalizado salvamento dos jogos da liga.");
         }
 
         public void RemoveObstruction(IPage page, string obstructionSelector, int timeoutMilliseconds = 10000)
@@ -403,91 +428,79 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
         private Site AddNewSite(string siteName)
         {
+            var siteSet = _dbContext.Site ?? throw new InvalidOperationException("DbSet<Site> não configurado no contexto.");
             var site = new Site { Name = siteName };
-            _dbContext.Site.Add(site);
+            siteSet.Add(site);
             _dbContext.SaveChanges();
             Console.WriteLine($"Novo site adicionado: {siteName}");
             return site;
         }
 
-        private void ExtractGameInfo(IPage page)
+        private async Task ExtractGameInfo(IPage page)
         {
+            ArgumentNullException.ThrowIfNull(page);
+
             try
             {
-                // Aguarda um tempo aleatório para simular comportamento humano
-                System.Threading.Thread.Sleep(new Random().Next(842, 1471));
+                await Task.Delay(new Random().Next(842, 1471));
 
-                // Captura o elemento principal que contém as informações do jogo
-                var gameInfoElement = page.QuerySelectorAsync("div > div > a > div > section").GetAwaiter().GetResult();
-
+                var gameInfoElement = await page.QuerySelectorAsync("div > div > a > div > section");
                 if (gameInfoElement == null)
                 {
                     Console.WriteLine("Elemento principal de informações do jogo não encontrado.");
                     return;
                 }
 
-                // Tenta capturar o nome da liga na estrutura antiga
-                var leagueElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > div > div:nth-child(2) > span").GetAwaiter().GetResult();
+                var leagueElement = await gameInfoElement.QuerySelectorAsync("section > div > div > section > div > div:nth-child(2) > span");
 
                 if (leagueElement == null)
                 {
-                    // Se a estrutura antiga não for encontrada, tenta a nova estrutura
                     Console.WriteLine("Estrutura antiga não encontrada, tentando a nova estrutura...");
-                    leagueElement = gameInfoElement.QuerySelectorAsync("div > div:nth-child(2) > span").GetAwaiter().GetResult();
+                    leagueElement = await gameInfoElement.QuerySelectorAsync("div > div:nth-child(2) > span");
                 }
 
                 if (leagueElement != null)
                 {
-                    // Obtém o texto do elemento
-                    leagueName = leagueElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    leagueName = await leagueElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                     Console.WriteLine($"Liga: {leagueName}");
                 }
                 else
                 {
-                    // Caso nenhuma estrutura seja encontrada, lança uma exceção
                     throw new Exception("Não foi possível capturar o nome da liga em nenhuma das estruturas.");
                 }
 
+                var dateTimeElement = await gameInfoElement.QuerySelectorAsync("time");
+                string gameDateTimeText = string.Empty;
 
-                // Captura a data e hora do jogo verificando múltiplas estruturas
-                var dateTimeElement = gameInfoElement.QuerySelectorAsync("time").GetAwaiter().GetResult();
-                string gameDateTimeText = "";
-
-                // Tenta capturar pelo atributo datetime primeiro (mais confiável)
                 if (dateTimeElement != null)
                 {
-                    gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')").GetAwaiter().GetResult();
+                    gameDateTimeText = await dateTimeElement.EvaluateFunctionAsync<string>("el => el.getAttribute('datetime')");
                 }
 
-                // **2. Se o datetime não existir ou for nulo, tenta capturar o texto visível dentro do <time>**
                 if (string.IsNullOrEmpty(gameDateTimeText) && dateTimeElement != null)
                 {
-                    gameDateTimeText = dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    gameDateTimeText = await dateTimeElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                 }
 
-                // **3. Se ainda não encontrou, tenta capturar baseado na estrutura**
                 if (string.IsNullOrEmpty(gameDateTimeText))
                 {
-                    var alternativeDateElement = gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(2)").GetAwaiter().GetResult();
-
+                    var alternativeDateElement = await gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(2)");
                     if (alternativeDateElement != null)
                     {
-                        gameDateTimeText = alternativeDateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                        gameDateTimeText = await alternativeDateElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                     }
                 }
 
-                // **Verifica qual método de parsing utilizar**
                 if (!string.IsNullOrEmpty(gameDateTimeText))
                 {
-                    // **Se o formato for "Thu Jan 30 2025 21:30:00 GMT-0300 (Horário Padrão de Brasília)"**
-                    if (Regex.IsMatch(gameDateTimeText, @"\w{3} \w{3} \d{1,2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}"))
+                    if (FullDateRegex().IsMatch(gameDateTimeText))
                     {
-                        // Remove o fuso horário e a parte entre parênteses
-                        string cleanedDateTime = Regex.Replace(gameDateTimeText, @"GMT[+-]\d{4}.*", "").Trim();
+                        var cleanedDateTime = GmtSuffixRegex().Replace(gameDateTimeText, string.Empty).Trim();
 
                         if (DateTime.TryParseExact(cleanedDateTime, "ddd MMM dd yyyy HH:mm:ss",
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            System.Globalization.DateTimeStyles.AssumeLocal, out DateTime parsedDateTime))
+                                CultureInfo.InvariantCulture,
+                                DateTimeStyles.AssumeLocal,
+                                out var parsedDateTime))
                         {
                             gameDateTime = parsedDateTime;
                         }
@@ -496,8 +509,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                             throw new Exception($"Erro ao converter a data: {cleanedDateTime}");
                         }
                     }
-                    // **Se o formato for "Hoje, 21:30" ou "31 de jan.,14:00", utiliza o legado**
-                    else if (Regex.IsMatch(gameDateTimeText, @"(Hoje|Amanhã|\d{1,2} de \w{3,}),\s*\d{2}:\d{2}"))
+                    else if (LegacyDateRegex().IsMatch(gameDateTimeText))
                     {
                         gameDateTime = ParseGameDateTime(gameDateTimeText);
                     }
@@ -513,22 +525,17 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                     throw new Exception("Não foi possível capturar a data e hora do jogo em nenhuma das estruturas.");
                 }
 
-                // Tentativa de captura pela estrutura antiga
-                var homeTeamElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(2) > div:nth-child(1) > span > p").GetAwaiter().GetResult();
-                var awayTeamElement = gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(2) > div:nth-child(3) > span > p").GetAwaiter().GetResult();
+                var homeTeamElement = await gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(2) > div:nth-child(1) > span > p");
+                var awayTeamElement = await gameInfoElement.QuerySelectorAsync("section > div > div > section > section > div:nth-child(2) > div:nth-child(3) > span > p");
 
                 if (homeTeamElement == null || awayTeamElement == null)
                 {
-                    // Estrutura antiga não encontrada, tenta capturar pela nova estrutura
                     Console.WriteLine("Estrutura antiga para nomes dos times não encontrada, tentando a nova estrutura...");
-                    var teamsElement = gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(3)").GetAwaiter().GetResult();
+                    var teamsElement = await gameInfoElement.QuerySelectorAsync("section > div > section > div:nth-child(3)");
 
                     if (teamsElement != null)
                     {
-                        // Obtém o texto do elemento contendo os dois times
-                        var teamsText = teamsElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-
-                        // Divide os nomes dos times pelo separador " x "
+                        var teamsText = await teamsElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                         var teams = teamsText.Split(" x ");
                         if (teams.Length == 2)
                         {
@@ -543,9 +550,8 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 }
                 else
                 {
-                    // Captura os textos dos times a partir da estrutura antiga
-                    homeTeam = homeTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                    awayTeam = awayTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                    homeTeam = await homeTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
+                    awayTeam = await awayTeamElement.EvaluateFunctionAsync<string>("el => el.textContent.trim()");
                 }
 
                 if (!string.IsNullOrEmpty(homeTeam) && !string.IsNullOrEmpty(awayTeam))
@@ -554,17 +560,14 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 }
                 else
                 {
-                    // Lança uma exceção caso nenhum dos padrões funcione
                     throw new Exception("Não foi possível capturar os nomes dos times em nenhuma das estruturas.");
                 }
-
-
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Erro ao extrair informações do jogo: {ex.Message}");
                 _logService.LogError("Erro ao extrair informações do jogo: ", ex);
-                _webScrapingService.Dispose();
+                _webScrapingService?.Dispose();
                 throw;
             }
         }
@@ -607,7 +610,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 };
 
                 // Divide a string e extrai dia, mês e hora
-                var parts = dateTimeText.Split(new[] { ' ', ',', '.' }, StringSplitOptions.RemoveEmptyEntries);
+                var parts = dateTimeText.Split(DateSplitSeparators, StringSplitOptions.RemoveEmptyEntries);
 
                 if (parts.Length >= 3 && int.TryParse(parts[0], out var day) && monthMappings.TryGetValue(parts[2], out var month))
                 {
@@ -654,7 +657,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         // Captura as abas visíveis
                         var tabs = page.QuerySelectorAllAsync(marketCategoriesSelector).GetAwaiter().GetResult();
 
-                        if (tabs == null || !tabs.Any())
+                        if (tabs == null || tabs.Length == 0)
                         {
                             Console.WriteLine("Nenhuma aba encontrada.");
                             break;
@@ -764,7 +767,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                                 // Lista todos os tabpanels
                                 var allTabPanels = page.QuerySelectorAllAsync("div[role='tabpanel']").GetAwaiter().GetResult();
-                                if (allTabPanels == null || !allTabPanels.Any())
+                                if (allTabPanels == null || allTabPanels.Length == 0)
                                 {
                                     Console.WriteLine("Nenhum tabpanel encontrado.");
                                     return;
@@ -813,7 +816,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                                 // Lista de tags cadastradas que queremos buscar
                                 var tagNames = BetfairTags.TagNames;
 
-                                if (marketContainers != null && marketContainers.Any())
+                                if (marketContainers is { Length: > 0 })
                                 {
                                     foreach (var market in marketContainers)
                                     {
@@ -870,62 +873,63 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                                                         // Verifica se o botão de "Mostrar mais" está presente e clica
                                                         var buttons = market.QuerySelectorAllAsync("button").GetAwaiter().GetResult();
-                                                        if (buttons != null && buttons.Any())
+                                            if (buttons is { Length: > 0 })
+                                            {
+                                                foreach (var button in buttons)
+                                                {
+                                                    try
+                                                    {
+                                                        var buttonTextExpanded = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                                        if (buttonTextExpanded == "Mostrar mais")
                                                         {
-                                                            foreach (var button in buttons)
+                                                            Console.WriteLine("Botão 'Mostrar mais' encontrado. Tentando expandir...");
+                                                            bool isExpanded = false;
+
+                                                            // Tenta clicar no botão até 3 vezes
+                                                            for (int attempt = 1; attempt <= 3; attempt++)
                                                             {
-                                                                try
+                                                                button.FocusAsync().GetAwaiter().GetResult();
+                                                                System.Threading.Thread.Sleep(new Random().Next(311, 554));
+                                                                button.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
+                                                                System.Threading.Thread.Sleep(new Random().Next(322, 753));
+
+                                                                // Verifica se o texto mudou para "Mostrar menos"
+                                                                var newButtonText = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
+                                                                if (newButtonText == "Mostrar menos")
                                                                 {
-                                                                    var buttonTextExpanded = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                                                                    if (buttonTextExpanded == "Mostrar mais")
-                                                                    {
-                                                                        Console.WriteLine("Botão 'Mostrar mais' encontrado. Tentando expandir...");
-                                                                        bool isExpanded = false;
-
-                                                                        // Tenta clicar no botão até 3 vezes
-                                                                        for (int attempt = 1; attempt <= 3; attempt++)
-                                                                        {
-                                                                            button.FocusAsync().GetAwaiter().GetResult();
-                                                                            System.Threading.Thread.Sleep(new Random().Next(311, 554));
-                                                                            button.EvaluateFunctionAsync(@"el => el.click()").GetAwaiter().GetResult();
-                                                                            System.Threading.Thread.Sleep(new Random().Next(322, 753));
-
-                                                                            // Verifica se o texto mudou para "Mostrar menos"
-                                                                            var newButtonText = button.EvaluateFunctionAsync<string>("el => el.textContent.trim()").GetAwaiter().GetResult();
-                                                                            if (newButtonText == "Mostrar menos")
-                                                                            {
-                                                                                Console.WriteLine($"Botão 'Mostrar mais' expandido com sucesso na tentativa {attempt}.");
-                                                                                isExpanded = true;
-                                                                                break;
-                                                                            }
-                                                                            else
-                                                                            {
-                                                                                Console.WriteLine($"Tentativa {attempt}: Botão não expandiu. Tentando novamente...");
-                                                                            }
-                                                                        }
-
-                                                                        if (!isExpanded)
-                                                                        {
-                                                                            Console.WriteLine("Falha ao expandir o botão 'Mostrar mais' após 3 tentativas.");
-                                                                        }
-                                                                        break;
-                                                                    }
+                                                                    Console.WriteLine($"Botão 'Mostrar mais' expandido com sucesso na tentativa {attempt}.");
+                                                                    isExpanded = true;
+                                                                    break;
                                                                 }
-                                                                catch (Exception ex)
+                                                                else
                                                                 {
-                                                                    Console.WriteLine($"Erro ao verificar botão: {ex.Message}");
+                                                                    Console.WriteLine($"Tentativa {attempt}: Botão não expandiu. Tentando novamente...");
                                                                 }
                                                             }
-                                                        }
-                                                        else
-                                                        {
-                                                            Console.WriteLine("Nenhum botão encontrado no mercado.");
-                                                        }
 
-                                                        if(buttonText != "Casa" && buttonText != "Fora")
-                                                        {
-                                                            buttonText = "";
+                                                            if (!isExpanded)
+                                                            {
+                                                                Console.WriteLine("Falha ao expandir o botão 'Mostrar mais' após 3 tentativas.");
+                                                            }
+                                                            break;
                                                         }
+                                                    }
+                                                    catch (Exception ex)
+                                                    {
+                                                        Console.WriteLine($"Erro ao verificar botão: {ex.Message}");
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                Console.WriteLine("Nenhum botão encontrado no mercado.");
+                                            }
+
+                                            if (buttonText != "Casa" && buttonText != "Fora")
+                                            {
+                                                buttonText = string.Empty;
+                                            }
+
                                                         
 
 
@@ -1069,7 +1073,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
 
 
-                if (betRows == null || !betRows.Any())
+                if (betRows == null || betRows.Length == 0)
                 {
                     Console.WriteLine("Nenhuma linha de aposta encontrada.");
                     return;
@@ -1077,7 +1081,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
                 Console.WriteLine($"Linhas de apostas encontradas: {betRows.Length}");
 
-                List<BetInfo> currentBets = new List<BetInfo>();
+                var currentBets = new List<BetInfo>();
 
                 // Processa cada linha de apostas
                 foreach (var betRow in betRows)
@@ -1095,7 +1099,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                         }
 
                         // Extrai o valor numérico do nome da aposta (ex: "1.5 Cartões", "0,5 gols", "4,5 escanteios")
-                        var match = Regex.Match(betName, @"\d+[.,]?\d*");
+                        var match = BetNameNumberRegex().Match(betName);
                         if (!match.Success)
                         {
                             Console.WriteLine($"Formato de nome de aposta inesperado: {betName}");
@@ -1216,7 +1220,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 }
 
                 // Salva as apostas no banco de dados
-                if (currentBets.Any())
+                if (currentBets.Count > 0)
                 {
                     SaveBets(currentBets);
                 }
@@ -1229,7 +1233,7 @@ namespace BetSniffer.Api.Core.Sites.Betfair
 
         private void SaveBets(List<BetInfo> bets)
         {
-            if (bets == null || !bets.Any())
+            if (bets == null || bets.Count == 0)
                 return;
 
             // Cria um HashSet com combinações únicas dos critérios relevantes
@@ -1237,9 +1241,17 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 .Select(bet => new { bet.TagName, bet.OverUnder, bet.TagId, bet.Site, bet.GamesInfo })
                 .ToHashSet();
 
-            foreach(var betKey in betKeys) 
+            var betInfoSet = _dbContext.BetInfo ?? throw new InvalidOperationException("DbSet<BetInfo> não configurado no contexto.");
+
+            foreach (var betKey in betKeys)
             {
-                var existingBets = _dbContext.BetInfo.Where(b =>
+                if (betKey.GamesInfo == null || betKey.Site == null)
+                {
+                    Console.WriteLine("Chave de aposta inválida (GamesInfo ou Site nulo). Pulando deduplicação.");
+                    continue;
+                }
+
+                var existingBets = betInfoSet.Where(b =>
                                     b.GamesInfo.GameId == betKey.GamesInfo.GameId &&
                                     b.TagName == betKey.TagName &&
                                     b.OverUnder == betKey.OverUnder &&
@@ -1250,17 +1262,28 @@ namespace BetSniffer.Api.Core.Sites.Betfair
                 {
                     // **Deletar apostas duplicadas que já estão no banco**
                     Console.WriteLine($"Aposta existente encontrada. Removendo a aposta duplicada...");
-                    _dbContext.BetInfo.RemoveRange(existingBets);
+                    betInfoSet.RemoveRange(existingBets);
                     Console.WriteLine($"Removidas {existingBets.Count} apostas antigas.");
                 }
             }
 
             // Adiciona as novas apostas
-            _dbContext.BetInfo.AddRange(bets);
+            betInfoSet.AddRange(bets);
             _dbContext.SaveChanges();
 
             Console.WriteLine($"Salvas {bets.Count} novas apostas.");
         }
 
+        [GeneratedRegex(@"\w{3} \w{3} \d{1,2} \d{4} \d{2}:\d{2}:\d{2} GMT[+-]\d{4}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        private static partial Regex FullDateRegex();
+
+        [GeneratedRegex(@"GMT[+-]\d{4}.*", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        private static partial Regex GmtSuffixRegex();
+
+        [GeneratedRegex(@"(Hoje|Amanhã|\d{1,2} de \w{3,}),\s*\d{2}:\d{2}", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        private static partial Regex LegacyDateRegex();
+
+        [GeneratedRegex(@"\d+[.,]?\d*", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+        private static partial Regex BetNameNumberRegex();
     }
 }

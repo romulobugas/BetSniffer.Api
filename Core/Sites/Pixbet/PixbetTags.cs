@@ -1,4 +1,9 @@
 ﻿
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+
 namespace BetSniffer.Api.Core.Sites.Pixbet
 {
     public static class PixbetTags
@@ -19,15 +24,35 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
         };
 
         // Isolamento por contexto de thread
-        private static readonly ThreadLocal<Dictionary<int, List<string>>> ThreadTagNames =
-            new(() => BaseTagNames.ToDictionary(entry => entry.Key, entry => new List<string>(entry.Value)));
+        private static readonly ThreadLocal<Dictionary<int, List<string>>?> ThreadTagNames =
+            new(CloneBaseTagNames);
 
         // Propriedade para acessar as tags isoladas da thread
-        public static Dictionary<int, List<string>> TagNames => ThreadTagNames.Value;
+        public static Dictionary<int, List<string>> TagNames
+        {
+            get
+            {
+                var tags = ThreadTagNames.Value;
+
+                if (tags is null)
+                {
+                    tags = CloneBaseTagNames();
+                    ThreadTagNames.Value = tags;
+                }
+
+                return tags;
+            }
+        }
+
+        private static Dictionary<int, List<string>> CloneBaseTagNames() =>
+            BaseTagNames.ToDictionary(entry => entry.Key, entry => new List<string>(entry.Value));
 
         // Método para adicionar tags dinâmicas com nomes de times
         public static void AddDynamicTags(string homeTeam, string awayTeam)
         {
+            homeTeam ??= string.Empty;
+            awayTeam ??= string.Empty;
+
             // Lista de padrões de tags dinâmicas
             var dynamicTags = new Dictionary<int, List<string>>
             {
@@ -52,7 +77,7 @@ namespace BetSniffer.Api.Core.Sites.Pixbet
             };
 
             // Adicionar ao dicionário isolado de tags da thread
-            var threadTags = ThreadTagNames.Value;
+            var threadTags = TagNames;
 
             foreach (var tag in dynamicTags)
             {

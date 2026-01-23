@@ -2,8 +2,8 @@
 {
     public class TagData
     {
-        public string Text { get; set; }
-        public string ClassCode { get; set; }
-        public string NgContent { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public string ClassCode { get; set; } = string.Empty;
+        public string NgContent { get; set; } = string.Empty;
     }
 }
