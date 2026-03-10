@@ -5,12 +5,18 @@ VisualStudioVersion = 17.11.35431.28
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BetSniffer.Api", "BetSniffer.Api.csproj", "{FA3C3DDA-F6A0-47CD-8D18-B3A4581D497A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BetSniffer.Ia", "BetSniffer.Ia\BetSniffer.Ia.csproj", "{9130C689-A8DE-4A94-953C-EE95CB5D47F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9130C689-A8DE-4A94-953C-EE95CB5D47F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9130C689-A8DE-4A94-953C-EE95CB5D47F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9130C689-A8DE-4A94-953C-EE95CB5D47F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9130C689-A8DE-4A94-953C-EE95CB5D47F3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FA3C3DDA-F6A0-47CD-8D18-B3A4581D497A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FA3C3DDA-F6A0-47CD-8D18-B3A4581D497A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FA3C3DDA-F6A0-47CD-8D18-B3A4581D497A}.Release|Any CPU.ActiveCfg = Release|Any CPU

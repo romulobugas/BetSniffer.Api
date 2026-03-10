@@ -199,3 +199,16 @@ Delays randômicos evoluídos
 git clone https://github.com/SEU-USUARIO/BetSniffer.Api.git
 cd BetSniffer.Api
 dotnet run
+
+
+## 🤖 Novo projeto: BetSniffer.Ia (skeleton sem WebDriver)
+
+Foi adicionado um projeto `BetSniffer.Ia` com arquitetura de agente visual para navegação por input nativo (Windows), leitura de tela/página com VLM (Qwen2.5-VL 7B via LM Studio) e envio de mercados extraídos para a API.
+
+Ponto de entrada:
+
+```bash
+dotnet run --project BetSniffer.Ia/BetSniffer.Ia.csproj
+```
+
+Veja detalhes em `BetSniffer.Ia/README.md`.
