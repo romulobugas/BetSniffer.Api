@@ -90,16 +90,14 @@ StyleCopReport.xml
 *.tmp
 *.tmp_proj
 *_wpftmp.csproj
-*.log
-*.vspscc
-*.vssscc
-.builds
-*.pidb
-*.svclog
-*.scc
-
 # Chutzpah Test files
 _Chutzpah*
+
+# Build Outputs
+*_build_output.txt
+build_output.txt
+api_build_output.txt
+ia_build_output.txt
 
 # Visual C++ cache files
 ipch/
@@ -265,6 +263,7 @@ ServiceFabricBackup/
 *.mdf
 *.ldf
 *.ndf
+*.bak
 
 # Business Intelligence projects
 *.rdl.data

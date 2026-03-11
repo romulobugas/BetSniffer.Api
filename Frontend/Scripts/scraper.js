@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
     const linkContainer = document.getElementById("linkContainer");
     const addLinkButton = document.getElementById("addLink");
     const sendLinksButton = document.getElementById("sendLinks");
@@ -39,6 +39,7 @@
     // Evento para enviar os links
     sendLinksButton.addEventListener("click", () => {
         const linkInputs = document.querySelectorAll(".link-input");
+        const useIa = document.getElementById("useIa")?.checked || false;
         const links = Array.from(linkInputs)
             .map(input => input.value.trim())
             .filter(link => link !== ""); // Filtra links vazios
@@ -48,12 +49,32 @@
             return;
         }
 
-        // Montar os dados no formato esperado pela API
+        if (useIa) {
+            // Enviar para o novo fluxo de IA
+            const payload = links.map(link => ({ url: link }));
+            
+            fetch("/api/ia/enqueue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || "Links enviados para o Agente Visual.");
+            })
+            .catch(error => {
+                console.error("Erro ao enviar para IA:", error);
+                alert("Erro ao iniciar scraping visual.");
+            });
+            return;
+        }
+
+        // Fluxo tradicional
         const data = links.map(link => ({
             url: link,
-            gameDate: new Date().toISOString(), // Data e hora atual no formato ISO
-            homeTeam: 0, // Valor padrão para homeTeam
-            awayTeam: 0  // Valor padrão para awayTeam
+            gameDate: new Date().toISOString(),
+            homeTeam: 0,
+            awayTeam: 0
         }));
 
         fetch("/api/BatchScraping/scrape", {
@@ -61,7 +82,7 @@
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(data), // Envia os dados no formato JSON
+            body: JSON.stringify(data),
         })
             .then(response => {
                 if (!response.ok) {

@@ -1,4 +1,4 @@
-﻿/* Reset básico */
+/* Reset básico */
 * {
     margin: 0;
     padding: 0;
@@ -777,3 +777,96 @@ button[title] {
     .team-link:hover {
         text-decoration: underline; /* Adiciona o sublinhado ao hover */
     }
+/* Estilos para a Tabela de Monitoramento da IA */
+.monitor-table-container {
+    width: 100%;
+    margin-top: 15px;
+    border-radius: 8px;
+    background: #2a2a3c;
+    border: 1px solid #444;
+    overflow-x: auto;
+}
+
+.monitor-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #ddd;
+}
+
+.monitor-table th {
+    background-color: #3e3e5f;
+    color: #f0ad4e;
+    text-align: left;
+    padding: 12px 15px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #444;
+}
+
+.monitor-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #444;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.monitor-table tr:hover {
+    background-color: #3b3b5a;
+}
+
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 11px;
+    text-transform: uppercase;
+    display: inline-block;
+    min-width: 90px;
+    text-align: center;
+}
+
+.status-pendente { background-color: #ffa500; color: #121212; }
+.status-em-progresso { background-color: #2196f3; color: #fff; }
+.status-concluido { background-color: #28a745; color: #fff; }
+.status-erro { background-color: #dc3545; color: #fff; }
+
+.game-cell {
+    display: flex;
+    flex-direction: column;
+    max-width: 350px;
+}
+
+.game-teams-label { 
+    font-weight: bold; 
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.game-meta-label { 
+    font-size: 11px; 
+    color: #aaa;
+    font-style: italic;
+}
+
+.site-badge {
+    font-weight: bold;
+    color: #f0ad4e;
+    text-transform: capitalize;
+}
+
+.url-link {
+    color: #8888aa;
+    font-size: 12px;
+    text-decoration: none;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.url-link:hover {
+    color: #f0ad4e;
+    text-decoration: underline;
+}
