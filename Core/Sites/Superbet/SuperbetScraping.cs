@@ -1,4 +1,4 @@
-﻿using BetSniffer.Api.Models;
+using BetSniffer.Api.Models;
 using PuppeteerSharp;
 using System.Text.RegularExpressions;
 using BetSniffer.Api.Core.Services;
@@ -76,9 +76,22 @@ namespace BetSniffer.Api.Core.Sites.Superbet
 
             //string popupSelector = ".overlay.new-message.visible .popup span.close";
 
-            //_gameService.ClosePopup(page,popupSelector);
+            //_gameService.ClosePopup(page,popupSelector);            // Aguarda o contêiner principal de informações do jogo carregar
+            try 
+            {
+                page.WaitForSelectorAsync(".scoreboard-container", new WaitForSelectorOptions { Timeout = 15000 }).GetAwaiter().GetResult();
+            }
+            catch { Console.WriteLine("Aviso: .scoreboard-container não apareceu no tempo esperado."); }
 
             ExtractGameInfo(page);
+
+            // Validação crítica: Se não pegou os times, a raspagem não pode continuar corretamente
+            if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam))
+            {
+                Console.WriteLine("Abortando raspagem: Não foi possível extrair os times mandante/visitante.");
+                _logService.Log($"Abortando raspagem Superbet - Times não encontrados em: {url}");
+                return new List<TagInfo>();
+            }
 
             // Inicializa informações do jogo
             var homeTeamDb = _teamService.EnsureTeamExists(homeTeam);
@@ -136,6 +149,12 @@ namespace BetSniffer.Api.Core.Sites.Superbet
             _dbContext.SaveChanges();
             Console.WriteLine("Jogo salvo com sucesso.");
 
+            // Aguarda o contêiner de mercados carregar antes de tentar processar abas
+            try 
+            {
+                page.WaitForSelectorAsync("div.market-groups", new WaitForSelectorOptions { Timeout = 10000 }).GetAwaiter().GetResult();
+            }
+            catch { Console.WriteLine("Aviso: div.market-groups não encontrado."); }
 
             ProcessTabsAndMarketViews(page);
 

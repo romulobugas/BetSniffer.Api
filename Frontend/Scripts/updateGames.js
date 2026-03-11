@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
     const siteCheckboxList = document.getElementById("siteCheckboxList");
 
     // Carregar lista de sites
@@ -49,24 +49,52 @@
 
     // Enviar solicitação
     document.getElementById("sendRequest").addEventListener("click", () => {
-        const selectedSites = Array.from(siteCheckboxList.querySelectorAll(".site-button.selected"))
-            .map(btn => parseInt(btn.dataset.siteId));
+        const selectedSiteButtons = Array.from(siteCheckboxList.querySelectorAll(".site-button.selected"));
+        const selectedSiteIds = selectedSiteButtons.map(btn => parseInt(btn.dataset.siteId));
+        const selectedSiteNames = selectedSiteButtons.map(btn => btn.querySelector(".site-name").textContent);
+        
         const startDate = document.getElementById("startDate").value;
         const endDate = document.getElementById("endDate").value;
+        const useIa = document.getElementById("useIaUpdate")?.checked || false;
 
-        // Validação: deve selecionar pelo menos 1 casas
-        if (selectedSites.length < 0) {
-            alert("Você deve selecionar pelo menos 1 casas para iniciar a raspagem.");
+        // Validação: deve selecionar pelo menos 1 casa
+        if (selectedSiteIds.length === 0) {
+            alert("Você deve selecionar pelo menos 1 casa para iniciar a raspagem.");
             return;
         }
 
-        // Validação: deve selecionar pelo menos 2 datas
+        // Validação: deve selecionar as datas
         if (startDate == "" || endDate == "") {
             alert("Você deve escolher as datas para iniciar a raspagem.");
             return;
         }
 
-        fetch(`/api/BatchScraping/batch-update-same-games?startDate=${startDate}&endDate=${endDate}&siteIds=${selectedSites.join(",")}`, {
+        if (useIa) {
+            // Fluxo de IA para atualização em lote
+            const payload = {
+                siteNames: selectedSiteNames,
+                startDate: startDate,
+                endDate: endDate
+            };
+
+            fetch("/api/ia/batch-enqueue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message || "Solicitação de atualização via IA enviada com sucesso.");
+            })
+            .catch(err => {
+                console.error("Erro ao enviar solicitação de IA:", err);
+                alert("Erro ao iniciar atualização visual via IA.");
+            });
+            return;
+        }
+
+        // Fluxo tradicional
+        fetch(`/api/BatchScraping/batch-update-same-games?startDate=${startDate}&endDate=${endDate}&siteIds=${selectedSiteIds.join(",")}`, {
             method: "PUT",
         })
             .then(response => response.json())

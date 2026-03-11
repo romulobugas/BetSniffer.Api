@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using BetSniffer.Api.Models;
 
 namespace BetSniffer.Api.Data
@@ -11,6 +11,7 @@ namespace BetSniffer.Api.Data
         public DbSet<Team> Teams { get; set; }
         public DbSet<BetArbitrage> BetArbitrage { get; set; }
         public DbSet<ArbitrageResults> ArbitrageResults { get; set; } // Adicionada nova DbSet
+        public DbSet<IaActivity> IaActivities { get; set; }
 
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
@@ -30,7 +31,8 @@ namespace BetSniffer.Api.Data
                 entity.Property(g => g.URL).HasMaxLength(500).IsRequired(false);
                 entity.Property(g => g.Status).HasDefaultValue(0);
                 entity.Property(g => g.LastUpdated).HasColumnType("datetime2").IsRequired(false);
-                entity.Property(g => g.GameName).HasMaxLength(255).IsRequired(false); // Configuração do GameName
+                entity.Property(g => g.GameName).HasMaxLength(255).IsRequired(false);
+                entity.Property(g => g.League).HasMaxLength(100).IsRequired(false);
 
                 // Relacionamento com Site
                 entity.HasOne(g => g.Site)
@@ -63,6 +65,7 @@ namespace BetSniffer.Api.Data
                 entity.Property(b => b.Multiplier).HasColumnType("decimal(10, 2)");
                 entity.Property(b => b.CaptureDate).HasColumnType("datetime");
                 entity.Property(b => b.GameDate).HasColumnType("datetime");
+                entity.Property(b => b.TagId).IsRequired(false);
 
                 // Relacionamento com GamesInfo
                 entity.HasOne(b => b.GamesInfo)

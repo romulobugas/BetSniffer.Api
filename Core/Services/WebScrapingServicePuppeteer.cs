@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using PuppeteerSharp;
 using System.Linq;
@@ -33,11 +33,11 @@ namespace BetSniffer.Api.Core.Services
                     "--disable-blink-features=AutomationControlled",
                     "--disable-extensions",
                     "--ignore-certificate-errors",
-                    "--start-maximized", // Abre o navegador em tela cheia
-                    "--disable-infobars", // Remove a barra de informações do navegador
+                    "--window-size=1920,1080",
+                    "--start-maximized", 
+                    "--disable-infobars", 
                     "--enable-accelerated-2d-canvas",
-                    "--use-gl=desktop",
-                    "--force-device-scale-factor=0.7" // Define o zoom global do navegador para 70%
+                    "--use-gl=desktop"
                 }
             }).GetAwaiter().GetResult();
 

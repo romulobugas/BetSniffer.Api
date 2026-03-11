@@ -1,0 +1,29 @@
+  Determinando os projetos a serem restaurados...
+  Todos os projetos est├úo atualizados para restaura├º├úo.
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs(4,12): error CS0579: Duplicar atributo "global::System.Runtime.Versioning.TargetFrameworkAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(13,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyCompanyAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(14,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyConfigurationAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(15,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyFileVersionAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(16,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyInformationalVersionAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(17,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyProductAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(18,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyTitleAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(19,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyVersionAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\Core\Sites\Betnacional\BetnacionalScraping.cs(462,116): warning CS8625: N├úo ├® poss├¡vel converter um literal nulo em um tipo de refer├¬ncia n├úo anul├ível. [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\Core\Sites\KTO\KTOScraping.cs(745,116): warning CS8625: N├úo ├® poss├¡vel converter um literal nulo em um tipo de refer├¬ncia n├úo anul├ível. [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+
+FALHA da compila├º├úo.
+
+F:\repository\BetSniffer.Api\Core\Sites\Betnacional\BetnacionalScraping.cs(462,116): warning CS8625: N├úo ├® poss├¡vel converter um literal nulo em um tipo de refer├¬ncia n├úo anul├ível. [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\Core\Sites\KTO\KTOScraping.cs(745,116): warning CS8625: N├úo ├® poss├¡vel converter um literal nulo em um tipo de refer├¬ncia n├úo anul├ível. [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\.NETCoreApp,Version=v8.0.AssemblyAttributes.cs(4,12): error CS0579: Duplicar atributo "global::System.Runtime.Versioning.TargetFrameworkAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(13,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyCompanyAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(14,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyConfigurationAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(15,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyFileVersionAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(16,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyInformationalVersionAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(17,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyProductAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(18,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyTitleAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+F:\repository\BetSniffer.Api\obj\Debug\net8.0\BetSniffer.Api.AssemblyInfo.cs(19,12): error CS0579: Duplicar atributo "System.Reflection.AssemblyVersionAttribute" [F:\repository\BetSniffer.Api\BetSniffer.Api.csproj]
+    2 Aviso(s)
+    8 Erro(s)
+
+Tempo Decorrido 00:00:01.79
